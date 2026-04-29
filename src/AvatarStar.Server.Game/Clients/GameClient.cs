@@ -102,6 +102,7 @@ internal partial class GameClient : Client
 
     private long _activeRoleId;
     private string _activeRoleExtra = string.Empty;
+    private bool _lobbyRoomListReady;
 
     private readonly record struct LobbyLevelInfo(
         long Id,
@@ -120,11 +121,11 @@ internal partial class GameClient : Client
     private static readonly LobbyLevelInfo[] DefaultLobbyLevels =
     [
         new(
-            Id: 1001,
-            Name: "level_001",
+            Id: 1,
+            Name: "LEVEL1",
             GameType: 4, // kTeamDead
-            ShowName: "UI_common_Random_Map",
-            Description: "UI_common_Random_Map",
+            ShowName: "id_datalist_Belfry_Square_level1",
+            Description: "id_datalist_Belfry_Square_level1",
             Difficulty: 0,
             Group: 0),
     ];
@@ -284,11 +285,12 @@ internal partial class GameClient : Client
     {
         _activeRoleId = 0;
         _activeRoleExtra = string.Empty;
+        _lobbyRoomListReady = false;
     }
 
-    private Task SendPacket26ForCurrentContext()
+    private Task SendPacket51ForCurrentContext()
     {
-        return SendPacket26LobbySync();
+        return SendPacket51LobbyRoomListChanged();
     }
 
     private static int GetIntArg(IReadOnlyDictionary<string, string> args, string key, int defaultValue = 0)
@@ -316,9 +318,9 @@ internal partial class GameClient : Client
     }
 
     // Lobby dispatch mapping (IDA sub_91A200 -> byte_91AC98, state=5):
-    //   26 -> sub_915CD0 (lobby sync header + optional player slots)
     //   30 -> sub_9155B0 (LevelInfo list used by GetLevelCount/GetLevelInfo)
     //   32 -> sub_9124E0 (reads int32 resultCode)
+    //   51 -> sub_9195E0 (StateLobby RoomInfo list: roomUid + descriptor + int32 0 terminator)
     //
     // Connected/room states (byte_91AAA8, state=6/7) use a different packet family.
     // Client sub_910D10: receiving packet id=2 (no payload) forces stream state back to 4
@@ -330,24 +332,24 @@ internal partial class GameClient : Client
         await SendAsync(writer);
     }
 
-    // sub_915CD0 payload shape:
-    // [byte a1][byte slotCount][byte a3][byte a4][byte a5]
-    // We now always advertise an empty slot list.
-    private async Task SendPacket26LobbySync(
-        byte a1 = 0,
-        byte a3 = 0,
-        byte a4 = 0,
-        byte a5 = 0)
+    // sub_9195E0 payload shape:
+    // repeated until int32 roomUid == 0:
+    //   int32 roomUid
+    //   full RoomInfo fields in sub_5B91D0 order
+    private async Task SendPacket51LobbyRoomListChanged()
     {
+        var rooms = _practiceRoomManager.ListLobbyRooms();
         using var writer = new PacketWriter();
-        writer.WriteByte(26);
-        writer.WriteByte(a1);
-        writer.WriteByte(0);
-        writer.WriteByte(a3);
-        writer.WriteByte(a4);
-        writer.WriteByte(a5);
+        AvatarStarClientProtocol.WriteLobbyRoomListChanged(writer, rooms);
 
         await SendAsync(writer);
+
+        Log.Information(
+            "PacketId=51 lobby room-info list sent: remote={Remote} count={Count} rooms={Rooms}",
+            RemoteEndPoint,
+            rooms.Count,
+            string.Join("; ", rooms.Select(room =>
+                $"{room.RoomUid}:state={room.RoomState},levelId={room.LevelId},gameType={room.GameType},players={room.CurrentClientNum}/{room.MaxClientNum},matching={room.Matching},canBeWatched={room.CanBeWatched},enterLimit={room.EnterLimit}")));
     }
 
     // sub_9155B0 payload shape:
@@ -388,10 +390,17 @@ internal partial class GameClient : Client
     private async Task SendPacket36RoomListRefreshResult(byte result = 0)
     {
         using var writer = new PacketWriter();
-        writer.WriteByte(36);
+        writer.WriteByte(AvatarStarClientProtocol.LobbyRoomListRefreshResult);
         writer.WriteByte(result);
         writer.WriteString(string.Empty);
         await SendAsync(writer);
+    }
+
+    public override Task SendRoomListChangedNotificationAsync()
+    {
+        return _state == ProtocolState.Connected && _lobbyRoomListReady
+            ? SendPacket51ForCurrentContext()
+            : Task.CompletedTask;
     }
 
     public GameClient(
@@ -637,9 +646,9 @@ internal partial class GameClient : Client
 
                 if (!hasArg || arg == 0)
                 {
-                    await SendPacket26ForCurrentContext();
                     await SendPacket30LobbyLevelList();
-                    Log.Information("PacketId=15 arg=0 response sent: 26LobbySync + 30LobbyLevelList");
+                    _lobbyRoomListReady = true;
+                    Log.Information("PacketId=15 arg=0 response sent: 30LobbyLevelList");
                 }
 
                 break;
@@ -660,9 +669,10 @@ internal partial class GameClient : Client
                     break;
                 }
 
-                Log.Information("EnterLobby: roleId={RoleId} extraLen={ExtraLen}", roleId, extra.Length);
+                Log.Information("EnterLobby: remote={Remote} roleId={RoleId} extraLen={ExtraLen}", RemoteEndPoint, roleId, extra.Length);
                 _activeRoleId = roleId;
                 _activeRoleExtra = extra;
+                _lobbyRoomListReady = false;
 
                 using var writer = new PacketWriter();
                 writer.WriteByte(1);          // packetId
@@ -700,8 +710,17 @@ internal partial class GameClient : Client
             }
             case 36:
             {
-                await SendPacket36RoomListRefreshResult();
-                Log.Information("PacketId=36 room-list refresh response sent: result=0");
+                const byte result = 0;
+                if (!_lobbyRoomListReady)
+                {
+                    await SendPacket30LobbyLevelList();
+                    _lobbyRoomListReady = true;
+                    Log.Information("PacketId=36 preloaded 30LobbyLevelList before room-list refresh");
+                }
+
+                await SendPacket36RoomListRefreshResult(result);
+                await SendPacket51ForCurrentContext();
+                Log.Information("PacketId=36 room-list refresh response sent: result={Result}", result);
                 break;
             }
             // Client writer @ 0x910270: byte 40, int32 payload length, raw bytes.

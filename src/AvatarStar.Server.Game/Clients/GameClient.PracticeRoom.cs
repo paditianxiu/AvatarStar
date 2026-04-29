@@ -18,7 +18,9 @@ internal partial class GameClient
             HostCharacterId: host.Id,
             HostName: host.Name,
             RoomName: createRoom.RoomName,
-            MapName: ResolveLobbyMapName(createRoom.LevelId),
+            MapName: string.IsNullOrWhiteSpace(createRoom.MapName)
+                ? ResolveLobbyMapName(createRoom.LevelId)
+                : createRoom.MapName,
             UsePassword: createRoom.UsePassword,
             Password: createRoom.Password,
             LevelId: createRoom.LevelId,
@@ -28,6 +30,8 @@ internal partial class GameClient
             JoinHalfWay: createRoom.JoinHalfWay,
             CheckBalance: createRoom.CheckBalance,
             CanBeWatched: createRoom.CanBeWatched,
+            Matching: createRoom.Matching,
+            EnterLimit: createRoom.EnterLimit,
             HostLevel: host.Level,
             HostOccupation: host.Occupation,
             HostRankType: 0,
@@ -35,17 +39,23 @@ internal partial class GameClient
             HostVipLevel: 0));
 
         Log.Information(
-            "Practice room created: roomUid={RoomUid} roomId={RoomId} channelToken={ChannelToken} roomName={RoomName} host={HostName} levelId={LevelId} gameType={GameType} maxClientNum={MaxClientNum}",
+            "Practice room created: remote={Remote} roomUid={RoomUid} roomId={RoomId} channelToken={ChannelToken} roomName={RoomName} host={HostName} hostCharacterId={HostCharacterId} levelId={LevelId} gameType={GameType} maxClientNum={MaxClientNum} currentClientNum={CurrentClientNum} matching={Matching} enterLimit={EnterLimit}",
+            RemoteEndPoint,
             room.RoomUid,
             room.RoomId,
             room.ChannelToken,
             room.RoomName,
             room.HostName,
+            room.HostCharacterId,
             room.LevelId,
             room.GameType,
-            room.MaxClientNum);
+            room.MaxClientNum,
+            room.CurrentClientNum,
+            room.Matching,
+            room.EnterLimit);
 
         await SendPacket54RoomCreatedAsync(room, resultCode: 0);
+        BroadcastRoomListChanged(includeSelf: false);
     }
 
     private async Task HandlePacket3RequestChannelAsync(PacketReader reader)
@@ -64,15 +74,30 @@ internal partial class GameClient
             return;
         }
 
+        var character = GetActivePlayerStateOrDefault().Character;
+        _practiceRoomManager.RegisterPendingChannelJoin(
+            channelToken,
+            RemoteEndPoint.Address,
+            new PracticeRoomManager.PracticeRoomEnterRequest(
+                CharacterId: character.Id,
+                CharacterName: character.Name,
+                Level: character.Level,
+                Occupation: character.Occupation,
+                RankType: 0,
+                RankLevel: 0,
+                VipLevel: 0));
+
         var host = _practiceRoomManager.ResolveChannelHost(LocalEndPoint.Address);
         await SendPacket3ChannelConnectResultAsync(resultCode: 0, host, _practiceRoomManager.ChannelPort);
 
         Log.Information(
-            "Channel info sent: roomUid={RoomUid} token={ChannelToken} host={Host} port={Port}",
+            "Channel info sent: remote={Remote} roomUid={RoomUid} token={ChannelToken} host={Host} port={Port} characterId={CharacterId}",
+            RemoteEndPoint,
             room.RoomUid,
             channelToken,
             host,
-            _practiceRoomManager.ChannelPort);
+            _practiceRoomManager.ChannelPort,
+            character.Id);
     }
 
     private async Task SendPacket54RoomCreatedAsync(PracticeRoomManager.PracticeRoomSession? room, int resultCode)

@@ -23,10 +23,15 @@ public class ClientHandler
     /// <summary>
     /// 向所有游戏客户端广播房间列表已更改的通知
     /// </summary>
-    public void BroadcastRoomListChanged()
+    public void BroadcastRoomListChanged(Client? except = null)
     {
         foreach (var client in _clients)
         {
+            if (ReferenceEquals(client, except))
+            {
+                continue;
+            }
+
             _ = client.SendRoomListChangedNotificationAsync();
         }
     }

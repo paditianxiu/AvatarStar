@@ -7,6 +7,7 @@ namespace AvatarStar.Server.Game;
 internal sealed class PracticeRoomManager
 {
     private const byte DefaultHostSlotIndex = 1;
+    private const byte MaxRoomSlotIndex = 24;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
 
     private static readonly Lazy<IReadOnlyList<BattleLevelChoice>> RandomBattleLevelChoices = new(LoadRandomBattleLevelChoices);
@@ -29,13 +30,16 @@ internal sealed class PracticeRoomManager
     private readonly Dictionary<int, PracticeRoomSession> _roomsById = new();
     private readonly Dictionary<int, int> _roomIdByChannelToken = new();
     private readonly Dictionary<long, int> _roomIdByHostCharacterId = new();
+    private readonly Dictionary<int, HashSet<PracticeRoomChannelProtocol>> _roomChannelsByRoomId = new();
     private readonly Dictionary<int, Dictionary<PracticeRoomChannelProtocol, byte>> _gameChannelsByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GamePlayerRuntime>> _gamePlayersByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GameMovementDelta>> _gameMovementByRoomId = new();
+    private readonly Dictionary<PendingChannelJoinKey, Queue<PendingChannelJoin>> _pendingChannelJoins = new();
 
     private int _nextRoomId = 1;
     private int _nextChannelToken = 1;
     private int _nextContextId = 1;
+    private int _nextTransientCharacterId = 1_000_000;
     private readonly string? _configuredChannelHost;
 
     public PracticeRoomManager()
@@ -91,6 +95,8 @@ internal sealed class PracticeRoomManager
                 joinHalfWay: request.JoinHalfWay,
                 checkBalance: request.CheckBalance,
                 canBeWatched: request.CanBeWatched,
+                matching: request.Matching,
+                enterLimit: request.EnterLimit,
                 hostLevel: request.HostLevel,
                 hostOccupation: request.HostOccupation,
                 hostRankType: request.HostRankType,
@@ -100,7 +106,42 @@ internal sealed class PracticeRoomManager
             _roomsById[roomId] = room;
             _roomIdByChannelToken[channelToken] = roomId;
             _roomIdByHostCharacterId[request.HostCharacterId] = roomId;
+            room.RefreshCurrentClientNum();
             return room;
+        }
+    }
+
+    public IReadOnlyList<PracticeRoomLobbyEntry> ListLobbyRooms(int maxCount = AvatarStarClientProtocol.LobbyRoomListMaxCount)
+    {
+        lock (_lock)
+        {
+            return _roomsById.Values
+                .Where(room => room.RoomState == 1 || room.JoinHalfWay)
+                .OrderBy(room => room.RoomId)
+                .Take(Math.Max(0, maxCount))
+                .Select(room =>
+                {
+                    room.RefreshCurrentClientNum();
+                    return new PracticeRoomLobbyEntry(
+                        RoomUid: room.RoomUid,
+                        RoomState: room.RoomState,
+                        RoomName: room.RoomName,
+                        MapName: room.MapName,
+                        HostName: room.HostName,
+                        UsePassword: room.UsePassword,
+                        Password: room.Password,
+                        LevelId: room.LevelId,
+                        HostCharacterId: room.HostCharacterId,
+                        GameType: room.GameType,
+                        MaxClientNum: room.MaxClientNum,
+                        CurrentClientNum: room.CurrentClientNum,
+                        JoinHalfWay: room.JoinHalfWay,
+                        CheckBalance: room.CheckBalance,
+                        Matching: room.Matching,
+                        CanBeWatched: room.CanBeWatched,
+                        EnterLimit: room.EnterLimit);
+                })
+                .ToArray();
         }
     }
 
@@ -134,7 +175,119 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    public bool TryEnterRoom(int roomId, string password, out PracticeRoomSession room, out int resultCode)
+    public void RegisterPendingChannelJoin(
+        int channelToken,
+        IPAddress remoteAddress,
+        PracticeRoomEnterRequest request)
+    {
+        lock (_lock)
+        {
+            RemoveExpiredPendingChannelJoinsNoLock(DateTimeOffset.UtcNow);
+
+            if (!_roomIdByChannelToken.TryGetValue(channelToken, out var roomId))
+            {
+                return;
+            }
+
+            var key = new PendingChannelJoinKey(channelToken, NormalizeAddress(remoteAddress));
+            if (!_pendingChannelJoins.TryGetValue(key, out var queue))
+            {
+                queue = new Queue<PendingChannelJoin>();
+                _pendingChannelJoins[key] = queue;
+            }
+
+            queue.Enqueue(new PendingChannelJoin(
+                roomId,
+                request,
+                DateTimeOffset.UtcNow.AddSeconds(30)));
+        }
+    }
+
+    public bool TryConsumePendingChannelJoin(
+        int channelToken,
+        IPAddress remoteAddress,
+        int roomId,
+        out PracticeRoomEnterRequest request)
+    {
+        lock (_lock)
+        {
+            RemoveExpiredPendingChannelJoinsNoLock(DateTimeOffset.UtcNow);
+
+            var key = new PendingChannelJoinKey(channelToken, NormalizeAddress(remoteAddress));
+            if (_pendingChannelJoins.TryGetValue(key, out var queue))
+            {
+                while (queue.Count > 0)
+                {
+                    var pending = queue.Dequeue();
+                    if (queue.Count == 0)
+                    {
+                        _pendingChannelJoins.Remove(key);
+                    }
+
+                    if (pending.RoomId == roomId)
+                    {
+                        request = pending.Request;
+                        return true;
+                    }
+                }
+            }
+
+            request = default;
+            return false;
+        }
+    }
+
+    public bool TryGetByRoomId(int roomId, out PracticeRoomSession room)
+    {
+        lock (_lock)
+        {
+            return _roomsById.TryGetValue(roomId, out room!);
+        }
+    }
+
+    public bool TryLeaveRoom(
+        int roomId,
+        long characterId,
+        out PracticeRoomSession? room,
+        out bool roomRemoved)
+    {
+        lock (_lock)
+        {
+            roomRemoved = false;
+            if (!_roomsById.TryGetValue(roomId, out var currentRoom))
+            {
+                room = null;
+                return false;
+            }
+
+            room = currentRoom;
+            if (characterId == 0 || characterId == currentRoom.HostCharacterId)
+            {
+                RemoveRoomNoLock(roomId);
+                roomRemoved = true;
+                return true;
+            }
+
+            currentRoom.RemoveMember(characterId);
+            currentRoom.RefreshCurrentClientNum();
+            return true;
+        }
+    }
+
+    public int AllocateTransientCharacterId()
+    {
+        lock (_lock)
+        {
+            return _nextTransientCharacterId++;
+        }
+    }
+
+    public bool TryEnterRoom(
+        int roomId,
+        string password,
+        PracticeRoomEnterRequest request,
+        out PracticeRoomSession room,
+        out int resultCode)
     {
         lock (_lock)
         {
@@ -151,6 +304,12 @@ internal sealed class PracticeRoomManager
             }
 
             room.EnsureHostMember(DefaultHostSlotIndex);
+            if (!room.TryUpsertMember(request, out _))
+            {
+                resultCode = 3;
+                return false;
+            }
+
             if (room.ContextId == 0)
             {
                 room.ContextId = _nextContextId++;
@@ -334,6 +493,7 @@ internal sealed class PracticeRoomManager
                 _gameChannelsByRoomId[roomId] = channels;
             }
 
+            var room = _roomsById[roomId];
             if (channels.TryGetValue(channel, out var existingUid))
             {
                 UpsertGamePlayerNoLock(roomId, existingUid, characterId, characterName);
@@ -341,6 +501,14 @@ internal sealed class PracticeRoomManager
             }
 
             var used = channels.Values.ToHashSet();
+            var preferredUid = ResolvePreferredGameUidNoLock(room, characterId);
+            if (preferredUid != 0 && !used.Contains(preferredUid))
+            {
+                channels[channel] = preferredUid;
+                UpsertGamePlayerNoLock(roomId, preferredUid, characterId, characterName);
+                return preferredUid;
+            }
+
             for (var uid = 1; uid <= byte.MaxValue; uid++)
             {
                 var candidate = (byte)uid;
@@ -356,6 +524,147 @@ internal sealed class PracticeRoomManager
 
             return 1;
         }
+    }
+
+    public IReadOnlyList<GamePlayerSnapshot> ListGamePlayers(int roomId)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out var room))
+            {
+                return [];
+            }
+
+            _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid);
+            var playersByCharacterId = playersByUid?.Values
+                .Where(player => player.CharacterId != 0)
+                .GroupBy(player => player.CharacterId)
+                .ToDictionary(group => group.Key, group => group.First());
+
+            var usedUids = new HashSet<byte>();
+            var snapshots = new List<GamePlayerSnapshot>();
+            foreach (var member in OrderedGameMembers(room))
+            {
+                if (member.CharacterId == 0)
+                {
+                    continue;
+                }
+
+                GamePlayerRuntime? runtime = null;
+                playersByCharacterId?.TryGetValue(member.CharacterId, out runtime);
+
+                var uid = runtime?.Uid ?? ResolvePreferredGameUidNoLock(room, member.CharacterId);
+                if (uid == 0 || usedUids.Contains(uid))
+                {
+                    uid = AllocateFirstFreeGameUid(usedUids);
+                }
+
+                usedUids.Add(uid);
+                snapshots.Add(new GamePlayerSnapshot(
+                    uid,
+                    member.CharacterId,
+                    string.IsNullOrWhiteSpace(runtime?.CharacterName) ? member.CharacterName : runtime!.CharacterName,
+                    runtime?.LastPosition));
+            }
+
+            return snapshots;
+        }
+    }
+
+    public bool HasRoomChannel(int roomId)
+    {
+        lock (_lock)
+        {
+            return _roomChannelsByRoomId.TryGetValue(roomId, out var channels) && channels.Count > 0;
+        }
+    }
+
+    public void RegisterRoomChannel(int roomId, PracticeRoomChannelProtocol channel)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.ContainsKey(roomId))
+            {
+                return;
+            }
+
+            if (!_roomChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                channels = [];
+                _roomChannelsByRoomId[roomId] = channels;
+            }
+
+            channels.Add(channel);
+        }
+    }
+
+    public void UnregisterRoomChannel(int roomId, PracticeRoomChannelProtocol channel)
+    {
+        lock (_lock)
+        {
+            if (!_roomChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return;
+            }
+
+            channels.Remove(channel);
+            if (channels.Count == 0)
+            {
+                _roomChannelsByRoomId.Remove(roomId);
+            }
+        }
+    }
+
+    public async Task<int> BroadcastRoomSnapshotAsync(int roomId)
+    {
+        var targets = GetRoomChannelTargets(roomId, out var room);
+        if (room is null)
+        {
+            return 0;
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendRoomSnapshotAsync(room);
+                sent++;
+            }
+            catch
+            {
+                UnregisterRoomChannel(roomId, target);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameStartAsync(int roomId, PracticeRoomChannelProtocol except)
+    {
+        var targets = GetRoomChannelTargets(roomId, out var room)
+            .Where(target => !ReferenceEquals(target, except))
+            .ToArray();
+        if (room is null)
+        {
+            return 0;
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendRemoteGameStartAsync(room);
+                sent++;
+            }
+            catch
+            {
+                UnregisterRoomChannel(roomId, target);
+            }
+        }
+
+        return sent;
     }
 
     public void UnregisterGameChannel(int roomId, PracticeRoomChannelProtocol channel)
@@ -562,6 +871,43 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
+    public async Task<int> BroadcastGamePlayerEnteredAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte teamId)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket107GamePlayerEnterAsync(actorUid, teamId, "remote-player-enter");
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target);
+            }
+        }
+
+        return sent;
+    }
+
     public async Task<int> BroadcastGameReloadAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
@@ -719,8 +1065,32 @@ internal sealed class PracticeRoomManager
         _roomIdByChannelToken.Remove(room.ChannelToken);
         _roomIdByHostCharacterId.Remove(room.HostCharacterId);
         _gameChannelsByRoomId.Remove(roomId);
+        _roomChannelsByRoomId.Remove(roomId);
         _gamePlayersByRoomId.Remove(roomId);
         _gameMovementByRoomId.Remove(roomId);
+        foreach (var key in _pendingChannelJoins.Keys
+                     .Where(key => key.ChannelToken == room.ChannelToken)
+                     .ToArray())
+        {
+            _pendingChannelJoins.Remove(key);
+        }
+    }
+
+    private PracticeRoomChannelProtocol[] GetRoomChannelTargets(
+        int roomId,
+        out PracticeRoomSession? room)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out room))
+            {
+                return [];
+            }
+
+            return _roomChannelsByRoomId.TryGetValue(roomId, out var channels)
+                ? channels.ToArray()
+                : [];
+        }
     }
 
     private void UpsertGamePlayerNoLock(int roomId, byte uid, long characterId, string characterName)
@@ -743,6 +1113,49 @@ internal sealed class PracticeRoomManager
         }
 
         playersByUid[uid] = new GamePlayerRuntime(uid, characterId, normalizedName);
+    }
+
+    private static IEnumerable<PracticeRoomMember> OrderedGameMembers(PracticeRoomSession room)
+    {
+        return room.Members
+            .Where(member => member.CharacterId != 0)
+            .OrderBy(member => member.Host ? 0 : 1)
+            .ThenBy(member => member.SlotIndex)
+            .ThenBy(member => member.CharacterId);
+    }
+
+    private static byte ResolvePreferredGameUidNoLock(PracticeRoomSession room, long characterId)
+    {
+        if (characterId == 0)
+        {
+            return 0;
+        }
+
+        var index = 0;
+        foreach (var member in OrderedGameMembers(room))
+        {
+            index++;
+            if (member.CharacterId == characterId && index <= byte.MaxValue)
+            {
+                return (byte)index;
+            }
+        }
+
+        return 0;
+    }
+
+    private static byte AllocateFirstFreeGameUid(HashSet<byte> usedUids)
+    {
+        for (var uid = 1; uid <= byte.MaxValue; uid++)
+        {
+            var candidate = (byte)uid;
+            if (!usedUids.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return 1;
     }
 
     private bool TryResolveRoomIdByCharacterNoLock(long characterId, out int roomId)
@@ -831,6 +1244,30 @@ internal sealed class PracticeRoomManager
         return long.TryParse(digits, out levelId);
     }
 
+    private void RemoveExpiredPendingChannelJoinsNoLock(DateTimeOffset now)
+    {
+        foreach (var key in _pendingChannelJoins.Keys.ToArray())
+        {
+            var queue = _pendingChannelJoins[key];
+            while (queue.Count > 0 && queue.Peek().ExpiresAt <= now)
+            {
+                queue.Dequeue();
+            }
+
+            if (queue.Count == 0)
+            {
+                _pendingChannelJoins.Remove(key);
+            }
+        }
+    }
+
+    private static string NormalizeAddress(IPAddress address)
+    {
+        return address.IsIPv4MappedToIPv6
+            ? address.MapToIPv4().ToString()
+            : address.ToString();
+    }
+
     private static int ParsePositiveInt(string name, int fallback)
     {
         return int.TryParse(Environment.GetEnvironmentVariable(name), out var value) && value > 0
@@ -840,12 +1277,53 @@ internal sealed class PracticeRoomManager
 
     private readonly record struct BattleLevelChoice(long LevelId, string MapName);
 
+    internal readonly record struct PracticeRoomLobbyEntry(
+        int RoomUid,
+        byte RoomState,
+        string RoomName,
+        string MapName,
+        string HostName,
+        bool UsePassword,
+        string Password,
+        long LevelId,
+        long HostCharacterId,
+        byte GameType,
+        byte MaxClientNum,
+        byte CurrentClientNum,
+        bool JoinHalfWay,
+        bool CheckBalance,
+        bool Matching,
+        byte CanBeWatched,
+        byte EnterLimit);
+
+    private readonly record struct PendingChannelJoinKey(int ChannelToken, string RemoteAddress);
+
+    private readonly record struct PendingChannelJoin(
+        int RoomId,
+        PracticeRoomEnterRequest Request,
+        DateTimeOffset ExpiresAt);
+
+    internal readonly record struct PracticeRoomEnterRequest(
+        long CharacterId,
+        string CharacterName,
+        int Level,
+        int Occupation,
+        byte RankType,
+        int RankLevel,
+        byte VipLevel);
+
     internal sealed record GameMovementDelta(
         byte Uid,
         byte Tick,
         byte Flags,
         byte[] OptionalPayload,
         DateTimeOffset LastSeenAt);
+
+    internal readonly record struct GamePlayerSnapshot(
+        byte Uid,
+        long CharacterId,
+        string CharacterName,
+        GamePosition? LastPosition);
 
     internal readonly record struct GamePosition(
         short XRaw,
@@ -911,6 +1389,8 @@ internal sealed class PracticeRoomManager
             bool joinHalfWay,
             bool checkBalance,
             byte canBeWatched,
+            bool matching,
+            byte enterLimit,
             int hostLevel,
             int hostOccupation,
             byte hostRankType,
@@ -933,6 +1413,8 @@ internal sealed class PracticeRoomManager
             JoinHalfWay = joinHalfWay;
             CheckBalance = checkBalance;
             CanBeWatched = canBeWatched;
+            Matching = matching;
+            EnterLimit = enterLimit;
             EnsureHostMember(
                 DefaultHostSlotIndex,
                 hostLevel,
@@ -1032,9 +1514,82 @@ internal sealed class PracticeRoomManager
                 extraValue1: 0));
         }
 
+        public bool TryUpsertMember(PracticeRoomEnterRequest request, out PracticeRoomMember member)
+        {
+            if (request.CharacterId == HostCharacterId)
+            {
+                EnsureHostMember(
+                    GetHostSlotIndexOrDefault(DefaultHostSlotIndex),
+                    request.Level,
+                    (byte)request.Occupation,
+                    request.RankType,
+                    request.RankLevel,
+                    request.VipLevel);
+
+                member = _members.First(m => m.CharacterId == HostCharacterId);
+                return true;
+            }
+
+            var existing = _members.FirstOrDefault(m => m.CharacterId == request.CharacterId);
+            if (existing is not null)
+            {
+                existing.CharacterName = request.CharacterName;
+                existing.Career = (byte)request.Occupation;
+                existing.Level = request.Level;
+                existing.RankType = request.RankType;
+                existing.RankLevel = request.RankLevel;
+                existing.VipLevel = request.VipLevel;
+                existing.Host = false;
+                member = existing;
+                return true;
+            }
+
+            var capacity = ResolveMemberCapacity();
+            var usedSlots = _members.Select(m => m.SlotIndex).ToHashSet();
+            for (byte slotIndex = 1; slotIndex <= capacity; slotIndex++)
+            {
+                if (usedSlots.Contains(slotIndex))
+                {
+                    continue;
+                }
+
+                member = new PracticeRoomMember(
+                    characterId: request.CharacterId,
+                    characterName: request.CharacterName,
+                    slotIndex: slotIndex,
+                    career: (byte)request.Occupation,
+                    ready: false,
+                    inGame: false,
+                    host: false,
+                    level: request.Level,
+                    rankType: request.RankType,
+                    rankLevel: request.RankLevel,
+                    vipLevel: request.VipLevel,
+                    extraValue0: 0,
+                    extraValue1: 0);
+                _members.Add(member);
+                return true;
+            }
+
+            member = null!;
+            return false;
+        }
+
+        public bool RemoveMember(long characterId)
+        {
+            var removed = _members.RemoveAll(member => member.CharacterId == characterId && !member.Host);
+            return removed > 0;
+        }
+
         public void RefreshCurrentClientNum()
         {
             CurrentClientNum = (byte)Math.Clamp(_members.Count(m => m.CharacterId != 0), 0, byte.MaxValue);
+        }
+
+        private byte ResolveMemberCapacity()
+        {
+            var requested = MaxClientNum == 0 ? MaxRoomSlotIndex : MaxClientNum;
+            return (byte)Math.Clamp((int)requested, 1, MaxRoomSlotIndex);
         }
     }
 
@@ -1052,6 +1607,8 @@ internal sealed class PracticeRoomManager
         bool JoinHalfWay,
         bool CheckBalance,
         byte CanBeWatched,
+        bool Matching,
+        byte EnterLimit,
         int HostLevel,
         int HostOccupation,
         byte HostRankType,

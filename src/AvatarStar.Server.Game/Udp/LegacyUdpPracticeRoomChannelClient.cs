@@ -15,6 +15,7 @@ internal sealed class LegacyUdpPracticeRoomChannelClient
             practiceRoomManager,
             playerStore,
             SendPayloadAsync,
+            session.RemoteEndPoint.Address,
             session.RemoteEndPoint.ToString());
     }
 

@@ -5,7 +5,10 @@ namespace AvatarStar.Server.Game;
 internal static class AvatarStarClientProtocol
 {
     public const int PracticeRoomSlotCount = 24;
+    public const int LobbyRoomListMaxCount = 8;
 
+    public const byte LobbyRoomListChanged = 51;
+    public const byte LobbyRoomListRefreshResult = 36;
     public const byte LobbyRoomCreated = 54;
     public const byte LobbyChannelConnectResult = 3;
 
@@ -17,7 +20,6 @@ internal static class AvatarStarClientProtocol
     public const short ChannelSlotChanged = 26;
 
     private const int FullRoomDescriptorMask = 0x1FFFE;
-
     public readonly record struct LobbyCreateRoomPayload(
         string RoomName,
         bool UsePassword,
@@ -28,7 +30,10 @@ internal static class AvatarStarClientProtocol
         short SpawnTime,
         bool JoinHalfWay,
         bool CheckBalance,
-        byte CanBeWatched);
+        byte CanBeWatched,
+        bool Matching,
+        string MapName,
+        byte EnterLimit);
 
     public readonly record struct ChannelRoomEnterPayload(
         int RoomId,
@@ -70,6 +75,14 @@ internal static class AvatarStarClientProtocol
             return false;
         }
 
+        // The create-room tail is 6 bytes in the current client. The first byte
+        // is not Lobby RoomInfo.Matching; setting Matching=true makes Lua hide
+        // the room from the public list. Consume the tail but keep the room
+        // visible unless a later, verified field mapping says otherwise.
+        _ = reader.TryReadByte(out _);
+        _ = reader.TryReadString(out _);
+        var enterLimit = reader.TryReadByte(out var enterLimitByte) ? enterLimitByte : (byte)0;
+
         payload = new LobbyCreateRoomPayload(
             roomName,
             usePasswordByte != 0,
@@ -80,7 +93,10 @@ internal static class AvatarStarClientProtocol
             spawnTime,
             joinHalfWayByte != 0,
             checkBalanceByte != 0,
-            canBeWatchedByte);
+            canBeWatchedByte,
+            false,
+            string.Empty,
+            enterLimit);
         return true;
     }
 
@@ -167,6 +183,37 @@ internal static class AvatarStarClientProtocol
             writer.WriteShort((short)port);
             writer.WriteString(host);
         }
+    }
+
+    public static void WriteLobbyRoomListChanged(
+        PacketWriter writer,
+        IReadOnlyList<PracticeRoomManager.PracticeRoomLobbyEntry> rooms,
+        int maxCount = LobbyRoomListMaxCount)
+    {
+        writer.WriteByte(LobbyRoomListChanged);
+
+        foreach (var room in rooms.Take(Math.Max(0, maxCount)))
+        {
+            writer.WriteInt(room.RoomUid);
+            writer.WriteByte(room.RoomState);
+            WriteSizedString(writer, room.RoomName, 64);
+            WriteSizedString(writer, room.MapName, 256);
+            writer.WriteByte(room.GameType);
+            WriteSizedString(writer, room.HostName, 64);
+            writer.WriteByte(room.UsePassword ? (byte)1 : (byte)0);
+            writer.WriteByte(room.MaxClientNum);
+            writer.WriteByte(room.CurrentClientNum);
+            writer.WriteLong(room.LevelId);
+            writer.WriteByte(room.JoinHalfWay ? (byte)1 : (byte)0);
+            writer.WriteByte(room.CheckBalance ? (byte)1 : (byte)0);
+            writer.WriteByte(room.Matching ? (byte)1 : (byte)0);
+            writer.WriteByte(room.CanBeWatched);
+            writer.WriteByte(0);
+            WriteSizedString(writer, room.Password, 128);
+            writer.WriteByte(room.EnterLimit);
+        }
+
+        writer.WriteInt(0);
     }
 
     public static void WriteChannelRoomEnterResult(
@@ -341,4 +388,5 @@ internal static class AvatarStarClientProtocol
         writer.WriteInt(encoded.Length);
         writer.WriteRaw(encoded);
     }
+
 }

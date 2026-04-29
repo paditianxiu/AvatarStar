@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
 using AvatarStar.Server.Utilities;
 
@@ -14,10 +15,15 @@ internal sealed class ChannelClient : Client
         PracticeRoomManager practiceRoomManager,
         PlayerStore playerStore) : base(clientHandler, socket)
     {
+        var remoteAddress = socket.RemoteEndPoint is IPEndPoint remoteEndPoint
+            ? remoteEndPoint.Address
+            : IPAddress.None;
+
         _protocol = new PracticeRoomChannelProtocol(
             practiceRoomManager,
             playerStore,
             SendPacketPayloadAsync,
+            remoteAddress,
             socket.RemoteEndPoint?.ToString() ?? "<unknown>");
     }
 

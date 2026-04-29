@@ -140,9 +140,9 @@ public abstract class Client
     
     protected abstract ClientBuffer CreateBuffer();
 
-    protected void BroadcastRoomListChanged()
+    protected void BroadcastRoomListChanged(bool includeSelf = true)
     {
-        _clientHandler.BroadcastRoomListChanged();
+        _clientHandler.BroadcastRoomListChanged(includeSelf ? null : this);
     }
 
     public virtual Task SendRoomListChangedNotificationAsync()
