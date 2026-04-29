@@ -1,0 +1,2383 @@
+{
+    "schemaVersion":  1,
+    "weaponClass":  "smg",
+    "nullPolicy":  "JSON null preserves captured Lua nil array slots.",
+    "templates":  [
+                      {
+                          "identity":  {
+                                           "resource":  "smg_01",
+                                           "display":  "id_datalist_AK74",
+                                           "description":  "tips_datalist_Guardian_basic_weapon",
+                                           "effect":  "",
+                                           "content":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1110240100001500252",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  1,
+                                         "grade":  1,
+                                         "battleForce":  270,
+                                         "occupation":  1,
+                                         "bindType":  2,
+                                         "isBind":  "Y",
+                                         "unitType":  1,
+                                         "unit":  1,
+                                         "remain":  1,
+                                         "unitLimit":  1,
+                                         "equipOnly":  "N",
+                                         "isEquip":  "Y",
+                                         "canEquip":  "Y",
+                                         "guildName":  null,
+                                         "ratio":  0,
+                                         "ventureForce":  135.0,
+                                         "refitRatio":  0,
+                                         "isLock":  0,
+                                         "lockExpireTime":  null,
+                                         "isRenew":  false,
+                                         "canUnbind":  false,
+                                         "refitedNum":  0,
+                                         "refitNum":  20
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       180.0,
+                                                       null,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.06,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.2,
+                                                          null,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.48,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            35,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_03",
+                                           "display":  "id_datalist_Dawn_In_Battlefield",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "20",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       180.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_04",
+                                           "display":  "id_datalist_Victory_Omen",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "27",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       280.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_02",
+                                           "display":  "id_datalist_Savage_Terminator",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "10",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       230.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.06,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.2,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.48,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            35,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_07",
+                                           "display":  "id_datalist_Victory_Omen_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "252",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       294.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_05",
+                                           "display":  "id_datalist_Savage_Terminator_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "237",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       242.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.06,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.2,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.48,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            35,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_06",
+                                           "display":  "id_datalist_Dawn_In_Battlefield_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "245",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       189.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_16",
+                                           "display":  "id_datalist_Pioneer_Gold_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "289",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  336,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  168,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       326,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.22,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_08",
+                                           "display":  "id_datalist_Pioneer",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "37",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  330,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  165,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       310,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_40",
+                                           "display":  "id_weapon_weapon_ar74",
+                                           "description":  "id_datalist_weapon_40_type",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1349",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  391,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  196,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       352.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_13",
+                                           "display":  "id_datalist_new_weapon_002",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "298",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       207.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_27",
+                                           "display":  "id_weapon_chaonaire_smg",
+                                           "description":  "id_weapon_chaonaire_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "830",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  372,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  186,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       336.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.205,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.565,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_12",
+                                           "display":  "id_datalist_new_weapon_001",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "297",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       264.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.06,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.2,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.48,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            35,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_31",
+                                           "display":  "id_weapon_tielingzhu_pve",
+                                           "description":  "id_weapon_nuyizhe_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1269",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  388,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  388,
+                                         "ratio":  1.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       220.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_33",
+                                           "display":  "id_weapon_weapon_qiangxiwuzhuang",
+                                           "description":  "tips_weapon_qiangxiwuzhaung_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1038",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  381,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  190,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       342.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_11",
+                                           "display":  "id_datalist_alien_weapon_01",
+                                           "description":  "id_datalist_alien_weapon_desc_01",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "362",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  348,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  174,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       326.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.25,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_36",
+                                           "display":  "id_weapon_tielingzhu_2",
+                                           "description":  "id_weapon_nuyizhe_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1243",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  388,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  194,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       348.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.205,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.565,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_14",
+                                           "display":  "id_datalist_new_weapon_003",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "299",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       322.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_17",
+                                           "display":  "id_datalist_gaideM30_Enhanced_Edition",
+                                           "description":  "tips_common_gaideM30_Enhanced_Edition_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "638",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  360,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  180,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       332.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.22,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.555,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_32",
+                                           "display":  "id_weapon_tucaoma",
+                                           "description":  "tips_weapon_tips_tucaoma",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1214",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  376,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  188,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       341.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_20",
+                                           "display":  "id_weapon_name_20_01",
+                                           "description":  "id_weapon_intro_20_01",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "445",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  351,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  176,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       328.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.22,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_09",
+                                           "display":  "id_weapon_name_weapon_11",
+                                           "description":  "tips_weapon_intro_weapon_12",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "537",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  354,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  177,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       330.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.216,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.57,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_34",
+                                           "display":  "id_weapon_weapon_fuchoubenxizhe",
+                                           "description":  "UI_abilities_story_hero_langli",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1132",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  385,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  193,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       345.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_28",
+                                           "display":  "id_weapon_chaonaire_smg_yuanzheng",
+                                           "description":  "id_weapon_chaonaire_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "778",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  372,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  353,
+                                         "ratio":  0.9,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       216.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_26",
+                                           "display":  "id_datalist_yuanli_refitted",
+                                           "description":  "id_datalist_yuanli_refitted_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "698",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  366,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  183,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       334.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.207,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.555,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_22",
+                                           "display":  "id_weapon_xiangyuntuohuiang4",
+                                           "description":  "",
+                                           "effect":  "",
+                                           "content":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1110260100000660778",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  429,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "isBind":  "N",
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "remain":  100,
+                                         "unitLimit":  100,
+                                         "equipOnly":  "N",
+                                         "isEquip":  "N",
+                                         "canEquip":  "Y",
+                                         "guildName":  null,
+                                         "ratio":  0,
+                                         "ventureForce":  215.0,
+                                         "refitRatio":  0,
+                                         "isLock":  0,
+                                         "lockExpireTime":  null,
+                                         "isRenew":  false,
+                                         "canUnbind":  false,
+                                         "refitedNum":  0,
+                                         "refitNum":  20
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       384.0,
+                                                       null,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.095,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.22,
+                                                          null,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.57,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_39",
+                                           "display":  "UI_weapon_jielvezhe2",
+                                           "description":  "tips_weapon_langwangweapon_tips",
+                                           "effect":  "",
+                                           "content":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1110220000000671941",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  395,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "isBind":  "N",
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "remain":  100,
+                                         "unitLimit":  100,
+                                         "equipOnly":  "N",
+                                         "isEquip":  "N",
+                                         "canEquip":  "Y",
+                                         "guildName":  null,
+                                         "ratio":  0,
+                                         "ventureForce":  198.0,
+                                         "refitRatio":  0,
+                                         "isLock":  0,
+                                         "lockExpireTime":  null,
+                                         "isRenew":  false,
+                                         "canUnbind":  false,
+                                         "refitedNum":  0,
+                                         "refitNum":  20
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       358.0,
+                                                       null,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_45",
+                                           "display":  "UI_weapon_yiduan",
+                                           "description":  "id_datalist_refitted_effect",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1517",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  401,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  201,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       363.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.205,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.565,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_30",
+                                           "display":  "UI_datalist_justice",
+                                           "description":  "UI_common_spring_race_copy_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "910",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  378,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  189,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       340.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.565,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_41",
+                                           "display":  "UI_weapon_fd57_weapon",
+                                           "description":  "tips_weapon_xuedimicai_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1381",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  393,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  197,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       355.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.21,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            30,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_44",
+                                           "display":  "UI_weapon_yiduan_pve",
+                                           "description":  "tips_weapon_yiduan_pve_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1491",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  401,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  422,
+                                         "ratio":  1.1,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       223.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.35,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            42,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_15",
+                                           "display":  "id_datalist_yuanli",
+                                           "description":  "id_datalist_yuanli_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "688",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  366,
+                                         "occupation":  1,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  311,
+                                         "ratio":  0.7,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       202.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.04,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.19,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.33,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            40,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "smg_21",
+                                           "display":  "id_weapon_name_weapon_01",
+                                           "description":  "tips_weapon_intro_weapon_02",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "527",
+                                         "type":  2,
+                                         "subType":  1,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  366,
+                                         "occupation":  1,
+                                         "bindType":  2,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  183,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       334,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.085,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.22,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.58,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            32,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         1200,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      }
+                  ]
+}

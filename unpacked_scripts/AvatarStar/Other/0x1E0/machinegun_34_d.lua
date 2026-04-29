@@ -1,0 +1,15 @@
+weapon:SetMesh("rv", "machinegun_34/rv1_lod0.mesh")
+weapon.skeleton = "/skeleton/machinegun_01.skel"
+weapon.animation_set = "machinegun_01"
+weapon.icon = texture("/ui/skinF/lobby/machinegun_34.tga")
+weapon.kill_icon = texture("/ui/weapon/mk18_14.dds")
+weapon.ammo_icon = texture("/ui/ingameF/skin_ingame_icon_ammoBG_row.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/machinegun.dds")
+weapon.fire_particle_offset = Vector3(0, 0.03, 0.15)
+weapon.bullet_particle_first = "mk18_bullets_out_1st"
+weapon.bullet_particle_third = "machinegun_02_bullout_3rd"
+weapon.name = "machinegun_34"
+weapon.sound_name = "machinegun"
+weapon.reload_sound = "reload"
+weapon.fire_particle = "machinegun_01_mzflash"
+weapon.attach_particle = "q_machinegun"

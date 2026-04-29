@@ -1,0 +1,26 @@
+weapon:SetMesh("rv", "knives_sh01/rv1_lod0.mesh")
+weapon.ik_enable = false
+weapon.hand_bind_type = "kHandNone"
+weapon.skeleton = "/skeleton/knives_sh01.skel"
+weapon.animation_set = "knives_sh01"
+weapon.icon = texture("/ui/skinF/lobby/knives_sh01.tga")
+weapon.kill_icon = texture("/ui/weapon/knives_sh01.dds")
+weapon.ammo_icon = texture("/ui/skinF/lobby/knives_sh01.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/knives.dds")
+weapon.name = "knives_01"
+weapon.trail_particle = "knives_trail"
+weapon.sound_name = "knives"
+weapon.fire_time1 = 0.475
+weapon.fire_time2 = 0.475
+weapon.fire_time3 = 0.475
+weapon.delay_time1 = 0.52
+weapon.delay_time2 = 0.48
+weapon.delay_time3 = 0.42
+weapon.pause_time1 = 0.2
+weapon.pause_time2 = 0.2
+weapon.pause_time3 = 0.2
+weapon.attach_particle = "q_knives"
+weapon.different_sound = true
+weapon.sound_name1 = "miner/fire_se1"
+weapon.sound_name2 = "miner/fire_se2"
+weapon.sound_name3 = "miner/fire_se3"

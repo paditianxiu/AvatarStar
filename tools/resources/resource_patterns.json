@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "notes": [
+    "This file summarizes resource path templates observed in the client binary (IDA) and Lua usage.",
+    "It is intended for offline cataloging and for tooling (GM UI / resource browser).",
+    "Paths are relative to the client's resource root (archive/pack root)."
+  ],
+  "templates": [
+    {
+      "kind": "ui_skin_lobby",
+      "template": "/ui/skinF/lobby/{skin}.tga",
+      "example": "/ui/skinF/lobby/personalInfo_207.tga",
+      "source": "IDA string: /ui/skinF/lobby/%s.tga"
+    },
+    {
+      "kind": "avatar_mesh_lod0",
+      "template": "avatar/{group}Mesh_{part}_lod0.mesh",
+      "example": "avatar/indie/wing/Mesh_wing10_lod0.mesh",
+      "source": "IDA string: avatar/%sMesh_%s_lod0.mesh (group + part)"
+    },
+    {
+      "kind": "avatar_mesh_part",
+      "template": "avatar/basemodel/{part}.mesh",
+      "example": "avatar/basemodel/head01.mesh",
+      "source": "IDA strings: avatar/basemodel/head01.mesh, .../%s.mesh"
+    },
+    {
+      "kind": "avatar_texture_color",
+      "template": "/mesh/character/thirdPerson/avatar/{variant}Tex_{part}_c.dds",
+      "example": "/mesh/character/thirdPerson/avatar/indie/wing/Tex_wing10_c.dds",
+      "source": "IDA string: %s%sTex_%s_c.dds + base path comment"
+    },
+    {
+      "kind": "avatar_texture_mask",
+      "template": "/mesh/character/thirdPerson/avatar/{variant}Tex_{part}_m.dds",
+      "example": "/mesh/character/thirdPerson/avatar/indie/wing/Tex_wing10_m.dds",
+      "source": "IDA string: %s%sTex_%s_m.dds + base path comment"
+    }
+  ]
+}
+

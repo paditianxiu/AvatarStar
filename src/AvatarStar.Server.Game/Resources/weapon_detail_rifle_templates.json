@@ -1,0 +1,385 @@
+{
+  "schemaVersion": 1,
+  "weaponClass": "rifle",
+  "nullPolicy": "JSON null preserves captured Lua nil array slots.",
+  "templates": [
+    {
+      "identity": {
+        "resource": "smg_01",
+        "display": "id_datalist_AK74",
+        "description": "tips_datalist_Guardian_basic_weapon",
+        "effect": "",
+        "content": ""
+      },
+      "detail": {
+        "id": "1110240100001500252",
+        "type": 2,
+        "subType": 1,
+        "level": 1,
+        "grade": 1,
+        "battleForce": 270,
+        "occupation": 1,
+        "bindType": 2,
+        "isBind": "Y",
+        "unitType": 1,
+        "unit": 1,
+        "remain": 1,
+        "unitLimit": 1,
+        "equipOnly": "N",
+        "isEquip": "Y",
+        "canEquip": "Y",
+        "guildName": null,
+        "ratio": 0,
+        "ventureForce": 135.0,
+        "refitRatio": 0,
+        "isLock": 0,
+        "lockExpireTime": null,
+        "isRenew": false,
+        "canUnbind": false,
+        "refitedNum": 0,
+        "refitNum": 20
+      },
+      "stats": {
+        "output": [180.0, null, null],
+        "criticalRate": [0.06, null, null],
+        "criticalDamage": [2.0, null, null],
+        "fireSpeed": [0.2, null, null],
+        "shootSpread": [0.48, null, null],
+        "damageRadius": [0.0, null, null],
+        "coolDown": [2.0, null, null],
+        "ammoOneClip": [35, null, null],
+        "distance": [1200.0, null, null],
+        "explodeTime": [0.0, null, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_03",
+        "display": "id_datalist_Dawn_In_Battlefield",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "20",
+        "type": 2,
+        "subType": 1,
+        "level": 2,
+        "grade": 2,
+        "battleForce": 300,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 150,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [180.0, null],
+        "criticalRate": [0.04, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.19, null],
+        "shootSpread": [0.35, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [40, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_04",
+        "display": "id_datalist_Victory_Omen",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "27",
+        "type": 2,
+        "subType": 1,
+        "level": 2,
+        "grade": 2,
+        "battleForce": 300,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 150,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [280.0, null],
+        "criticalRate": [0.08, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.21, null],
+        "shootSpread": [0.58, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [30, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_02",
+        "display": "id_datalist_Savage_Terminator",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "10",
+        "type": 2,
+        "subType": 1,
+        "level": 2,
+        "grade": 2,
+        "battleForce": 300,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 150,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [230.0, null],
+        "criticalRate": [0.06, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.2, null],
+        "shootSpread": [0.48, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [35, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_07",
+        "display": "id_datalist_Victory_Omen_Enhanced_Edition",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "252",
+        "type": 2,
+        "subType": 1,
+        "level": 5,
+        "grade": 3,
+        "battleForce": 315,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 158,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [294.0, null],
+        "criticalRate": [0.08, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.21, null],
+        "shootSpread": [0.58, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [30, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_05",
+        "display": "id_datalist_Savage_Terminator_Enhanced_Edition",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "237",
+        "type": 2,
+        "subType": 1,
+        "level": 5,
+        "grade": 3,
+        "battleForce": 315,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 158,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [242.0, null],
+        "criticalRate": [0.06, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.2, null],
+        "shootSpread": [0.48, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [35, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_06",
+        "display": "id_datalist_Dawn_In_Battlefield_Enhanced_Edition",
+        "description": "",
+        "effect": ""
+      },
+      "detail": {
+        "id": "245",
+        "type": 2,
+        "subType": 1,
+        "level": 5,
+        "grade": 3,
+        "battleForce": 315,
+        "occupation": 1,
+        "bindType": 1,
+        "unitType": 2,
+        "unit": 100,
+        "equipOnly": "false",
+        "ventureForce": 158,
+        "ratio": 0.0,
+        "canUnbind": true,
+        "isRenew": false
+      },
+      "stats": {
+        "output": [189.0, null],
+        "criticalRate": [0.04, null],
+        "criticalDamage": [2.0, null],
+        "fireSpeed": [0.19, null],
+        "shootSpread": [0.35, null],
+        "damageRadius": [0.0, null],
+        "coolDown": [2.0, null],
+        "ammoOneClip": [40, null],
+        "distance": [1200.0, null],
+        "explodeTime": [0.0, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_16",
+        "display": "id_datalist_Pioneer_Gold_Edition",
+        "description": "",
+        "effect": "",
+        "content": ""
+      },
+      "detail": {
+        "id": "1110240000003645999",
+        "type": 2,
+        "subType": 1,
+        "level": 5,
+        "grade": 3,
+        "battleForce": 336,
+        "occupation": 1,
+        "bindType": 1,
+        "isBind": "N",
+        "unitType": 2,
+        "unit": 100,
+        "remain": 100,
+        "unitLimit": 100,
+        "equipOnly": "N",
+        "isEquip": "N",
+        "canEquip": "Y",
+        "guildName": null,
+        "ratio": 0,
+        "ventureForce": 168.0,
+        "refitRatio": 0,
+        "isLock": 0,
+        "lockExpireTime": null,
+        "isRenew": false,
+        "canUnbind": true,
+        "refitedNum": 0,
+        "refitNum": 20
+      },
+      "stats": {
+        "output": [326.0, null, null],
+        "criticalRate": [0.08, null, null],
+        "criticalDamage": [2.0, null, null],
+        "fireSpeed": [0.22, null, null],
+        "shootSpread": [0.58, null, null],
+        "damageRadius": [0.0, null, null],
+        "coolDown": [2.0, null, null],
+        "ammoOneClip": [30, null, null],
+        "distance": [1200.0, null, null],
+        "explodeTime": [0.0, null, null]
+      },
+      "plusMap": {}
+    },
+    {
+      "identity": {
+        "resource": "smg_08",
+        "display": "id_datalist_Pioneer",
+        "description": "",
+        "effect": "",
+        "content": ""
+      },
+      "detail": {
+        "id": "1110200500001740450",
+        "type": 2,
+        "subType": 1,
+        "level": 5,
+        "grade": 3,
+        "battleForce": 330,
+        "occupation": 1,
+        "bindType": 1,
+        "isBind": "N",
+        "unitType": 2,
+        "unit": 100,
+        "remain": 100,
+        "unitLimit": 100,
+        "equipOnly": "N",
+        "isEquip": "N",
+        "canEquip": "Y",
+        "guildName": null,
+        "ratio": 0,
+        "ventureForce": 165.0,
+        "refitRatio": 0,
+        "isLock": 0,
+        "lockExpireTime": null,
+        "isRenew": false,
+        "canUnbind": true,
+        "refitedNum": 0,
+        "refitNum": 20
+      },
+      "stats": {
+        "output": [310.0, null, null],
+        "criticalRate": [0.08, null, null],
+        "criticalDamage": [2.0, null, null],
+        "fireSpeed": [0.21, null, null],
+        "shootSpread": [0.58, null, null],
+        "damageRadius": [0.0, null, null],
+        "coolDown": [2.0, null, null],
+        "ammoOneClip": [30, null, null],
+        "distance": [1200.0, null, null],
+        "explodeTime": [0.0, null, null]
+      },
+      "plusMap": {}
+    }
+  ]
+}

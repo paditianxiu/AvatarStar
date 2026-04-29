@@ -1,0 +1,1 @@
+"D:\Game\AvatarStar\client.exe" -ip 127.0.0.1 -port 9532 -token AuthToken -title AvatarStar -local zh_cn

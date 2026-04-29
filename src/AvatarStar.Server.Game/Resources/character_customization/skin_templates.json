@@ -1,0 +1,379 @@
+{
+  "schemaVersion": 1,
+  "category": "skin",
+  "valueFormat": [
+    "resource",
+    "colorCount",
+    "primaryR",
+    "primaryG",
+    "primaryB",
+    "secondaryR",
+    "secondaryG",
+    "secondaryB",
+    "tertiaryR",
+    "tertiaryG",
+    "tertiaryB"
+  ],
+  "templates": [
+    {
+      "id": "2206",
+      "rank": 100,
+      "resource": "zhuobielin_skin",
+      "colorCount": 2,
+      "colors": [
+        [92, 92, 92],
+        [107, 107, 107],
+        [0, 0, 0]
+      ],
+      "rawValue": ["zhuobielin_skin", 2, 92, 92, 92, 107, 107, 107, 0, 0, 0]
+    },
+    {
+      "id": "2199",
+      "rank": 100,
+      "resource": "bingren_skin",
+      "colorCount": 3,
+      "colors": [
+        [122, 143, 171],
+        [60, 88, 65],
+        [230, 230, 233]
+      ],
+      "rawValue": ["bingren_skin", 3, 122, 143, 171, 60, 88, 65, 230, 230, 233]
+    },
+    {
+      "id": "1256",
+      "rank": 100,
+      "resource": "chouxiang15_skin",
+      "colorCount": 3,
+      "colors": [
+        [52, 80, 188],
+        [36, 9, 47],
+        [255, 255, 255]
+      ],
+      "rawValue": ["chouxiang15_skin", 3, 52, 80, 188, 36, 9, 47, 255, 255, 255]
+    },
+    {
+      "id": "1255",
+      "rank": 100,
+      "resource": "chouxiang14_skin",
+      "colorCount": 2,
+      "colors": [
+        [1, 184, 215],
+        [217, 14, 228],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang14_skin", 2, 1, 184, 215, 217, 14, 228, 0, 0, 0]
+    },
+    {
+      "id": "1254",
+      "rank": 100,
+      "resource": "chouxiang13_skin",
+      "colorCount": 3,
+      "colors": [
+        [231, 231, 231],
+        [90, 130, 202],
+        [59, 200, 220]
+      ],
+      "rawValue": ["chouxiang13_skin", 3, 231, 231, 231, 90, 130, 202, 59, 200, 220]
+    },
+    {
+      "id": "1253",
+      "rank": 100,
+      "resource": "chouxiang12_skin",
+      "colorCount": 2,
+      "colors": [
+        [186, 167, 28],
+        [168, 158, 105],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang12_skin", 2, 186, 167, 28, 168, 158, 105, 0, 0, 0]
+    },
+    {
+      "id": "1252",
+      "rank": 100,
+      "resource": "chouxiang11_skin",
+      "colorCount": 3,
+      "colors": [
+        [56, 113, 171],
+        [52, 41, 49],
+        [148, 144, 145]
+      ],
+      "rawValue": ["chouxiang11_skin", 3, 56, 113, 171, 52, 41, 49, 148, 144, 145]
+    },
+    {
+      "id": "755",
+      "rank": 100,
+      "resource": "juxiang02_skin",
+      "colorCount": 2,
+      "colors": [
+        [254, 253, 249],
+        [23, 21, 22],
+        [0, 0, 0]
+      ],
+      "rawValue": ["juxiang02_skin", 2, 254, 253, 249, 23, 21, 22, 0, 0, 0]
+    },
+    {
+      "id": "754",
+      "rank": 100,
+      "resource": "juxiang01_skin",
+      "colorCount": 2,
+      "colors": [
+        [205, 59, 87],
+        [254, 219, 197],
+        [0, 0, 0]
+      ],
+      "rawValue": ["juxiang01_skin", 2, 205, 59, 87, 254, 219, 197, 0, 0, 0]
+    },
+    {
+      "id": "753",
+      "rank": 100,
+      "resource": "chouxiang07_skin",
+      "colorCount": 2,
+      "colors": [
+        [242, 241, 236],
+        [236, 45, 165],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang07_skin", 2, 242, 241, 236, 236, 45, 165, 0, 0, 0]
+    },
+    {
+      "id": "752",
+      "rank": 100,
+      "resource": "chouxiang06_skin",
+      "colorCount": 2,
+      "colors": [
+        [181, 16, 30],
+        [245, 242, 36],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang06_skin", 2, 181, 16, 30, 245, 242, 36, 0, 0, 0]
+    },
+    {
+      "id": "751",
+      "rank": 100,
+      "resource": "chouxiang05_skin",
+      "colorCount": 2,
+      "colors": [
+        [237, 206, 1],
+        [66, 159, 210],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang05_skin", 2, 237, 206, 1, 66, 159, 210, 0, 0, 0]
+    },
+    {
+      "id": "750",
+      "rank": 100,
+      "resource": "chouxiang04_skin",
+      "colorCount": 2,
+      "colors": [
+        [234, 186, 42],
+        [22, 19, 28],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang04_skin", 2, 234, 186, 42, 22, 19, 28, 0, 0, 0]
+    },
+    {
+      "id": "749",
+      "rank": 100,
+      "resource": "chouxiang03_skin",
+      "colorCount": 2,
+      "colors": [
+        [228, 229, 213],
+        [45, 36, 21],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang03_skin", 2, 228, 229, 213, 45, 36, 21, 0, 0, 0]
+    },
+    {
+      "id": "748",
+      "rank": 100,
+      "resource": "chouxiang02_skin",
+      "colorCount": 2,
+      "colors": [
+        [232, 228, 227],
+        [241, 53, 103],
+        [0, 0, 0]
+      ],
+      "rawValue": ["chouxiang02_skin", 2, 232, 228, 227, 241, 53, 103, 0, 0, 0]
+    },
+    {
+      "id": "747",
+      "rank": 100,
+      "resource": "chouxiang01_skin",
+      "colorCount": 3,
+      "colors": [
+        [255, 246, 239],
+        [1, 166, 224],
+        [233, 71, 121]
+      ],
+      "rawValue": ["chouxiang01_skin", 3, 255, 246, 239, 1, 166, 224, 233, 71, 121]
+    },
+    {
+      "id": "746",
+      "rank": 100,
+      "resource": "caizhi03_skin",
+      "colorCount": 3,
+      "colors": [
+        [255, 195, 33],
+        [229, 228, 136],
+        [192, 144, 70]
+      ],
+      "rawValue": ["caizhi03_skin", 3, 255, 195, 33, 229, 228, 136, 192, 144, 70]
+    },
+    {
+      "id": "745",
+      "rank": 100,
+      "resource": "caizhi02_skin",
+      "colorCount": 2,
+      "colors": [
+        [14, 179, 209],
+        [28, 88, 98],
+        [0, 0, 0]
+      ],
+      "rawValue": ["caizhi02_skin", 2, 14, 179, 209, 28, 88, 98, 0, 0, 0]
+    },
+    {
+      "id": "744",
+      "rank": 100,
+      "resource": "caizhi01_skin",
+      "colorCount": 2,
+      "colors": [
+        [232, 188, 160],
+        [223, 86, 76],
+        [0, 0, 0]
+      ],
+      "rawValue": ["caizhi01_skin", 2, 232, 188, 160, 223, 86, 76, 0, 0, 0]
+    },
+    {
+      "id": "667",
+      "rank": 100,
+      "resource": "mummy_skin",
+      "colorCount": 2,
+      "colors": [
+        [209, 209, 209],
+        [66, 66, 66],
+        [0, 0, 0]
+      ],
+      "rawValue": ["mummy_skin", 2, 209, 209, 209, 66, 66, 66, 0, 0, 0]
+    },
+    {
+      "id": "371",
+      "rank": 100,
+      "resource": "huo_skin",
+      "colorCount": 3,
+      "colors": [
+        [213, 184, 154],
+        [189, 52, 18],
+        [56, 20, 4]
+      ],
+      "rawValue": ["huo_skin", 3, 213, 184, 154, 189, 52, 18, 56, 20, 4]
+    },
+    {
+      "id": "370",
+      "rank": 100,
+      "resource": "houzi_skin",
+      "colorCount": 3,
+      "colors": [
+        [77, 55, 41],
+        [195, 160, 122],
+        [125, 78, 52]
+      ],
+      "rawValue": ["houzi_skin", 3, 77, 55, 41, 195, 160, 122, 125, 78, 52]
+    },
+    {
+      "id": "369",
+      "rank": 100,
+      "resource": "huwen_skin",
+      "colorCount": 2,
+      "colors": [
+        [221, 209, 193],
+        [76, 66, 56],
+        [0, 0, 0]
+      ],
+      "rawValue": ["huwen_skin", 2, 221, 209, 193, 76, 66, 56, 0, 0, 0]
+    },
+    {
+      "id": "368",
+      "rank": 100,
+      "resource": "wenshen_skin",
+      "colorCount": 2,
+      "colors": [
+        [217, 189, 162],
+        [88, 75, 60],
+        [0, 0, 0]
+      ],
+      "rawValue": ["wenshen_skin", 2, 217, 189, 162, 88, 75, 60, 0, 0, 0]
+    },
+    {
+      "id": "367",
+      "rank": 100,
+      "resource": "kulou_skin",
+      "colorCount": 3,
+      "colors": [
+        [184, 149, 119],
+        [255, 251, 214],
+        [255, 251, 214]
+      ],
+      "rawValue": ["kulou_skin", 3, 184, 149, 119, 255, 251, 214, 255, 251, 214]
+    },
+    {
+      "id": "6",
+      "rank": 100,
+      "resource": "kungfupanda_skin",
+      "colorCount": 2,
+      "colors": [
+        [40, 40, 40],
+        [255, 255, 255],
+        [0, 0, 0]
+      ],
+      "rawValue": ["kungfupanda_skin", 2, 40, 40, 40, 255, 255, 255, 0, 0, 0]
+    },
+    {
+      "id": "5",
+      "rank": 100,
+      "resource": "avatar_skin",
+      "colorCount": 3,
+      "colors": [
+        [124, 177, 227],
+        [73, 90, 168],
+        [204, 255, 235]
+      ],
+      "rawValue": ["avatar_skin", 3, 124, 177, 227, 73, 90, 168, 204, 255, 235]
+    },
+    {
+      "id": "4",
+      "rank": 100,
+      "resource": "spider_skin",
+      "colorCount": 2,
+      "colors": [
+        [245, 47, 50],
+        [28, 0, 2],
+        [0, 0, 0]
+      ],
+      "rawValue": ["spider_skin", 2, 245, 47, 50, 28, 0, 2, 0, 0, 0]
+    },
+    {
+      "id": "3",
+      "rank": 100,
+      "resource": "bee_skin",
+      "colorCount": 2,
+      "colors": [
+        [255, 160, 11],
+        [0, 0, 0],
+        [0, 0, 0]
+      ],
+      "rawValue": ["bee_skin", 2, 255, 160, 11, 0, 0, 0, 0, 0, 0]
+    },
+    {
+      "id": "2",
+      "rank": 100,
+      "resource": "onecolor_skin",
+      "colorCount": 1,
+      "colors": [
+        [202, 165, 146],
+        [0, 0, 0],
+        [0, 0, 0]
+      ],
+      "rawValue": ["onecolor_skin", 1, 202, 165, 146, 0, 0, 0, 0, 0, 0]
+    }
+  ]
+}

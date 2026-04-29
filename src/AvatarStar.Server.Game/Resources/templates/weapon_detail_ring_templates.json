@@ -1,0 +1,1519 @@
+{
+    "schemaVersion":  1,
+    "weaponClass":  "ring",
+    "nullPolicy":  "JSON null preserves captured Lua nil array slots.",
+    "templates":  [
+                      {
+                          "identity":  {
+                                           "resource":  "ring47_indie",
+                                           "display":  "UI_datalist_Fox_Ring",
+                                           "description":  "UI_datalist_Fox_Ring_desc",
+                                           "effect":  "UI_datalist_desc_Fox_Ring"
+                                       },
+                          "detail":  {
+                                         "id":  "975",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  25,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  13,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  28.0
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  17.0
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  10.0
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring38_indie",
+                                           "display":  "id_common_name_ring_07",
+                                           "description":  "tips_weapon_intro_weapon_01",
+                                           "effect":  "tips_common_attribute_ring_07"
+                                       },
+                          "detail":  {
+                                         "id":  "526",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  21,
+                                         "occupation":  0,
+                                         "bindType":  2,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  11,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  25
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  7
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  12
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  8
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring37_indie",
+                                           "display":  "id_common_name_ring_06",
+                                           "description":  "tips_weapon_intro_weapon_01",
+                                           "effect":  "tips_common_attribute_ring_06"
+                                       },
+                          "detail":  {
+                                         "id":  "525",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  21,
+                                         "occupation":  0,
+                                         "bindType":  2,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  11,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  12
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  7
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  25
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  8
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring15_indie",
+                                           "display":  "id_datalist_Red_Corundum_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_058"
+                                       },
+                          "detail":  {
+                                         "id":  "271",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring16_indie",
+                                           "display":  "id_datalist_Amazonite_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_063"
+                                       },
+                          "detail":  {
+                                         "id":  "277",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  4,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring17_indie",
+                                           "display":  "id_datalist_Tiger_Eye_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_064"
+                                       },
+                          "detail":  {
+                                         "id":  "278",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  4,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring14_indie",
+                                           "display":  "id_datalist_Garnet_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_057"
+                                       },
+                          "detail":  {
+                                         "id":  "270",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring13_indie",
+                                           "display":  "id_datalist_Topaz_finger_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_056"
+                                       },
+                          "detail":  {
+                                         "id":  "269",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring18_indie",
+                                           "display":  "id_datalist_Chrysoberyl_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_065"
+                                       },
+                          "detail":  {
+                                         "id":  "279",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  4,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring11_indie",
+                                           "display":  "id_datalist_Emerald_finger_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_054"
+                                       },
+                          "detail":  {
+                                         "id":  "267",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring10_indie",
+                                           "display":  "id_datalist_Sun_Stone_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_053"
+                                       },
+                          "detail":  {
+                                         "id":  "266",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring09_indie",
+                                           "display":  "id_datalist_Bloodstone_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_052"
+                                       },
+                          "detail":  {
+                                         "id":  "265",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring06_indie",
+                                           "display":  "id_datalist_Lazuli_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_049"
+                                       },
+                          "detail":  {
+                                         "id":  "214",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  15
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  10
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring05_indie",
+                                           "display":  "id_datalist_Turquoise_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_050"
+                                       },
+                          "detail":  {
+                                         "id":  "215",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "stamina",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "recovery",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring12_indie",
+                                           "display":  "id_datalist_Sapphire_finger_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_055"
+                                       },
+                          "detail":  {
+                                         "id":  "268",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  14,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  7,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  [
+                                          {
+                                              "property":  "arp",
+                                              "value":  5
+                                          },
+                                          {
+                                              "property":  "armor",
+                                              "value":  10
+                                          },
+                                          {
+                                              "property":  "cureQuantity",
+                                              "value":  15
+                                          }
+                                      ]
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring02_indie",
+                                           "display":  "id_datalist_Ruby_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_004"
+                                       },
+                          "detail":  {
+                                         "id":  "45",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  6,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  3,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+                                          "property":  "stamina",
+                                          "value":  10
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring01_indie",
+                                           "display":  "id_datalist_Sapphire_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_003"
+                                       },
+                          "detail":  {
+                                         "id":  "44",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  6,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  3,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+                                          "property":  "cureQuantity",
+                                          "value":  10
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring08_indie",
+                                           "display":  "id_datalist_Topaz_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_006"
+                                       },
+                          "detail":  {
+                                         "id":  "47",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  6,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  3,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+                                          "property":  "armor",
+                                          "value":  10
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "ring07_indie",
+                                           "display":  "id_datalist_Emerald_Ring",
+                                           "description":  "",
+                                           "effect":  "tips_datalist_item_desc_005"
+                                       },
+                          "detail":  {
+                                         "id":  "46",
+                                         "type":  2,
+                                         "subType":  103,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  6,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  3,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+                                          "property":  "recovery",
+                                          "value":  10
+                                      }
+                      },
+                      {"identity":{"resource":"ring20_indie","display":"id_datalist_new_ring_006","description":"","effect":"tips_datalist_grape_ring_05"},"detail":{"id":"331","type":2,"subType":103,"level":8,"grade":4,"battleForce":16,"occupation":0,"bindType":1,"unitType":2,"unit":100,"equipOnly":"false","ventureForce":8,"ratio":0.0,"canUnbind":true,"isRenew":false},"stats":{"output":[0.0,null],"criticalRate":[0.0,null],"criticalDamage":[0.0,null],"fireSpeed":[0.0,null],"shootSpread":[0.0,null],"damageRadius":[0.0,null],"coolDown":[0.0,null],"ammoOneClip":[0,null],"distance":[0.0,null],"explodeTime":[0.0,null]},"plusMap":[{"property":"armor","value":5.0},{"property":"arp","value":10.0},{"property":"cureQuantity","value":10.0},{"property":"recovery","value":10.0}]},
+                      {"identity":{"resource":"ring21_indie","display":"id_datalist_new_ring_002","description":"","effect":"tips_datalist_grape_ring_01"},"detail":{"id":"327","type":2,"subType":103,"level":8,"grade":4,"battleForce":16,"occupation":0,"bindType":1,"unitType":2,"unit":100,"equipOnly":"false","ventureForce":8,"ratio":0.0,"canUnbind":true,"isRenew":false},"stats":{"output":[0.0,null],"criticalRate":[0.0,null],"criticalDamage":[0.0,null],"fireSpeed":[0.0,null],"shootSpread":[0.0,null],"damageRadius":[0.0,null],"coolDown":[0.0,null],"ammoOneClip":[0,null],"distance":[0.0,null],"explodeTime":[0.0,null]},"plusMap":[{"property":"stamina","value":8.0},{"property":"armor","value":20.0},{"property":"recovery","value":6.0}]},
+                      {"identity":{"resource":"ring23_indie","display":"id_datalist_new_ring_005","description":"","effect":"tips_datalist_grape_ring_04"},"detail":{"id":"330","type":2,"subType":103,"level":8,"grade":4,"battleForce":16,"occupation":0,"bindType":1,"unitType":2,"unit":100,"equipOnly":"false","ventureForce":8,"ratio":0.0,"canUnbind":true,"isRenew":false},"stats":{"output":[0.0,null],"criticalRate":[0.0,null],"criticalDamage":[0.0,null],"fireSpeed":[0.0,null],"shootSpread":[0.0,null],"damageRadius":[0.0,null],"coolDown":[0.0,null],"ammoOneClip":[0,null],"distance":[0.0,null],"explodeTime":[0.0,null]},"plusMap":[{"property":"stamina","value":20.0},{"property":"armor","value":8.0},{"property":"recovery","value":6.0}]},
+                      {"identity":{"resource":"ring22_indie","display":"id_datalist_new_ring_004","description":"","effect":"tips_datalist_grape_ring_03"},"detail":{"id":"329","type":2,"subType":103,"level":8,"grade":4,"battleForce":16,"occupation":0,"bindType":1,"unitType":2,"unit":100,"equipOnly":"false","ventureForce":8,"ratio":0.0,"canUnbind":true,"isRenew":false},"stats":{"output":[0.0,null],"criticalRate":[0.0,null],"criticalDamage":[0.0,null],"fireSpeed":[0.0,null],"shootSpread":[0.0,null],"damageRadius":[0.0,null],"coolDown":[0.0,null],"ammoOneClip":[0,null],"distance":[0.0,null],"explodeTime":[0.0,null]},"plusMap":[{"property":"armor","value":6.0},{"property":"cureQuantity","value":8.0},{"property":"recovery","value":20.0}]},
+                      {"identity":{"resource":"ring24_indie","display":"id_datalist_new_ring_003","description":"","effect":"tips_datalist_grape_ring_02"},"detail":{"id":"328","type":2,"subType":103,"level":8,"grade":4,"battleForce":16,"occupation":0,"bindType":1,"unitType":2,"unit":100,"equipOnly":"false","ventureForce":8,"ratio":0.0,"canUnbind":true,"isRenew":false},"stats":{"output":[0.0,null],"criticalRate":[0.0,null],"criticalDamage":[0.0,null],"fireSpeed":[0.0,null],"shootSpread":[0.0,null],"damageRadius":[0.0,null],"coolDown":[0.0,null],"ammoOneClip":[0,null],"distance":[0.0,null],"explodeTime":[0.0,null]},"plusMap":[{"property":"armor","value":6.0},{"property":"cureQuantity","value":20.0},{"property":"recovery","value":8.0}]}
+                  ]
+}

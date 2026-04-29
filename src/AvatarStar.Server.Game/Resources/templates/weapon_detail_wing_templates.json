@@ -1,0 +1,1617 @@
+{
+    "schemaVersion":  1,
+    "weaponClass":  "wing",
+    "nullPolicy":  "JSON null preserves captured Lua nil array slots.",
+    "templates":  [
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing18_indie\u0027,\u0027wing18\u0027,\u0027wing18\u0027",
+                                           "display":  "id_datalist_chaonaimo_thruster",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "id_datalist_chaonaimo_thruster_effect"
+                                       },
+                          "detail":  {
+                                         "id":  "737",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  210,
+                                         "occupation":  0,
+                                         "bindType":  2,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  105,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing31_indie\u0027,\u0027wing31\u0027,\u0027wing31\u0027",
+                                           "display":  "id_weapon_xingnengyuandongli",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1013",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  236,
+                                         "occupation":  0,
+                                         "bindType":  2,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  118,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing17_indie\u0027,\u0027wing17\u0027,\u0027wing17\u0027",
+                                           "display":  "id_weapon_name_weapon_21",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "547",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  220,
+                                         "occupation":  0,
+                                         "bindType":  2,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  110,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing30_indie\u0027,\u0027wing29\u0027,\u0027wing29\u0027",
+                                           "display":  "UI_datalist_Butterfly",
+                                           "description":  "tips_datalist_Item_Desc8_02",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "972",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  228,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  114,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing29_indie\u0027,\u0027wing29\u0027,\u0027wing29\u0027",
+                                           "display":  "UI_datalist_Colorful_butterfly",
+                                           "description":  "tips_datalist_Item_Desc8_02",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "971",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  228,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  114,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing32_indie\u0027,\u0027wing32\u0027,\u0027wing32\u0027",
+                                           "display":  "id_weapon_fly_xuebianfu",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1156",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  238,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  115,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing40_indie\u0027,\u0027wing40\u0027,\u0027wing40\u0027",
+                                           "display":  "UI_weapon_feiyan",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_weapon_huaban_10_tips"
+                                       },
+                          "detail":  {
+                                         "id":  "1377",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  246,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  123,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing41_indie\u0027,\u0027wing41\u0027,\u0027wing41\u0027",
+                                           "display":  "UI_weapon_rskmicai",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_weapon_huaban_10_tips"
+                                       },
+                          "detail":  {
+                                         "id":  "1378",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  246,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  123,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing35_indie\u0027,\u0027wing35\u0027,\u0027wing35\u0027",
+                                           "display":  "id_weapon_wing35_indie",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1204",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  240,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  120,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing34_indie\u0027,\u0027wing34\u0027,\u0027wing34\u0027",
+                                           "display":  "id_weapon_wing34_indie",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1203",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  240,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  120,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing42_indie\u0027,\u0027wing42\u0027,\u0027wing42\u0027",
+                                           "display":  "UI_lobby_langwangpifeng",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1445",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  248,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  124,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing37_indie\u0027,\u0027wing37\u0027,\u0027wing37\u0027",
+                                           "display":  "id_weapon_zhediefeixingqi",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1211",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  242,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  121,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing36_indie\u0027,\u0027wing36\u0027,\u0027wing36\u0027",
+                                           "display":  "id_weapon_dianfengshan",
+                                           "description":  "id_datalist_chaonaimo_thruster_desc",
+                                           "effect":  "tips_datalist_item_desc_002"
+                                       },
+                          "detail":  {
+                                         "id":  "1210",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  242,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  121,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing21_indie\u0027,\u0027wing12\u0027,\u0027wing12\u0027",
+                                           "display":  "id_common_sky_blue_cloak",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_sky_blue_cloak_effect"
+                                       },
+                          "detail":  {
+                                         "id":  "653",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing22_indie\u0027,\u0027wing12\u0027,\u0027wing12\u0027",
+                                           "display":  "id_common_red_spot_cloak",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_red_spot_cloak_effect"
+                                       },
+                          "detail":  {
+                                         "id":  "652",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing13_indie\u0027,\u0027wing12\u0027,\u0027wing12\u0027",
+                                           "display":  "id_common_name_wing_05",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "552",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing16_indie\u0027,\u0027wing12\u0027,\u0027wing12\u0027",
+                                           "display":  "id_common_name_wing_04",
+                                           "description":  "tips_common_wing_tips_01",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "551",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing05_indie\u0027,\u0027wing03\u0027,\u0027wing03\u0027",
+                                           "display":  "id_datalist_Cupid_Wings",
+                                           "description":  "tips_datalist_Item_Desc8_04",
+                                           "effect":  "tips_datalist_item_desc_002_03"
+                                       },
+                          "detail":  {
+                                         "id":  "202",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  200,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  100,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing12_indie\u0027,\u0027wing03\u0027,\u0027wing03\u0027",
+                                           "display":  "id_common_name_wing_02",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "549",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing14_indie\u0027,\u0027wing12\u0027,\u0027wing12\u0027",
+                                           "display":  "id_common_name_wing_03",
+                                           "description":  "tips_datalist_Item_Desc8_01",
+                                           "effect":  "tips_datalist_item_desc_002_01"
+                                       },
+                          "detail":  {
+                                         "id":  "550",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  203,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  102,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing04_indie\u0027,\u0027wing04\u0027,\u0027wing04\u0027",
+                                           "display":  "id_datalist_Little_Devil_Wings",
+                                           "description":  "tips_datalist_Item_Desc8_03",
+                                           "effect":  "tips_datalist_item_desc_002_02"
+                                       },
+                          "detail":  {
+                                         "id":  "201",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  7,
+                                         "grade":  4,
+                                         "battleForce":  160,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  80,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing03_indie\u0027,\u0027wing03\u0027,\u0027wing03\u0027",
+                                           "display":  "id_datalist_Little_Angel_Wings",
+                                           "description":  "tips_datalist_Item_Desc8_02",
+                                           "effect":  "tips_datalist_item_desc_024"
+                                       },
+                          "detail":  {
+                                         "id":  "97",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  7,
+                                         "grade":  4,
+                                         "battleForce":  160,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  80,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "\u0027wing15_indie\u0027,\u0027wing15\u0027,\u0027wing15\u0027",
+                                           "display":  "id_common_name_wing_01",
+                                           "description":  "tips_weapon_intro_weapon_22",
+                                           "effect":  "tips_common_attribute_ring_08"
+                                       },
+                          "detail":  {
+                                         "id":  "548",
+                                         "type":  2,
+                                         "subType":  102,
+                                         "level":  3,
+                                         "grade":  3,
+                                         "battleForce":  90,
+                                         "occupation":  0,
+                                         "bindType":  1,
+                                         "unitType":  4,
+                                         "unit":  1296000,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  45,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      }
+                  ]
+}

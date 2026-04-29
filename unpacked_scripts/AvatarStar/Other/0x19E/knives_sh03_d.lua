@@ -1,0 +1,36 @@
+weapon:SetMesh("rvl", "knives_sh03/rvl1_lod0.mesh")
+weapon:SetMesh("rvr", "knives_sh03/rvr1_lod0.mesh")
+weapon.ik_enable = false
+weapon.hand_bind_type = "kHandNone"
+weapon.skeleton = "/skeleton/knives_sh03.skel"
+weapon.animation_set = "knives_sh03"
+weapon.trail_particle = "shield_trail"
+weapon.shield_trail_particle = "shield_trail"
+weapon.sound_name = "shield"
+weapon.icon = texture("/ui/skinF/lobby/knives_sh03.tga")
+weapon.ammo_icon = texture("/ui/skinF/lobby/knives_sh03.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/knives.dds")
+weapon.fire_time1 = 0.7
+weapon.fire_time2 = 0.7
+weapon.fire_time3 = 0.7
+weapon.delay_time1 = 0.59
+weapon.delay_time2 = 0.65
+weapon.delay_time3 = 0.4
+weapon.pause_time1 = 0.2
+weapon.pause_time2 = 0.2
+weapon.pause_time3 = 0.2
+weapon.shield_trail_particle_time = 0.07
+weapon.size = Vector3(1.0E-6, 1.0E-6, 1.0E-6)
+weapon.size1 = Vector3(1.0E-6, 1.0E-6, 1.0E-6)
+weapon.local_position = Vector3(0.075, 0.015, 0.15)
+weapon.local_position1 = Vector3(0.075, 0, 0.15)
+weapon.attach_particle = "q_shield2"
+weapon.shield_attach_particle = "q_shield"
+weapon.shoot_animation1 = "shoot1"
+weapon.shoot_animation2 = "shoot2"
+weapon.shoot_animation3 = "shoot3"
+weapon.left_trail_particle_show_time = -1
+weapon.different_sound = true
+weapon.sound_name1 = "fisherman/fire_se1"
+weapon.sound_name2 = "fisherman/fire_se2"
+weapon.sound_name3 = "fisherman/fire_se3"

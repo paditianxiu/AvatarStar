@@ -1,0 +1,22 @@
+weapon:SetMesh("rv", "knives_35/rv1_lod0.mesh")
+weapon.ik_enable = false
+weapon.hand_bind_type = "kHandNone"
+weapon.skeleton = "/skeleton/knives_09.skel"
+weapon.animation_set = "knives_09"
+weapon.icon = texture("/ui/skinF/lobby/knives_35.tga")
+weapon.kill_icon = texture("/ui/weapon/knives_01.dds")
+weapon.ammo_icon = texture("/ui/ingameF/weapon_ammo_icon/knives_35.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/knives.dds")
+weapon.name = "knives_35"
+weapon.trail_particle = "knives_trail"
+weapon.sound_name = "knives"
+weapon.fire_time1 = 0.475
+weapon.fire_time2 = 0.475
+weapon.fire_time3 = 0.475
+weapon.delay_time1 = 0.585
+weapon.delay_time2 = 0.36
+weapon.delay_time3 = 0.76
+weapon.pause_time1 = 0.15
+weapon.pause_time2 = 0.15
+weapon.pause_time3 = 0.13
+weapon.attach_particle = "q_knives"

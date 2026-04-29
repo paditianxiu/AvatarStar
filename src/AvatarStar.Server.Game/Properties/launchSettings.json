@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AvatarStar.Server.Game": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "AS_REPO_ROOT": "D:\\ASBETA\\AvatarStarCBT-master"
+      }
+    }
+  }
+}

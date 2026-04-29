@@ -1,0 +1,17 @@
+weapon:SetMesh("rv", "sniperrifle_17/rv1_lod0.mesh")
+weapon:SetMesh("mz", "sniperrifle_17/mz1_lod0.mesh")
+weapon.skeleton = "/skeleton/sniperrifle_01.skel"
+weapon.animation_set = "sniperrifle_01"
+weapon.icon = texture("/ui/skinF/lobby/sniperrifle_17.tga")
+weapon.kill_icon = texture("/ui/weapon/mk18_17.dds")
+weapon.ammo_icon = texture("/ui/ingameF/skin_ingame_icon_ammoBG_row.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/sniperrifle.dds")
+weapon.sight = texture("/ui/weapon/sniperrifle.dds")
+weapon.fire_particle_offset = Vector3(0, -0.05, 0.2)
+weapon.bullet_particle_first = "mk18_bullets_out_1st"
+weapon.bullet_particle_third = "sniperrifle_01_bullets_out_3rd"
+weapon.name = "sniperrifle_17"
+weapon.sound_name = "sniperrifle"
+weapon.reload_sound = "reload"
+weapon.fire_particle = "sniperrifle_01_mzflash"
+weapon.attach_particle = "q_sniperrifle"

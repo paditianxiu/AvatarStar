@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "weaponClass": "gem",
+  "nullPolicy": "Gem captures do not include weapon stat arrays; plusMap preserves captured property/value entries.",
+  "templates": [
+    {
+      "identity": {
+        "resource": "gem_green04",
+        "display": "id_datalist_Dazzling_Emerald",
+        "description": "tips_datalist_Stone_Desc12",
+        "effect": "tips_datalist_item_desc_40_Recovery"
+      },
+      "detail": {
+        "id": "87",
+        "type": 3,
+        "subType": 302,
+        "level": 8,
+        "grade": 4,
+        "battleForce": 24,
+        "occupation": 0,
+        "bindType": 2,
+        "unitType": 3,
+        "unit": 1,
+        "equipOnly": "false",
+        "ventureForce": 0,
+        "ratio": 0.0,
+        "canUnbind": false
+      },
+      "plusMap": [
+        {
+          "property": "recovery",
+          "value": 40.0
+        }
+      ]
+    },
+    {
+      "identity": {
+        "resource": "gem_yellow04",
+        "display": "id_datalist_Dazzling_Topaz",
+        "description": "tips_datalist_Stone_Desc11",
+        "effect": "tips_datalist_item_desc_40_Defense"
+      },
+      "detail": {
+        "id": "86",
+        "type": 3,
+        "subType": 302,
+        "level": 8,
+        "grade": 4,
+        "battleForce": 24,
+        "occupation": 0,
+        "bindType": 2,
+        "unitType": 3,
+        "unit": 1,
+        "equipOnly": "false",
+        "ventureForce": 0,
+        "ratio": 0.0,
+        "canUnbind": false
+      },
+      "plusMap": [
+        {
+          "property": "armor",
+          "value": 40.0
+        }
+      ]
+    },
+    {
+      "identity": {
+        "resource": "gem_red04",
+        "display": "id_datalist_Dazzling_Ruby",
+        "description": "tips_datalist_Stone_Desc10",
+        "effect": "tips_datalist_item_desc_40_Stamina"
+      },
+      "detail": {
+        "id": "65",
+        "type": 3,
+        "subType": 302,
+        "level": 8,
+        "grade": 4,
+        "battleForce": 24,
+        "occupation": 0,
+        "bindType": 2,
+        "unitType": 3,
+        "unit": 1,
+        "equipOnly": "false",
+        "ventureForce": 0,
+        "ratio": 0.0,
+        "canUnbind": false
+      },
+      "plusMap": [
+        {
+          "property": "stamina",
+          "value": 40.0
+        }
+      ]
+    },
+    {
+      "identity": {
+        "resource": "gem_blue04",
+        "display": "id_datalist_Dazzling_Sapphire",
+        "description": "tips_datalist_Stone_Desc13",
+        "effect": "tips_datalist_item_desc_40_Vitality"
+      },
+      "detail": {
+        "id": "88",
+        "type": 3,
+        "subType": 302,
+        "level": 8,
+        "grade": 4,
+        "battleForce": 24,
+        "occupation": 0,
+        "bindType": 2,
+        "unitType": 3,
+        "unit": 1,
+        "equipOnly": "false",
+        "ventureForce": 0,
+        "ratio": 0.0,
+        "canUnbind": false
+      },
+      "plusMap": [
+        {
+          "property": "cureQuantity",
+          "value": 40.0
+        }
+      ]
+    }
+  ]
+}

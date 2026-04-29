@@ -1,0 +1,83 @@
+# IDE and editor files
+.vs/
+**/.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sln.iml
+*.iml
+
+# Visual Studio / .NET build outputs
+**/[Bb]in/
+**/[Oo]bj/
+**/[Dd]ebug/
+**/[Rr]elease/
+**/[Dd]ebugPublic/
+**/[Rr]eleases/
+**/[Ll]og/
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+artifacts/
+publish/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+*.pdb
+*.ilk
+*.obj
+*.tmp
+*.tmp_proj
+*.cache
+
+# Local tool cache and outputs
+.tools/
+tools/**/build/
+tools/**/dist/
+
+# Node.js dependencies and generated bundles
+**/node_modules/
+tools/frida-client/_agent.js
+tools/frida-launcher/_agent.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Logs and runtime files
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+appsettings.Development.json
+appsettings.Production.json
+
+# Archives generated during local experiments
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar

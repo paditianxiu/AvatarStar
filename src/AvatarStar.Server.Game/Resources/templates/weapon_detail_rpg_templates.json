@@ -1,0 +1,2107 @@
+{
+    "schemaVersion":  1,
+    "weaponClass":  "rpg",
+    "nullPolicy":  "JSON null preserves captured Lua nil array slots.",
+    "templates":  [
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_17",
+                                           "display":  "id_datalist_frozen_blade_Enhanced_Edition",
+                                           "description":  "tips_common_frozen_blade_Enhanced_Edition_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "642",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  360,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  180,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1012.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.07,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.5,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_33",
+                                           "display":  "id_weapon_weapon_heiantongzhizhe",
+                                           "description":  "tips_weapon_heiantongzhizhe_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1042",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  381,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  190,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1053.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.092,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.8,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_14",
+                                           "display":  "id_datalist_new_weapon_015",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "311",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       986.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_31",
+                                           "display":  "id_weapon_tietijianta_pve",
+                                           "description":  "id_weapon_nuyizhe_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1273",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  388,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  388,
+                                         "ratio":  1.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       793.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_11",
+                                           "display":  "id_datalist_alien_weapon_09",
+                                           "description":  "id_datalist_alien_weapon_desc_09",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "366",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  348,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  174,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       990.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_36",
+                                           "display":  "id_weapon_tietijianta",
+                                           "description":  "id_weapon_nuyizhe_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1247",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  388,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  194,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1068.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.09,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_12",
+                                           "display":  "id_datalist_new_weapon_013",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "309",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       908.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.5,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_27",
+                                           "display":  "id_weapon_chaonaire_rpg",
+                                           "description":  "id_weapon_chaonaire_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "838",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  372,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  186,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1025.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.09,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_13",
+                                           "display":  "id_datalist_new_weapon_014",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "310",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  345,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  173,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       747.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_40",
+                                           "display":  "id_weapon_weapon_rpg64",
+                                           "description":  "id_datalist_weapon_40_type",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1353",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  391,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  196,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1077.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.092,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.8,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_09",
+                                           "display":  "id_weapon_name_weapon_19",
+                                           "description":  "tips_weapon_intro_weapon_20",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "545",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  354,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  177,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1005.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.83,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.6,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_20",
+                                           "display":  "id_weapon_name_20_09",
+                                           "description":  "id_weapon_intro_20_09",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "453",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  351,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  176,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       999.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_34",
+                                           "display":  "id_weapon_weapon_fuchouxunengpao",
+                                           "description":  "UI_abilities_story_hero_langli",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1136",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  385,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  193,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1064.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.092,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.8,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_26",
+                                           "display":  "id_datalist_yanmie_refitted",
+                                           "description":  "id_datalist_yanmie_refitted_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "706",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  366,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  183,
+                                         "ratio":  0.0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1017.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.09,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_30",
+                                           "display":  "UI_datalist_roar",
+                                           "description":  "UI_common_spring_race_copy_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "918",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  378,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  189,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1037.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.09,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.85,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_28",
+                                           "display":  "id_weapon_chaonaire_rpg_yuanzheng",
+                                           "description":  "id_weapon_chaonaire_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "786",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  372,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  353,
+                                         "ratio":  0.9,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       780.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_44",
+                                           "display":  "UI_weapon_guangminghuimie_pve",
+                                           "description":  "tips_weapon_guangminghuimie_pve_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1495",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  401,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  422,
+                                         "ratio":  1.1,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       798.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.78,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_39",
+                                           "display":  "UI_weapon_diyupaoxiaozhe",
+                                           "description":  "tips_weapon_langwangweapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1411",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  395,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  198,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1087.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.092,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.8,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_45",
+                                           "display":  "UI_weapon_guangminghuimiezhe",
+                                           "description":  "id_datalist_refitted_effect",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1521",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  401,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  201,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1105.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.09,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_15",
+                                           "display":  "id_datalist_yanmie",
+                                           "description":  "id_datalist_yanmie_desc",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "696",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  366,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  311,
+                                         "ratio":  0.7,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       726.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.75,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.0,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_41",
+                                           "display":  "UI_weapon_ht2_weapon",
+                                           "description":  "tips_weapon_xuedimicai_weapon_tips",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "1385",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  8,
+                                         "grade":  4,
+                                         "battleForce":  393,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  197,
+                                         "ratio":  0.0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1082.0,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.092,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2.0,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0.0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0.0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5.0,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4.8,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15.0,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_21",
+                                           "display":  "id_weapon_name_weapon_09",
+                                           "description":  "tips_weapon_intro_weapon_10",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "535",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  10,
+                                         "grade":  5,
+                                         "battleForce":  366,
+                                         "occupation":  2,
+                                         "bindType":  2,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  183,
+                                         "ratio":  0,
+                                         "canUnbind":  false,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       1017,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.1,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_07",
+                                           "display":  "id_datalist_Black_Parabola_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "260",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       914,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_05",
+                                           "display":  "id_datalist_Aerolite_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "243",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       830,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.5,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_06",
+                                           "display":  "id_datalist_Flying_Fish_Enhanced_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "259",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  315,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  158,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       683,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_04",
+                                           "display":  "id_datalist_Black_Parabola",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "232",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       870,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.9,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_03",
+                                           "display":  "id_datalist_Flying_Fish",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "231",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       650,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         2.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_02",
+                                           "display":  "id_datalist_Aerolite",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "16",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  2,
+                                         "grade":  2,
+                                         "battleForce":  300,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  150,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       790,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.5,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_16",
+                                           "display":  "id_datalist_Gemini_Gold_Edition",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "285",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  336,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  168,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       956,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         4,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      },
+                      {
+                          "identity":  {
+                                           "resource":  "rpg_08",
+                                           "display":  "id_datalist_Gemini",
+                                           "description":  "",
+                                           "effect":  ""
+                                       },
+                          "detail":  {
+                                         "id":  "33",
+                                         "type":  2,
+                                         "subType":  11,
+                                         "level":  5,
+                                         "grade":  3,
+                                         "battleForce":  330,
+                                         "occupation":  2,
+                                         "bindType":  1,
+                                         "unitType":  2,
+                                         "unit":  100,
+                                         "equipOnly":  "false",
+                                         "ventureForce":  165,
+                                         "ratio":  0,
+                                         "canUnbind":  true,
+                                         "isRenew":  false
+                                     },
+                          "stats":  {
+                                        "output":  [
+                                                       910,
+                                                       null
+                                                   ],
+                                        "criticalRate":  [
+                                                             0.08,
+                                                             null
+                                                         ],
+                                        "criticalDamage":  [
+                                                               2,
+                                                               null
+                                                           ],
+                                        "fireSpeed":  [
+                                                          0,
+                                                          null
+                                                      ],
+                                        "shootSpread":  [
+                                                            0,
+                                                            null
+                                                        ],
+                                        "damageRadius":  [
+                                                             5,
+                                                             null
+                                                         ],
+                                        "coolDown":  [
+                                                         3.8,
+                                                         null
+                                                     ],
+                                        "ammoOneClip":  [
+                                                            1,
+                                                            null
+                                                        ],
+                                        "distance":  [
+                                                         5,
+                                                         null
+                                                     ],
+                                        "explodeTime":  [
+                                                            15,
+                                                            null
+                                                        ]
+                                    },
+                          "plusMap":  {
+
+                                      }
+                      }
+                  ]
+}

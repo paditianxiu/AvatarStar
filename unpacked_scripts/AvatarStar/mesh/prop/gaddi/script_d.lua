@@ -1,0 +1,5 @@
+lg:SetRankListCameraFov(30)
+lg:SetRankListCameraPosition(Vector3(-0.11, -0.26, 7))
+lg:SetRankListCameraRotateAngle(Vector3(6, 0, 0))
+lg:SetRankListCameraNear(0.05)
+lg:SetRankListCameraFar(1000)

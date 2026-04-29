@@ -1,0 +1,25 @@
+namespace AvatarStar.Server.Game;
+
+internal sealed record InventoryItem(
+    string Pid,
+    int Slot,
+    string Resource,
+    int Subtype,
+    int SubType,
+    int Grade,
+    int Quantity,
+    int UnitType,
+    int Unit,
+    int Remain,
+    bool IsRenew,
+    int Category,
+    string IsBind,
+    string IsEquip,
+    int Sid,
+    int Type,
+    object? Avatar = null,
+    int? Position = null,
+    string Display = "",
+    string Designer = "",
+    string Description = "",
+    IReadOnlyDictionary<string, double>? Attributes = null);

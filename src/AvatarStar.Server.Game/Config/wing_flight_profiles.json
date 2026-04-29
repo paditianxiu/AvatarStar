@@ -1,0 +1,178 @@
+{
+  "defaultMode": "glide",
+  "profiles": {
+    "takeoff-only": {
+      "rise": {
+        "height": 4,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [0, 0],
+        "a0": [0, 0],
+        "aa": [0, 0],
+        "time": 1,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "glide": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "glideToFlight": {
+        "glideSpeed": 6,
+        "fallSpeed": 2,
+        "duration": 5,
+        "durationAttribute": "explodeTime",
+        "flightSpeed": 8,
+        "finalVerticalSpeed": 0
+      },
+      "flyAnimation": "fly",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "horizontal": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [8, 0],
+        "a0": [0, 0],
+        "aa": [2.4, 0],
+        "time": 8,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly01",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "horizontal-fly": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [8, 0],
+        "a0": [0, 0],
+        "aa": [2.4, 0],
+        "time": 8,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "horizontal-fly01": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [8, 0],
+        "a0": [0, 0],
+        "aa": [2.4, 0],
+        "time": 8,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly01",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "horizontal-fly02": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [8, 0],
+        "a0": [0, 0],
+        "aa": [2.4, 0],
+        "time": 8,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly02",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    },
+    "horizontal-fly03": {
+      "rise": {
+        "height": 2.6,
+        "forwardSpeed": 2,
+        "gravity": -16.9,
+        "time": 0.8
+      },
+      "fly": {
+        "v0": [8, 0],
+        "a0": [0, 0],
+        "aa": [2.4, 0],
+        "time": 8,
+        "timeAttribute": "explodeTime"
+      },
+      "flyAnimation": "fly03",
+      "takeoffAnimation": "stdjumpup",
+      "cooldown": 20,
+      "cooldownAttribute": "coolDown"
+    }
+  },
+  "wings": {
+    "wing01": "glide",
+    "wing02": "glide",
+    "wing03": "glide",
+    "wing04": "glide",
+    "wing05": "glide",
+    "wing06": "glide",
+    "wing07": "glide",
+    "wing08": "glide",
+    "wing09": "glide",
+    "wing10": "takeoff-only",
+    "wing11": "glide",
+    "wing12": "glide",
+    "wing13": "glide",
+    "wing14": "glide",
+    "wing15": "takeoff-only",
+    "wing16": "takeoff-only",
+    "wing17": "glide",
+    "wing18": "horizontal-fly",
+    "wing21": "horizontal-fly",
+    "wing22": "horizontal-fly",
+    "wing23": "horizontal-fly",
+    "wing29": "glide",
+    "wing30": "glide",
+    "wing31": "horizontal-fly",
+    "wing32": "horizontal-fly02",
+    "wing33": "horizontal",
+    "wing34": "horizontal",
+    "wing35": "horizontal-fly02",
+    "wing36": "horizontal-fly",
+    "wing37": "horizontal-fly",
+    "wing38": "horizontal-fly02",
+    "wing39": "horizontal",
+    "wing40": "horizontal",
+    "wing41": "horizontal",
+    "wing42": "horizontal-fly",
+    "wing43": "horizontal-fly",
+    "wing45": "horizontal-fly03"
+  }
+}

@@ -1,0 +1,22 @@
+weapon:SetMesh("rv", "heroweapon_01/rv1_lod0.mesh")
+weapon.ik_enable = false
+weapon.hand_bind_type = "kHandNone"
+weapon.skeleton = "/skeleton/heroweapon_01.skel"
+weapon.animation_set = "heroweapon_01"
+weapon.icon = texture("/ui/skinF/lobby/heroweapon_01.tga")
+weapon.kill_icon = texture("/ui/weapon/knives_01.dds")
+weapon.ammo_icon = texture("/ui/ingameF/weapon_ammo_icon/heroweapon_01.tga")
+weapon.cross_hair_icon = texture("/ui/weapon/knives.dds")
+weapon.name = "heroweapon_01"
+weapon.trail_particle = "knives_trail"
+weapon.sound_name = "knives"
+weapon.fire_time1 = 0.475
+weapon.fire_time2 = 0.475
+weapon.fire_time3 = 0.475
+weapon.delay_time1 = 0.34
+weapon.delay_time2 = 0.28
+weapon.delay_time3 = 0.2
+weapon.pause_time1 = 0.15
+weapon.pause_time2 = 0.15
+weapon.pause_time3 = 0.13
+weapon.attach_particle = "q_knives"
