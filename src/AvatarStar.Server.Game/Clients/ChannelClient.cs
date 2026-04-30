@@ -5,7 +5,7 @@ using AvatarStar.Server.Utilities;
 
 namespace AvatarStar.Server.Game;
 
-internal sealed class ChannelClient : Client
+internal sealed class ChannelClient : Client, IDisconnectAwareClient
 {
     private readonly PracticeRoomChannelProtocol _protocol;
 
@@ -35,6 +35,11 @@ internal sealed class ChannelClient : Client
     protected override async Task HandleAsync(PacketReader reader)
     {
         await _protocol.HandleAsync(reader);
+    }
+
+    public void OnClientDisconnected()
+    {
+        _protocol.OnClientDisconnected();
     }
 
     private async Task SendPacketPayloadAsync(byte[] payload)

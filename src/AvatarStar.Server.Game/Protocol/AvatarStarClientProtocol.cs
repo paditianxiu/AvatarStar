@@ -281,11 +281,11 @@ internal static class AvatarStarClientProtocol
 
     public static void WriteChannelSlotChanged(
         PacketWriter writer,
-        PracticeRoomManager.PracticeRoomSession room,
+        long characterId,
         byte slotIndex)
     {
         writer.WriteShort(ChannelSlotChanged);
-        writer.WriteLong(room.HostCharacterId);
+        writer.WriteLong(characterId);
         writer.WriteByte(slotIndex);
         writer.WriteByte(0);
     }

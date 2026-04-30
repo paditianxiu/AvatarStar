@@ -303,7 +303,7 @@ internal sealed class PracticeRoomManager
                 return false;
             }
 
-            room.EnsureHostMember(DefaultHostSlotIndex);
+            room.EnsureHostMember(room.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
             if (!room.TryUpsertMember(request, out _))
             {
                 resultCode = 3;
@@ -348,7 +348,7 @@ internal sealed class PracticeRoomManager
                 room.MapName = request.MapName;
             }
 
-            room.EnsureHostMember(DefaultHostSlotIndex);
+            room.EnsureHostMember(room.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
             room.RefreshCurrentClientNum();
 
             resultCode = 0;
@@ -364,7 +364,7 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    public bool TryMoveHostSlot(int roomId, byte slotIndex, out PracticeRoomSession room, out int resultCode)
+    public bool TryMoveMemberSlot(int roomId, long characterId, byte slotIndex, out PracticeRoomSession room, out int resultCode)
     {
         lock (_lock)
         {
@@ -380,14 +380,36 @@ internal sealed class PracticeRoomManager
                 return false;
             }
 
-            room.EnsureHostMember(slotIndex);
+            if (characterId <= 0)
+            {
+                resultCode = 1;
+                return false;
+            }
+
+            room.EnsureHostMember(room.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
+            var member = room.Members.FirstOrDefault(member => member.CharacterId == characterId);
+            if (member is null)
+            {
+                resultCode = 1;
+                return false;
+            }
+
+            if (room.Members.Any(candidate =>
+                    candidate.SlotIndex == slotIndex &&
+                    candidate.CharacterId != characterId))
+            {
+                resultCode = 3;
+                return false;
+            }
+
+            member.SlotIndex = slotIndex;
             room.RefreshCurrentClientNum();
             resultCode = 0;
             return true;
         }
     }
 
-    public bool TrySetHostReady(int roomId, bool ready, out PracticeRoomSession room, out int resultCode)
+    public bool TrySetMemberReady(int roomId, long characterId, bool ready, out PracticeRoomSession room, out int resultCode)
     {
         lock (_lock)
         {
@@ -399,15 +421,14 @@ internal sealed class PracticeRoomManager
 
             var currentRoom = room;
             currentRoom.EnsureHostMember(currentRoom.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
-            var hostCharacterId = currentRoom.HostCharacterId;
-            var host = currentRoom.Members.FirstOrDefault(member => member.CharacterId == hostCharacterId);
-            if (host is null)
+            var member = currentRoom.Members.FirstOrDefault(member => member.CharacterId == characterId);
+            if (member is null)
             {
                 resultCode = 1;
                 return false;
             }
 
-            host.Ready = ready;
+            member.Ready = ready;
             currentRoom.RefreshCurrentClientNum();
             resultCode = 0;
             return true;
@@ -442,7 +463,7 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    public bool TryEnterGame(int roomId, out PracticeRoomSession room, out int resultCode)
+    public bool TryEnterGame(int roomId, long characterId, out PracticeRoomSession room, out int resultCode)
     {
         lock (_lock)
         {
@@ -460,14 +481,15 @@ internal sealed class PracticeRoomManager
 
             room.EnsureHostMember(room.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
             AssignRandomBattleLevelNoLock(room);
-            foreach (var member in room.Members)
+            var gameMember = room.Members.FirstOrDefault(member => member.CharacterId == characterId);
+            if (gameMember is null)
             {
-                if (member.CharacterId != 0)
-                {
-                    member.InGame = true;
-                }
+                resultCode = 1;
+                return false;
             }
 
+            gameMember.Ready = true;
+            gameMember.InGame = true;
             room.RefreshCurrentClientNum();
             resultCode = 0;
             return true;
@@ -671,36 +693,33 @@ internal sealed class PracticeRoomManager
     {
         lock (_lock)
         {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            UnregisterGameChannelNoLock(roomId, channel);
+        }
+    }
+
+    public bool TryLeaveGame(
+        int roomId,
+        long characterId,
+        PracticeRoomChannelProtocol channel,
+        out PracticeRoomSession room)
+    {
+        lock (_lock)
+        {
+            UnregisterGameChannelNoLock(roomId, channel);
+            if (!_roomsById.TryGetValue(roomId, out room!))
             {
-                return;
+                return false;
             }
 
-            if (channels.TryGetValue(channel, out var uid) &&
-                _gameMovementByRoomId.TryGetValue(roomId, out var movementByUid))
+            var member = room.Members.FirstOrDefault(member => member.CharacterId == characterId);
+            if (member is not null)
             {
-                movementByUid.Remove(uid);
-                if (movementByUid.Count == 0)
-                {
-                    _gameMovementByRoomId.Remove(roomId);
-                }
+                member.Ready = false;
+                member.InGame = false;
             }
 
-            if (channels.TryGetValue(channel, out var gameUid) &&
-                _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
-            {
-                playersByUid.Remove(gameUid);
-                if (playersByUid.Count == 0)
-                {
-                    _gamePlayersByRoomId.Remove(roomId);
-                }
-            }
-
-            channels.Remove(channel);
-            if (channels.Count == 0)
-            {
-                _gameChannelsByRoomId.Remove(roomId);
-            }
+            room.RefreshCurrentClientNum();
+            return true;
         }
     }
 
@@ -1093,6 +1112,40 @@ internal sealed class PracticeRoomManager
         }
     }
 
+    private void UnregisterGameChannelNoLock(int roomId, PracticeRoomChannelProtocol channel)
+    {
+        if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+        {
+            return;
+        }
+
+        if (channels.TryGetValue(channel, out var uid) &&
+            _gameMovementByRoomId.TryGetValue(roomId, out var movementByUid))
+        {
+            movementByUid.Remove(uid);
+            if (movementByUid.Count == 0)
+            {
+                _gameMovementByRoomId.Remove(roomId);
+            }
+        }
+
+        if (channels.TryGetValue(channel, out var gameUid) &&
+            _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        {
+            playersByUid.Remove(gameUid);
+            if (playersByUid.Count == 0)
+            {
+                _gamePlayersByRoomId.Remove(roomId);
+            }
+        }
+
+        channels.Remove(channel);
+        if (channels.Count == 0)
+        {
+            _gameChannelsByRoomId.Remove(roomId);
+        }
+    }
+
     private void UpsertGamePlayerNoLock(int roomId, byte uid, long characterId, string characterName)
     {
         if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
@@ -1118,7 +1171,7 @@ internal sealed class PracticeRoomManager
     private static IEnumerable<PracticeRoomMember> OrderedGameMembers(PracticeRoomSession room)
     {
         return room.Members
-            .Where(member => member.CharacterId != 0)
+            .Where(member => member.CharacterId != 0 && member.InGame)
             .OrderBy(member => member.Host ? 0 : 1)
             .ThenBy(member => member.SlotIndex)
             .ThenBy(member => member.CharacterId);

@@ -25,7 +25,9 @@ internal sealed class PracticeRoomChannelProtocol
     private static readonly bool UseLegacyHotbarBootstrapSequence = false;
     private static readonly bool UseLegacyMinimalPacket103CharacterCreate = false;
     private static readonly bool UseLegacyMinimalPacket111Spawn = false;
-    private const byte LocalGameTeamId = 1;
+    private const byte GameTeamRed = 0;
+    private const byte GameTeamBlue = 1;
+    private const byte GameTeamSpectator = 2;
     private const byte InitialGamePlayerActive = 1;
     private const byte InitialGamePlayerNotEntering = 0;
     private const byte InitialGamePlayerTransformReady = 1;
@@ -801,6 +803,23 @@ internal sealed class PracticeRoomChannelProtocol
         await HandleDecodedAsync(reader);
     }
 
+    public void OnClientDisconnected()
+    {
+        _ = CleanupAfterDisconnectAsync();
+    }
+
+    private async Task CleanupAfterDisconnectAsync()
+    {
+        try
+        {
+            await CleanupRoomStateAsync(sendLeaveAck: false, trigger: "disconnect");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Channel disconnect cleanup failed from {Remote}", _remoteLabel);
+        }
+    }
+
     private async Task HandleClientSeedAsync(PacketReader reader)
     {
         // The channel seed packet itself is still XORed with the fixed initial states.
@@ -1540,17 +1559,21 @@ internal sealed class PracticeRoomChannelProtocol
             _currentRoomId,
             reader.Remaining);
 
+        await CleanupRoomStateAsync(sendLeaveAck: true, trigger: "packet3-leave-room");
+    }
+
+    private async Task CleanupRoomStateAsync(bool sendLeaveAck, string trigger)
+    {
         if (_currentRoomId != 0)
         {
-            if (_currentGameRoom is not null)
-            {
-                _practiceRoomManager.UnregisterGameChannel(_currentGameRoom.RoomId, this);
-            }
+            await CleanupGameStateAsync(resetMemberState: false, trigger);
 
-            _practiceRoomManager.UnregisterRoomChannel(_currentRoomId, this);
+            var roomId = _currentRoomId;
+            var characterId = _currentCharacterId;
+            _practiceRoomManager.UnregisterRoomChannel(roomId, this);
             if (_practiceRoomManager.TryLeaveRoom(
-                    _currentRoomId,
-                    _currentCharacterId,
+                    roomId,
+                    characterId,
                     out var room,
                     out var roomRemoved) &&
                 !roomRemoved &&
@@ -1561,17 +1584,62 @@ internal sealed class PracticeRoomChannelProtocol
 
             _currentRoomId = 0;
             _currentCharacterId = 0;
-            _currentGameRoom = null;
-            _localGameUid = LocalGameUid;
-            _localPlayerEnterBroadcastSent = false;
-            _gameInitSpawnHandshakeSent = false;
-            _playerEnteringClearRetriesRemaining = 0;
-            _lastSpecialWeaponRearmBySlot.Clear();
-            StopKnifeAutoRearmLoop();
         }
 
-        await SendPacket17LeaveRoomAsync();
+        ResetLocalGameState();
         _state = ChannelState.AwaitRoomEnter;
+
+        if (sendLeaveAck)
+        {
+            await SendPacket17LeaveRoomAsync();
+        }
+
+        Log.Information(
+            "Channel room cleanup from {Remote}: trigger={Trigger}",
+            _remoteLabel,
+            trigger);
+    }
+
+    private async Task CleanupGameStateAsync(bool resetMemberState, string trigger)
+    {
+        var roomId = _currentGameRoom?.RoomId ?? _currentRoomId;
+        if (roomId != 0)
+        {
+            if (resetMemberState &&
+                _practiceRoomManager.TryLeaveGame(roomId, _currentCharacterId, this, out var room))
+            {
+                await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
+            }
+            else
+            {
+                _practiceRoomManager.UnregisterGameChannel(roomId, this);
+            }
+        }
+
+        ResetLocalGameState();
+
+        Log.Information(
+            "Channel game cleanup from {Remote}: trigger={Trigger} roomId={RoomId} resetMemberState={ResetMemberState}",
+            _remoteLabel,
+            trigger,
+            roomId,
+            resetMemberState);
+    }
+
+    private void ResetLocalGameState()
+    {
+        _currentGameRoom = null;
+        _localGameUid = LocalGameUid;
+        _localPlayerEnterBroadcastSent = false;
+        _gameInitSpawnHandshakeSent = false;
+        _playerEnteringClearRetriesRemaining = 0;
+        _silentLoadoutHudRefreshRetriesRemaining = 0;
+        _lastSpecialWeaponRearmBySlot.Clear();
+        _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
+        _lastGameMovementInputByte = 0;
+        _lastGameMovementTick = 0;
+        _hasLastGameMovementInputByte = false;
+        StopKnifeAutoRearmLoop();
     }
 
     private async Task HandlePacket6RoomChangeOptionAsync(PacketReader reader)
@@ -1658,7 +1726,7 @@ internal sealed class PracticeRoomChannelProtocol
         PracticeRoomManager.PracticeRoomSession? room = null;
         var resultCode = 1;
         if (_currentRoomId == 0 ||
-            !_practiceRoomManager.TryMoveHostSlot(_currentRoomId, slotIndex, out room, out resultCode))
+            !_practiceRoomManager.TryMoveMemberSlot(_currentRoomId, _currentCharacterId, slotIndex, out room, out resultCode))
         {
             Log.Warning(
                 "Channel packet12 move failed from {Remote}: roomId={RoomId} slotIndex={SlotIndex} resultCode={ResultCode}",
@@ -1675,8 +1743,8 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        await SendPacket26SlotChangedAsync(room, slotIndex);
-        await SendPacket18RoomClientListSyncAsync(room);
+        await SendPacket26SlotChangedAsync(room, _currentCharacterId, slotIndex);
+        await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
     }
 
     private async Task HandlePacket8RoomReadyAsync(PacketReader reader)
@@ -1692,7 +1760,7 @@ internal sealed class PracticeRoomChannelProtocol
         PracticeRoomManager.PracticeRoomSession? room = null;
         var resultCode = 1;
         if (_currentRoomId == 0 ||
-            !_practiceRoomManager.TrySetHostReady(_currentRoomId, ready, out room, out resultCode))
+            !_practiceRoomManager.TrySetMemberReady(_currentRoomId, _currentCharacterId, ready, out room, out resultCode))
         {
             Log.Warning(
                 "Channel packet8 ready failed from {Remote}: roomId={RoomId} ready={Ready} resultCode={ResultCode}",
@@ -1711,8 +1779,8 @@ internal sealed class PracticeRoomChannelProtocol
             ready);
 
         await SendPacket21GameReadyResultAsync(resultCode: 0);
-        await SendPacket6RoomReadyNotifyAsync(room.HostCharacterId, ready);
-        await SendPacket18RoomClientListSyncAsync(room);
+        await SendPacket6RoomReadyNotifyAsync(_currentCharacterId, ready);
+        await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
     }
 
     private async Task HandlePacket10StartGameAsync(PacketReader reader)
@@ -1766,7 +1834,7 @@ internal sealed class PracticeRoomChannelProtocol
 
         var resultCode = 1;
         if (_currentRoomId == 0 ||
-            !_practiceRoomManager.TryEnterGame(_currentRoomId, out var room, out resultCode))
+            !_practiceRoomManager.TryEnterGame(_currentRoomId, _currentCharacterId, out var room, out resultCode))
         {
             Log.Warning(
                 "Channel packet100 enter failed from {Remote}: roomId={RoomId} resultCode={ResultCode}",
@@ -1783,6 +1851,7 @@ internal sealed class PracticeRoomChannelProtocol
             room.RoomId,
             room.ContextId);
 
+        await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
         await BeginGameEnterSequenceAsync(room, "packet100-enter");
     }
 
@@ -2065,22 +2134,7 @@ internal sealed class PracticeRoomChannelProtocol
                 reader.Remaining);
         }
 
-        if (_currentGameRoom is not null)
-        {
-            _practiceRoomManager.UnregisterGameChannel(_currentGameRoom.RoomId, this);
-        }
-
-        _currentGameRoom = null;
-        _localGameUid = LocalGameUid;
-        _localPlayerEnterBroadcastSent = false;
-        _gameInitSpawnHandshakeSent = false;
-        _playerEnteringClearRetriesRemaining = 0;
-        _silentLoadoutHudRefreshRetriesRemaining = 0;
-        _lastSpecialWeaponRearmBySlot.Clear();
-        _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
-        _lastGameMovementInputByte = 0;
-        _hasLastGameMovementInputByte = false;
-        StopKnifeAutoRearmLoop();
+        await CleanupGameStateAsync(resetMemberState: true, trigger: "packet121-leave-game");
         _state = _currentRoomId == 0 ? ChannelState.AwaitRoomEnter : ChannelState.InRoom;
 
         await SendPacket12GameLeaveNotifyAsync();
@@ -3367,9 +3421,12 @@ internal sealed class PracticeRoomChannelProtocol
 
     private static byte ResolveGameTeamId(PracticeRoomManager.PracticeRoomMember? member)
     {
-        return member?.SlotIndex is >= 9 and <= 16
-            ? (byte)2
-            : LocalGameTeamId;
+        return member?.SlotIndex switch
+        {
+            >= 9 and <= 16 => GameTeamBlue,
+            >= 17 and <= 24 => GameTeamSpectator,
+            _ => GameTeamRed
+        };
     }
 
     private static void WriteGamePlayerTransform(
@@ -5141,16 +5198,19 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    private Task SendPacket26SlotChangedAsync(PracticeRoomManager.PracticeRoomSession room, byte slotIndex)
+    private Task SendPacket26SlotChangedAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        long characterId,
+        byte slotIndex)
     {
         using var writer = new PacketWriter();
-        AvatarStarClientProtocol.WriteChannelSlotChanged(writer, room, slotIndex);
+        AvatarStarClientProtocol.WriteChannelSlotChanged(writer, characterId, slotIndex);
 
         Log.Information(
-            "Channel packet26 -> {Remote}: roomId={RoomId} hostCharacterId={HostCharacterId} slotIndex={SlotIndex}",
+            "Channel packet26 -> {Remote}: roomId={RoomId} characterId={CharacterId} slotIndex={SlotIndex}",
             _remoteLabel,
             room.RoomId,
-            room.HostCharacterId,
+            characterId,
             slotIndex);
 
         return SendPacketAsync(writer);
