@@ -1136,11 +1136,10 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket162RemoteHurtAsync(damageAttempt.Action.Value);
+                await target.SendPacket184RemoteDamageHitAsync(damageAttempt.Action.Value);
                 sent++;
                 if (damageAttempt.Action.Value.Killed)
                 {
-                    await target.SendPacket184RemoteFatalHitAsync(damageAttempt.Action.Value);
                     deathSent++;
                 }
             }

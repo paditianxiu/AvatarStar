@@ -63,7 +63,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const float ActionPoseRawCoordinateScale = 256f;
     private const short GameRemoteShootPacketId = 113;
     private const short GameRemoteHurtPacketId = 162;
-    private const short GameRemoteFatalHitPacketId = 184;
+    private const short GameRemoteDamageHitPacketId = 184;
     private const int GameObjectDeltaActorUidFlag = 0x00000001;
     private const int GameObjectDeltaTargetUidFlag = 0x00000002;
     private const int GameObjectDeltaWeaponSlotFlag = 0x00000004;
@@ -89,7 +89,7 @@ internal sealed class PracticeRoomChannelProtocol
         GameObjectDeltaIntValueFlag |
         GameObjectDeltaFloatValueFlag |
         GameObjectDeltaSubtypeFlag;
-    private const int GameRemoteFatalHitObjectDeltaFlags =
+    private const int GameRemoteDamageHitObjectDeltaFlags =
         GameObjectDeltaActorUidFlag |
         GameObjectDeltaTargetUidFlag |
         GameObjectDeltaIntValueFlag;
@@ -3958,23 +3958,39 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    internal Task SendPacket184RemoteFatalHitAsync(PracticeRoomManager.GameDamageAction damage)
+    internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
     {
         using var writer = new PacketWriter();
 
-        writer.WriteShort(GameRemoteFatalHitPacketId);
-        WriteGameObjectDeltaFlags(writer, GameRemoteFatalHitObjectDeltaFlags);
+        writer.WriteShort(GameRemoteDamageHitPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteDamageHitObjectDeltaFlags);
         writer.WriteByte(damage.AttackerUid);
         writer.WriteByte(damage.VictimUid);
         writer.WriteInt(damage.VictimHealth);
 
-        Log.Information(
-            "Channel packet184 -> {Remote}: fatal-hit attackerUid={AttackerUid} victimUid={VictimUid} health={Health}/{MaxHealth}",
-            _remoteLabel,
-            damage.AttackerUid,
-            damage.VictimUid,
-            damage.VictimHealth,
-            damage.VictimMaxHealth);
+        if (damage.Killed)
+        {
+            Log.Information(
+                "Channel packet184 -> {Remote}: fatal-hit attackerUid={AttackerUid} victimUid={VictimUid} damage={Damage} health={Health}/{MaxHealth}",
+                _remoteLabel,
+                damage.AttackerUid,
+                damage.VictimUid,
+                damage.Damage,
+                damage.VictimHealth,
+                damage.VictimMaxHealth);
+        }
+        else
+        {
+            Log.Information(
+                "Channel packet184 -> {Remote}: damage-hit attackerUid={AttackerUid} victimUid={VictimUid} damage={Damage} health={Health}/{MaxHealth}",
+                _remoteLabel,
+                damage.AttackerUid,
+                damage.VictimUid,
+                damage.Damage,
+                damage.VictimHealth,
+                damage.VictimMaxHealth);
+        }
+
         return SendPacketAsync(writer);
     }
 
