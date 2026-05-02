@@ -1165,7 +1165,8 @@ internal sealed class PracticeRoomManager
     public async Task<int> BroadcastGameReloadActionAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
-        byte actorUid)
+        byte actorUid,
+        byte weaponSlot)
     {
         PracticeRoomChannelProtocol[] targets;
 
@@ -1186,6 +1187,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
+                await target.SendPacket128RemoteWeaponSlotAsync(actorUid, weaponSlot, "packet117-reload");
                 await target.SendPacket117RemoteReloadActionAsync(actorUid);
                 sent++;
             }

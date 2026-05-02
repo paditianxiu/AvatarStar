@@ -2554,15 +2554,20 @@ internal sealed class PracticeRoomChannelProtocol
                 Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
         }
 
+        var slotOneBased = ResolveCurrentReloadReadySlot();
+        var ammoRefreshSent = await SendLocalReloadReadyAsync(slotOneBased, "packet117-reload");
         var broadcastCount = await _practiceRoomManager.BroadcastGameReloadActionAsync(
             _currentGameRoom.RoomId,
             this,
-            _localGameUid);
+            _localGameUid,
+            (byte)(slotOneBased - 1));
 
-        Log.Verbose(
-            "Channel packet117 <- {Remote}: reload uid={Uid} broadcastCount={BroadcastCount}",
+        Log.Information(
+            "Channel packet117 <- {Remote}: reload uid={Uid}; packet143 local ammo refresh sent={AmmoRefreshSent}; packet175 local ack sent slot={Slot}; broadcastCount={BroadcastCount}",
             _remoteLabel,
             _localGameUid,
+            ammoRefreshSent,
+            slotOneBased,
             broadcastCount);
     }
 
@@ -2644,12 +2649,13 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         slotOneBased = (byte)Math.Clamp((int)slotOneBased, 1, ClientWeaponSlotCount);
-        await SendPacket175GameReloadReadyAsync(slotOneBased, "packet142-reload-ready");
+        var ammoRefreshSent = await SendLocalReloadReadyAsync(slotOneBased, "packet142-reload-ready");
 
         Log.Information(
-            "Channel packet142 <- {Remote}: reload-ready uid={Uid}; packet175 local ack sent slot={Slot}",
+            "Channel packet142 <- {Remote}: reload-ready uid={Uid}; packet143 local ammo refresh sent={AmmoRefreshSent}; packet175 local ack sent slot={Slot}",
             _remoteLabel,
             _localGameUid,
+            ammoRefreshSent,
             slotOneBased);
     }
 
@@ -2871,6 +2877,33 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         return ResolveCurrentReloadReadySlot();
+    }
+
+    private async Task<bool> SendLocalReloadReadyAsync(byte slotOneBased, string trigger)
+    {
+        slotOneBased = (byte)Math.Clamp((int)slotOneBased, 1, ClientWeaponSlotCount);
+        var item = ResolveLocalLoadoutItem(slotOneBased);
+        var ammoRefreshSent = false;
+        if (item is not null)
+        {
+            await SendPacket143GameLoadoutItemRefreshAsync(item, trigger);
+            ammoRefreshSent = true;
+        }
+
+        await SendPacket175GameReloadReadyAsync(slotOneBased, trigger);
+        return ammoRefreshSent;
+    }
+
+    private PlayerStore.PlayerState.GameLoadoutItem? ResolveLocalLoadoutItem(byte slotOneBased)
+    {
+        if (_currentGameRoom is null)
+        {
+            return null;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        return loadoutItems.FirstOrDefault(item => item.Slot == slotOneBased && IsSupportedGameEquipmentItem(item));
     }
 
     private static int GetGameMovementOptionalByteCount(byte flags)
@@ -3571,7 +3604,7 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteShort(117);
         writer.WriteByte(actorUid);
 
-        Log.Verbose(
+        Log.Information(
             "Channel packet117 -> {Remote}: remote reload uid={Uid}",
             _remoteLabel,
             actorUid);
