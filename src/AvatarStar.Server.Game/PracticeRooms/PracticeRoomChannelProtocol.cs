@@ -35,7 +35,16 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte GamePlayerListTerminator = 0;
     private const int PlayerEnteringClearRetryCount = 3;
     private const int GameActionReloadReadyCode = 12;
+    private const int GameActionAlternateWeaponCode = 0x0F;
+    private const int GameActionPreviousWeaponCode = 0x10;
+    private const int GameActionNextWeaponCode = 0x11;
+    private const int GameActionFirstDirectWeaponSlotCode = 0x23;
+    private const int GameActionLastDirectWeaponSlotCode = 0x2E;
     private const byte GameActionStateInactive = 0;
+    private const short GameRemoteWeaponSlotPacketId = 128;
+    private const byte ClientWeaponSlotCount = 12;
+    private const byte ClientWeaponSlotNotifyMax = 18;
+    private const byte ClientScrollableWeaponSlotCount = 7;
     private const int SilentLoadoutHudRefreshRetryCount = 0;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
@@ -764,11 +773,14 @@ internal sealed class PracticeRoomChannelProtocol
     private uint _xorOutState;
     private int _playerEnteringClearRetriesRemaining;
     private int _silentLoadoutHudRefreshRetriesRemaining;
+    private bool _localPlayerEnterPacketSent;
     private bool _localPlayerEnterBroadcastSent;
     private bool _gameInitSpawnHandshakeSent;
     private long _candidateCharacterId;
     private long _currentCharacterId;
     private byte _localGameUid = LocalGameUid;
+    private byte _currentWeaponSlot;
+    private byte _previousWeaponSlot;
     private PracticeRoomManager.PracticeRoomSession? _currentGameRoom;
     private readonly Dictionary<byte, DateTimeOffset> _lastSpecialWeaponRearmBySlot = new();
     private CancellationTokenSource? _knifeAutoRearmCts;
@@ -1544,7 +1556,7 @@ internal sealed class PracticeRoomChannelProtocol
 
         _currentRoomId = room.RoomId;
         _currentCharacterId = enterRequest.CharacterId;
-        _practiceRoomManager.RegisterRoomChannel(room.RoomId, this);
+        _practiceRoomManager.RegisterRoomChannel(room.RoomId, this, _currentCharacterId);
 
         await SendPacket16RoomEnterResultAsync(room, resultCode: 0);
         await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
@@ -1605,14 +1617,36 @@ internal sealed class PracticeRoomChannelProtocol
         var roomId = _currentGameRoom?.RoomId ?? _currentRoomId;
         if (roomId != 0)
         {
+            var removedUid = (byte)0;
+            var leftGameChannel = false;
             if (resetMemberState &&
-                _practiceRoomManager.TryLeaveGame(roomId, _currentCharacterId, this, out var room))
+                _practiceRoomManager.TryLeaveGame(roomId, _currentCharacterId, this, out var room, out removedUid))
             {
+                leftGameChannel = true;
                 await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
+            }
+            else if (!_practiceRoomManager.UnregisterGameChannel(roomId, this, out removedUid))
+            {
+                removedUid = 0;
             }
             else
             {
-                _practiceRoomManager.UnregisterGameChannel(roomId, this);
+                leftGameChannel = true;
+                removedUid = removedUid == 0 ? _localGameUid : removedUid;
+            }
+
+            if (leftGameChannel && removedUid != 0)
+            {
+                var broadcastCount = await _practiceRoomManager.BroadcastGamePlayerLeftAsync(
+                    roomId,
+                    this,
+                    removedUid);
+                Log.Information(
+                    "Channel packet108 broadcast from {Remote}: trigger={Trigger} leftUid={LeftUid} broadcastCount={BroadcastCount}",
+                    _remoteLabel,
+                    trigger,
+                    removedUid,
+                    broadcastCount);
             }
         }
 
@@ -1630,10 +1664,13 @@ internal sealed class PracticeRoomChannelProtocol
     {
         _currentGameRoom = null;
         _localGameUid = LocalGameUid;
+        _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
         _gameInitSpawnHandshakeSent = false;
         _playerEnteringClearRetriesRemaining = 0;
         _silentLoadoutHudRefreshRetriesRemaining = 0;
+        _currentWeaponSlot = 0;
+        _previousWeaponSlot = 0;
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -1904,10 +1941,13 @@ internal sealed class PracticeRoomChannelProtocol
             this,
             localCharacterId,
             localCharacterName);
+        _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
         _gameInitSpawnHandshakeSent = false;
         _playerEnteringClearRetriesRemaining = 0;
         _silentLoadoutHudRefreshRetriesRemaining = 0;
+        _currentWeaponSlot = 0;
+        _previousWeaponSlot = 0;
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -1930,6 +1970,8 @@ internal sealed class PracticeRoomChannelProtocol
             await SendPacket111GameSpawnAsync(room);
             await SendPacket106GameInitAsync(room);
         }
+
+        await BroadcastLocalPlayerEnteredOnceAsync("game-enter-bootstrap");
 
         Log.Information(
             "Channel game enter bootstrap sent to {Remote}: source={Source} roomId={RoomId} localUid={LocalUid} legacyHotbarBootstrap={LegacyHotbarBootstrap}",
@@ -2012,7 +2054,12 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task HandlePacket120GameClientNotifyAsync(PacketReader reader)
     {
-        var notifyValue = reader.TryReadByte(out var value) ? value : (byte)0;
+        if (!reader.TryReadByte(out var notifyValue))
+        {
+            Log.Warning("Channel packet120 <- {Remote}: ignored, missing notify value", _remoteLabel);
+            return;
+        }
+
         if (reader.Remaining > 0)
         {
             Log.Verbose(
@@ -2020,6 +2067,27 @@ internal sealed class PracticeRoomChannelProtocol
                 _remoteLabel,
                 notifyValue,
                 reader.Remaining);
+            return;
+        }
+
+        if (_currentGameRoom is not null && notifyValue < ClientWeaponSlotNotifyMax)
+        {
+            TryApplyLocalWeaponSlot(notifyValue, ClientWeaponSlotNotifyMax);
+            var broadcastCount = await _practiceRoomManager.BroadcastGameWeaponSlotAsync(
+                _currentGameRoom.RoomId,
+                this,
+                _localGameUid,
+                notifyValue,
+                "packet120-weapon-slot");
+
+            Log.Information(
+                "Channel packet120 <- {Remote}: weapon-slot uid={Uid} slot={Slot} broadcastCount={BroadcastCount}",
+                _remoteLabel,
+                _localGameUid,
+                notifyValue,
+                broadcastCount);
+            await SendPendingPlayerEnteringClearAsync("packet120");
+            await SendPendingSilentLoadoutHudRefreshAsync("packet120");
             return;
         }
 
@@ -2330,6 +2398,18 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
+        var weaponSlotBroadcastCount = 0;
+        if (TryResolveWeaponSlotFromActionVector(action, out var actionWeaponSlot))
+        {
+            TryApplyLocalWeaponSlot(actionWeaponSlot);
+            weaponSlotBroadcastCount = await _practiceRoomManager.BroadcastGameWeaponSlotAsync(
+                _currentGameRoom.RoomId,
+                this,
+                _localGameUid,
+                actionWeaponSlot,
+                "packet112-action-slot");
+        }
+
         var actionVector = new PracticeRoomManager.GameActionVector(
             _localGameUid,
             action,
@@ -2350,7 +2430,7 @@ internal sealed class PracticeRoomChannelProtocol
         var specialRearmCount = await SendSpecialWeaponRearmIfDueAsync("packet112");
 
         Log.Information(
-            "Channel packet112 <- {Remote}: actionVector action={Action} uid={Uid} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet119 local ack sent, broadcastCount={BroadcastCount}, specialRearmCount={SpecialRearmCount}",
+            "Channel packet112 <- {Remote}: actionVector action={Action} uid={Uid} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet119 local ack sent, broadcastCount={BroadcastCount}, weaponSlotBroadcastCount={WeaponSlotBroadcastCount}, specialRearmCount={SpecialRearmCount}",
             _remoteLabel,
             action,
             actionVector.Uid,
@@ -2361,6 +2441,7 @@ internal sealed class PracticeRoomChannelProtocol
             trailingBytes,
             trailingPayloadHex,
             broadcastCount,
+            weaponSlotBroadcastCount,
             specialRearmCount);
     }
 
@@ -2461,6 +2542,37 @@ internal sealed class PracticeRoomChannelProtocol
                 Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
         }
 
+        if (_currentGameRoom is null)
+        {
+            Log.Warning(
+                "Channel packet143 <- {Remote}: action-state ignored, no active game room actionCode={ActionCode} state={ActionState}",
+                _remoteLabel,
+                actionCode,
+                actionState);
+            return;
+        }
+
+        if (TryResolveWeaponSlotChange(actionCode, actionState, out var weaponSlot, out var weaponSlotReason))
+        {
+            var weaponSlotBroadcastCount = await _practiceRoomManager.BroadcastGameWeaponSlotAsync(
+                _currentGameRoom.RoomId,
+                this,
+                _localGameUid,
+                weaponSlot,
+                weaponSlotReason);
+
+            Log.Information(
+                "Channel packet143 <- {Remote}: weapon-slot broadcast actionCode={ActionCode} state={ActionState} uid={Uid} slot={Slot} reason={Reason} broadcastCount={BroadcastCount}",
+                _remoteLabel,
+                actionCode,
+                actionState,
+                _localGameUid,
+                weaponSlot,
+                weaponSlotReason,
+                weaponSlotBroadcastCount);
+            return;
+        }
+
         if (actionCode != GameActionReloadReadyCode || actionState != GameActionStateInactive)
         {
             Log.Verbose(
@@ -2468,14 +2580,6 @@ internal sealed class PracticeRoomChannelProtocol
                 _remoteLabel,
                 actionCode,
                 actionState);
-            return;
-        }
-
-        if (_currentGameRoom is null)
-        {
-            Log.Warning(
-                "Channel packet143 <- {Remote}: reload-ready action ignored, no active game room",
-                _remoteLabel);
             return;
         }
 
@@ -2502,6 +2606,161 @@ internal sealed class PracticeRoomChannelProtocol
             actionState,
             string.Join(",", reloadReadyUids),
             broadcastCount);
+    }
+
+    private bool TryResolveWeaponSlotChange(
+        int actionCode,
+        byte actionState,
+        out byte weaponSlot,
+        out string reason)
+    {
+        weaponSlot = 0;
+        reason = string.Empty;
+
+        if (actionState == GameActionStateInactive)
+        {
+            return false;
+        }
+
+        var availableSlots = GetAvailableClientWeaponSlots(ClientWeaponSlotCount);
+        if (availableSlots.Length == 0)
+        {
+            return false;
+        }
+
+        if (actionCode is >= GameActionFirstDirectWeaponSlotCode and <= GameActionLastDirectWeaponSlotCode)
+        {
+            var requestedSlot = (byte)(actionCode - GameActionFirstDirectWeaponSlotCode);
+            if (!availableSlots.Contains(requestedSlot) || !TryApplyLocalWeaponSlot(requestedSlot))
+            {
+                return false;
+            }
+
+            weaponSlot = requestedSlot;
+            reason = "packet143-direct-weapon-slot";
+            return true;
+        }
+
+        if (actionCode == GameActionNextWeaponCode)
+        {
+            foreach (var candidateSlot in availableSlots.Where(slot => slot < ClientScrollableWeaponSlotCount))
+            {
+                if (candidateSlot <= _currentWeaponSlot)
+                {
+                    continue;
+                }
+
+                if (!TryApplyLocalWeaponSlot(candidateSlot))
+                {
+                    return false;
+                }
+
+                weaponSlot = candidateSlot;
+                reason = "packet143-next-weapon";
+                return true;
+            }
+
+            return false;
+        }
+
+        if (actionCode == GameActionPreviousWeaponCode)
+        {
+            foreach (var candidateSlot in availableSlots
+                         .Where(slot => slot < ClientScrollableWeaponSlotCount)
+                         .OrderByDescending(slot => slot))
+            {
+                if (candidateSlot >= _currentWeaponSlot)
+                {
+                    continue;
+                }
+
+                if (!TryApplyLocalWeaponSlot(candidateSlot))
+                {
+                    return false;
+                }
+
+                weaponSlot = candidateSlot;
+                reason = "packet143-previous-weapon";
+                return true;
+            }
+
+            return false;
+        }
+
+        if (actionCode != GameActionAlternateWeaponCode)
+        {
+            return false;
+        }
+
+        if (_previousWeaponSlot != _currentWeaponSlot &&
+            availableSlots.Contains(_previousWeaponSlot) &&
+            TryApplyLocalWeaponSlot(_previousWeaponSlot))
+        {
+            weaponSlot = _currentWeaponSlot;
+            reason = "packet143-alternate-previous-weapon";
+            return true;
+        }
+
+        foreach (var candidateSlot in availableSlots)
+        {
+            if (candidateSlot == _currentWeaponSlot)
+            {
+                continue;
+            }
+
+            if (!TryApplyLocalWeaponSlot(candidateSlot))
+            {
+                return false;
+            }
+
+            weaponSlot = candidateSlot;
+            reason = "packet143-alternate-first-weapon";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryResolveWeaponSlotFromActionVector(byte action, out byte weaponSlot)
+    {
+        if (action > 0 && action <= ClientWeaponSlotCount)
+        {
+            weaponSlot = (byte)(action - 1);
+            return true;
+        }
+
+        weaponSlot = 0;
+        return false;
+    }
+
+    private bool TryApplyLocalWeaponSlot(byte weaponSlot, byte maxSlotExclusive = ClientWeaponSlotCount)
+    {
+        if (weaponSlot >= maxSlotExclusive || weaponSlot == _currentWeaponSlot)
+        {
+            return false;
+        }
+
+        _previousWeaponSlot = _currentWeaponSlot;
+        _currentWeaponSlot = weaponSlot;
+        return true;
+    }
+
+    private byte[] GetAvailableClientWeaponSlots(byte slotCount)
+    {
+        if (_currentGameRoom is null)
+        {
+            return [];
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        return GetSupportedGameEquipmentItems(loadoutItems)
+            .Select(item => (int)item.Slot - 1)
+            .Where(slot => slot >= 0 && slot < slotCount)
+            .Distinct()
+            .OrderBy(slot => slot)
+            .Select(slot => (byte)slot)
+            .ToArray();
     }
 
     private IReadOnlyList<byte> ResolveReloadReadyCandidateUids()
@@ -2887,7 +3146,7 @@ internal sealed class PracticeRoomChannelProtocol
             Log.Warning(ex, "Channel knife auto rearm loop stopped after send failure -> {Remote}", _remoteLabel);
             if (_currentGameRoom is not null)
             {
-                _practiceRoomManager.UnregisterGameChannel(_currentGameRoom.RoomId, this);
+                _practiceRoomManager.UnregisterGameChannel(_currentGameRoom.RoomId, this, out _);
             }
         }
         finally
@@ -3131,6 +3390,25 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    internal Task SendPacket128RemoteWeaponSlotAsync(
+        byte actorUid,
+        byte weaponSlot,
+        string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameRemoteWeaponSlotPacketId);
+        writer.WriteByte(actorUid);
+        writer.WriteByte(weaponSlot);
+
+        Log.Verbose(
+            "Channel packet128 -> {Remote}: remote weapon-slot uid={Uid} slot={Slot} trigger={Trigger}",
+            _remoteLabel,
+            actorUid,
+            weaponSlot,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
     private Task SendPacket114GameActionScalarAckAsync(int rawValue, string trigger)
     {
         using var writer = new PacketWriter();
@@ -3276,6 +3554,20 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task SendLocalPlayerEnteredOnceAsync()
     {
+        if (_localPlayerEnterPacketSent || _currentGameRoom is null)
+        {
+            return;
+        }
+
+        _localPlayerEnterPacketSent = true;
+        var member = GetLocalGameMember(_currentGameRoom);
+        var teamId = ResolveGameTeamId(member);
+        await SendPacket107GamePlayerEnterAsync(_localGameUid, teamId, "local-player-enter");
+        await BroadcastLocalPlayerEnteredOnceAsync("local-player-enter");
+    }
+
+    private async Task BroadcastLocalPlayerEnteredOnceAsync(string trigger)
+    {
         if (_localPlayerEnterBroadcastSent || _currentGameRoom is null)
         {
             return;
@@ -3284,16 +3576,15 @@ internal sealed class PracticeRoomChannelProtocol
         _localPlayerEnterBroadcastSent = true;
         var member = GetLocalGameMember(_currentGameRoom);
         var teamId = ResolveGameTeamId(member);
-        await SendPacket107GamePlayerEnterAsync(_localGameUid, teamId, "local-player-enter");
-
         var broadcastCount = await _practiceRoomManager.BroadcastGamePlayerEnteredAsync(
             _currentGameRoom.RoomId,
             this,
             _localGameUid,
             teamId);
         Log.Information(
-            "Channel packet107 broadcast from {Remote}: localUid={LocalUid} teamId={TeamId} broadcastCount={BroadcastCount}",
+            "Channel packet107 broadcast from {Remote}: trigger={Trigger} localUid={LocalUid} teamId={TeamId} broadcastCount={BroadcastCount}",
             _remoteLabel,
+            trigger,
             _localGameUid,
             teamId,
             broadcastCount);
@@ -3314,6 +3605,42 @@ internal sealed class PracticeRoomChannelProtocol
             teamId,
             trigger);
         return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket108GamePlayerLeaveAsync(byte actorUid, string trigger)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(108);
+        writer.WriteByte(actorUid);
+
+        Log.Information(
+            "Channel packet108 -> {Remote}: uid={Uid} trigger={Trigger}",
+            _remoteLabel,
+            actorUid,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    internal async Task SendRemoteGamePlayerEnteredAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        long characterId,
+        byte actorUid,
+        byte teamId,
+        string trigger)
+    {
+        var member = room.Members.FirstOrDefault(candidate => candidate.CharacterId == characterId);
+        var player = CreateGamePacketPlayer(
+            room,
+            new PracticeRoomManager.GamePlayerSnapshot(
+                actorUid,
+                characterId,
+                member?.CharacterName ?? string.Empty,
+                null));
+
+        await SendPacket103GameCharacterCreateAsync(player);
+        await SendPacket111GameSpawnAsync(room, player, trigger);
+        await SendPacket107GamePlayerEnterAsync(actorUid, teamId, trigger);
     }
 
     private Task SendPacket151PlayerEnteringCompleteAsync(string trigger, int retriesRemaining)
@@ -5019,16 +5346,31 @@ internal sealed class PracticeRoomChannelProtocol
 
     private Task SendPacket111GameSpawnAsync(PracticeRoomManager.PracticeRoomSession room)
     {
+        var member = GetLocalGameMember(room);
+        var player = CreateGamePacketPlayer(
+            room,
+            new PracticeRoomManager.GamePlayerSnapshot(
+                _localGameUid,
+                member?.CharacterId ?? room.HostCharacterId,
+                member?.CharacterName ?? room.HostName,
+                null));
+
+        return SendPacket111GameSpawnAsync(room, player, "local-spawn");
+    }
+
+    private Task SendPacket111GameSpawnAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        GamePacketPlayer player,
+        string trigger)
+    {
         using var writer = new PacketWriter();
-        var playerState = GetLocalPlayerState(room);
         if (UseLegacyMinimalPacket111Spawn)
         {
-            var member = GetLocalGameMember(room);
-            var actorType = (short)(playerState?.Character.Occupation ?? member?.Career ?? 0);
-            var legacyHealth = playerState?.Character.MaxHealth ?? DefaultSpawnHealth;
+            var actorType = (short)player.Career;
+            var legacyHealth = player.MaxHealth;
 
             writer.WriteShort(111);
-            writer.WriteByte(_localGameUid);
+            writer.WriteByte(player.Uid);
             writer.WriteInt(legacyHealth);
             writer.WriteShort(actorType);
             writer.WriteFloat(1f);
@@ -5038,22 +5380,23 @@ internal sealed class PracticeRoomChannelProtocol
             writer.WriteFloat(0f);
 
             Log.Information(
-                "Channel packet111 -> {Remote}: localUid={LocalUid} health={Health} actorType={ActorType} legacyMinimal=True",
+                "Channel packet111 -> {Remote}: trigger={Trigger} uid={Uid} health={Health} actorType={ActorType} legacyMinimal=True",
                 _remoteLabel,
-                _localGameUid,
+                trigger,
+                player.Uid,
                 legacyHealth,
                 actorType);
 
             return SendPacketAsync(writer);
         }
 
-        var health = ResolveGamePlayerHealth(playerState?.Character);
+        var health = player.MaxHealth;
         const short actorState = InitialGamePlayerActionStateFlags;
         const float spawnActorFloat = 0f;
-        var (spawnPositionX, spawnPositionY, spawnPositionZ, spawnYaw) = ResolveSpawnPoint(room);
+        var (spawnPositionX, spawnPositionY, spawnPositionZ, spawnYaw) = ResolveGameSpawnTransform(room, player.LastPosition);
 
         writer.WriteShort(111);
-        writer.WriteByte(_localGameUid);
+        writer.WriteByte(player.Uid);
         writer.WriteInt(health);
         writer.WriteShort(actorState);
         writer.WriteFloat(spawnActorFloat);
@@ -5063,9 +5406,10 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(spawnYaw);
 
         Log.Information(
-            "Channel packet111 -> {Remote}: localUid={LocalUid} health={Health} actorState={ActorState} spawnActorFloat={SpawnActorFloat} spawnPosition=({SpawnPositionX}, {SpawnPositionY}, {SpawnPositionZ}) spawnYaw={SpawnYaw}",
+            "Channel packet111 -> {Remote}: trigger={Trigger} uid={Uid} health={Health} actorState={ActorState} spawnActorFloat={SpawnActorFloat} spawnPosition=({SpawnPositionX}, {SpawnPositionY}, {SpawnPositionZ}) spawnYaw={SpawnYaw}",
             _remoteLabel,
-            _localGameUid,
+            trigger,
+            player.Uid,
             health,
             actorState,
             spawnActorFloat,
@@ -5075,6 +5419,24 @@ internal sealed class PracticeRoomChannelProtocol
             spawnYaw);
 
         return SendPacketAsync(writer);
+    }
+
+    private static (float X, float Y, float Z, float Yaw) ResolveGameSpawnTransform(
+        PracticeRoomManager.PracticeRoomSession room,
+        PracticeRoomManager.GamePosition? position)
+    {
+        if (position.HasValue)
+        {
+            return (
+                RawToWorldCoordinate(position.Value.XRaw),
+                RawToWorldCoordinate(position.Value.YRaw),
+                RawToWorldCoordinate(position.Value.ZRaw),
+                position.Value.YawRaw.HasValue
+                    ? RawToWorldCoordinate(position.Value.YawRaw.Value)
+                    : 0f);
+        }
+
+        return ResolveSpawnPoint(room);
     }
 
     private static (float X, float Y, float Z, float Yaw) ResolveSpawnPoint(

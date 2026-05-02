@@ -31,9 +31,11 @@ internal sealed class PracticeRoomManager
     private readonly Dictionary<int, int> _roomIdByChannelToken = new();
     private readonly Dictionary<long, int> _roomIdByHostCharacterId = new();
     private readonly Dictionary<int, HashSet<PracticeRoomChannelProtocol>> _roomChannelsByRoomId = new();
+    private readonly Dictionary<int, Dictionary<PracticeRoomChannelProtocol, long>> _roomCharacterByChannelByRoomId = new();
     private readonly Dictionary<int, Dictionary<PracticeRoomChannelProtocol, byte>> _gameChannelsByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GamePlayerRuntime>> _gamePlayersByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GameMovementDelta>> _gameMovementByRoomId = new();
+    private readonly Dictionary<int, HashSet<byte>> _retiredGameUidsByRoomId = new();
     private readonly Dictionary<PendingChannelJoinKey, Queue<PendingChannelJoin>> _pendingChannelJoins = new();
 
     private int _nextRoomId = 1;
@@ -265,6 +267,12 @@ internal sealed class PracticeRoomManager
             {
                 RemoveRoomNoLock(roomId);
                 roomRemoved = true;
+                return true;
+            }
+
+            if (IsCharacterConnectedToRoomNoLock(roomId, characterId))
+            {
+                currentRoom.RefreshCurrentClientNum();
                 return true;
             }
 
@@ -523,12 +531,33 @@ internal sealed class PracticeRoomManager
             }
 
             var used = channels.Values.ToHashSet();
+            _retiredGameUidsByRoomId.TryGetValue(roomId, out var retiredUids);
             var preferredUid = ResolvePreferredGameUidNoLock(room, characterId);
-            if (preferredUid != 0 && !used.Contains(preferredUid))
+            if (preferredUid != 0 &&
+                !used.Contains(preferredUid) &&
+                retiredUids?.Contains(preferredUid) != true)
             {
                 channels[channel] = preferredUid;
                 UpsertGamePlayerNoLock(roomId, preferredUid, characterId, characterName);
                 return preferredUid;
+            }
+
+            for (var uid = 1; uid <= byte.MaxValue; uid++)
+            {
+                var candidate = (byte)uid;
+                if (used.Contains(candidate))
+                {
+                    continue;
+                }
+
+                if (retiredUids?.Contains(candidate) == true)
+                {
+                    continue;
+                }
+
+                channels[channel] = candidate;
+                UpsertGamePlayerNoLock(roomId, candidate, characterId, characterName);
+                return candidate;
             }
 
             for (var uid = 1; uid <= byte.MaxValue; uid++)
@@ -601,7 +630,7 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    public void RegisterRoomChannel(int roomId, PracticeRoomChannelProtocol channel)
+    public void RegisterRoomChannel(int roomId, PracticeRoomChannelProtocol channel, long characterId)
     {
         lock (_lock)
         {
@@ -617,6 +646,14 @@ internal sealed class PracticeRoomManager
             }
 
             channels.Add(channel);
+
+            if (!_roomCharacterByChannelByRoomId.TryGetValue(roomId, out var charactersByChannel))
+            {
+                charactersByChannel = new Dictionary<PracticeRoomChannelProtocol, long>();
+                _roomCharacterByChannelByRoomId[roomId] = charactersByChannel;
+            }
+
+            charactersByChannel[channel] = characterId;
         }
     }
 
@@ -633,6 +670,15 @@ internal sealed class PracticeRoomManager
             if (channels.Count == 0)
             {
                 _roomChannelsByRoomId.Remove(roomId);
+            }
+
+            if (_roomCharacterByChannelByRoomId.TryGetValue(roomId, out var charactersByChannel))
+            {
+                charactersByChannel.Remove(channel);
+                if (charactersByChannel.Count == 0)
+                {
+                    _roomCharacterByChannelByRoomId.Remove(roomId);
+                }
             }
         }
     }
@@ -689,11 +735,11 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
-    public void UnregisterGameChannel(int roomId, PracticeRoomChannelProtocol channel)
+    public bool UnregisterGameChannel(int roomId, PracticeRoomChannelProtocol channel, out byte removedUid)
     {
         lock (_lock)
         {
-            UnregisterGameChannelNoLock(roomId, channel);
+            return UnregisterGameChannelNoLock(roomId, channel, out removedUid);
         }
     }
 
@@ -701,18 +747,19 @@ internal sealed class PracticeRoomManager
         int roomId,
         long characterId,
         PracticeRoomChannelProtocol channel,
-        out PracticeRoomSession room)
+        out PracticeRoomSession room,
+        out byte removedUid)
     {
         lock (_lock)
         {
-            UnregisterGameChannelNoLock(roomId, channel);
+            UnregisterGameChannelNoLock(roomId, channel, out removedUid);
             if (!_roomsById.TryGetValue(roomId, out room!))
             {
                 return false;
             }
 
             var member = room.Members.FirstOrDefault(member => member.CharacterId == characterId);
-            if (member is not null)
+            if (member is not null && !IsCharacterConnectedToGameNoLock(roomId, characterId))
             {
                 member.Ready = false;
                 member.InGame = false;
@@ -752,7 +799,7 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -883,18 +930,17 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
         return sent;
     }
 
-    public async Task<int> BroadcastGamePlayerEnteredAsync(
+    public async Task<int> BroadcastGamePlayerLeftAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
-        byte actorUid,
-        byte teamId)
+        byte actorUid)
     {
         PracticeRoomChannelProtocol[] targets;
 
@@ -915,12 +961,70 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket107GamePlayerEnterAsync(actorUid, teamId, "remote-player-enter");
+                await target.SendPacket108GamePlayerLeaveAsync(actorUid, "remote-player-leave");
                 sent++;
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGamePlayerEnteredAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte teamId)
+    {
+        PracticeRoomChannelProtocol[] targets;
+        PracticeRoomSession? room;
+        long characterId;
+
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out room) ||
+                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            characterId = _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) &&
+                playersByUid.TryGetValue(actorUid, out var player)
+                    ? player.CharacterId
+                    : 0;
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                if (characterId != 0)
+                {
+                    await target.SendRemoteGamePlayerEnteredAsync(
+                        room,
+                        characterId,
+                        actorUid,
+                        teamId,
+                        "remote-player-enter");
+                }
+                else
+                {
+                    await target.SendPacket107GamePlayerEnterAsync(actorUid, teamId, "remote-player-enter");
+                }
+
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -957,7 +1061,7 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -994,7 +1098,7 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -1030,7 +1134,45 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameWeaponSlotAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte weaponSlot,
+        string trigger)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket128RemoteWeaponSlotAsync(actorUid, weaponSlot, trigger);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -1066,7 +1208,7 @@ internal sealed class PracticeRoomManager
             }
             catch
             {
-                UnregisterGameChannel(roomId, target);
+                UnregisterGameChannel(roomId, target, out _);
             }
         }
 
@@ -1085,8 +1227,10 @@ internal sealed class PracticeRoomManager
         _roomIdByHostCharacterId.Remove(room.HostCharacterId);
         _gameChannelsByRoomId.Remove(roomId);
         _roomChannelsByRoomId.Remove(roomId);
+        _roomCharacterByChannelByRoomId.Remove(roomId);
         _gamePlayersByRoomId.Remove(roomId);
         _gameMovementByRoomId.Remove(roomId);
+        _retiredGameUidsByRoomId.Remove(roomId);
         foreach (var key in _pendingChannelJoins.Keys
                      .Where(key => key.ChannelToken == room.ChannelToken)
                      .ToArray())
@@ -1112,38 +1256,75 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    private void UnregisterGameChannelNoLock(int roomId, PracticeRoomChannelProtocol channel)
+    private bool UnregisterGameChannelNoLock(int roomId, PracticeRoomChannelProtocol channel, out byte removedUid)
     {
+        removedUid = 0;
         if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
         {
-            return;
+            return false;
         }
 
-        if (channels.TryGetValue(channel, out var uid) &&
-            _gameMovementByRoomId.TryGetValue(roomId, out var movementByUid))
+        if (!channels.TryGetValue(channel, out removedUid))
         {
-            movementByUid.Remove(uid);
+            return false;
+        }
+
+        if (_gameMovementByRoomId.TryGetValue(roomId, out var movementByUid))
+        {
+            movementByUid.Remove(removedUid);
             if (movementByUid.Count == 0)
             {
                 _gameMovementByRoomId.Remove(roomId);
             }
         }
 
-        if (channels.TryGetValue(channel, out var gameUid) &&
-            _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        if (_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
         {
-            playersByUid.Remove(gameUid);
+            playersByUid.Remove(removedUid);
             if (playersByUid.Count == 0)
             {
                 _gamePlayersByRoomId.Remove(roomId);
             }
         }
 
+        if (!_retiredGameUidsByRoomId.TryGetValue(roomId, out var retiredUids))
+        {
+            retiredUids = [];
+            _retiredGameUidsByRoomId[roomId] = retiredUids;
+        }
+
+        retiredUids.Add(removedUid);
+
         channels.Remove(channel);
         if (channels.Count == 0)
         {
             _gameChannelsByRoomId.Remove(roomId);
+            _retiredGameUidsByRoomId.Remove(roomId);
         }
+
+        return true;
+    }
+
+    private bool IsCharacterConnectedToRoomNoLock(int roomId, long characterId)
+    {
+        if (characterId == 0 ||
+            !_roomCharacterByChannelByRoomId.TryGetValue(roomId, out var charactersByChannel))
+        {
+            return false;
+        }
+
+        return charactersByChannel.Values.Any(connectedCharacterId => connectedCharacterId == characterId);
+    }
+
+    private bool IsCharacterConnectedToGameNoLock(int roomId, long characterId)
+    {
+        if (characterId == 0 ||
+            !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        {
+            return false;
+        }
+
+        return playersByUid.Values.Any(player => player.CharacterId == characterId);
     }
 
     private void UpsertGamePlayerNoLock(int roomId, byte uid, long characterId, string characterName)
