@@ -62,10 +62,15 @@ internal sealed class PracticeRoomChannelProtocol
     private const float MovementRawCoordinateScale = 100f;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const short GameRemoteShootPacketId = 113;
+    private const short GameRemoteHurtPacketId = 162;
     private const int GameObjectDeltaActorUidFlag = 0x00000001;
+    private const int GameObjectDeltaTargetUidFlag = 0x00000002;
     private const int GameObjectDeltaWeaponSlotFlag = 0x00000004;
     private const int GameObjectDeltaActionFlag = 0x00000008;
     private const int GameObjectDeltaSkipTargetFlag = 0x00000020;
+    private const int GameObjectDeltaIntValueFlag = 0x00004000;
+    private const int GameObjectDeltaFloatValueFlag = 0x00008000;
+    private const int GameObjectDeltaSubtypeFlag = 0x01000000;
     private const int GameObjectDeltaOriginFlag = 0x00200000;
     private const int GameObjectDeltaVectorFlag = 0x00400000;
     private const int GameObjectDeltaFacingFlag = 0x00800000;
@@ -77,8 +82,17 @@ internal sealed class PracticeRoomChannelProtocol
         GameObjectDeltaOriginFlag |
         GameObjectDeltaVectorFlag |
         GameObjectDeltaFacingFlag;
+    private const int GameRemoteHurtObjectDeltaFlags =
+        GameObjectDeltaActorUidFlag |
+        GameObjectDeltaTargetUidFlag |
+        GameObjectDeltaIntValueFlag |
+        GameObjectDeltaFloatValueFlag |
+        GameObjectDeltaSubtypeFlag;
     private const byte GameRemoteShootActionByte = 1;
     private const byte GameRemoteShootSkipTargetMarker = 0xFE;
+    private const short GameRemoteHurtSubtype = 73;
+    private const int DefaultGameHurtDamage = 100;
+    private const int MaxGameHurtDamage = 100000;
     private const float ShootFallbackVectorLength = 12f;
     private const float ShootVectorEpsilon = 0.001f;
     private const float FacingRawAngleScale = 8192f;
@@ -1968,6 +1982,12 @@ internal sealed class PracticeRoomChannelProtocol
             this,
             localCharacterId,
             localCharacterName);
+        var localPlayerState = ResolvePlayerState(localCharacterId);
+        _practiceRoomManager.UpdateGamePlayerState(
+            room.RoomId,
+            _localGameUid,
+            ResolveGameTeamId(localMember),
+            ResolveGamePlayerHealth(localPlayerState?.Character));
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
         _gameInitSpawnHandshakeSent = false;
@@ -2180,14 +2200,28 @@ internal sealed class PracticeRoomChannelProtocol
         var scalar = BitConverter.Int32BitsToSingle(rawValue);
         await SendPacket114GameActionScalarAckAsync(rawValue, "packet113-local-ack");
         var knifeRearmCount = await SendKnifeWeaponRearmAsync("packet113");
+        var damage = ResolveGameHurtDamage(rawValue, scalar);
+        var damageResult = _currentGameRoom is null
+            ? PracticeRoomManager.GameDamageBroadcastResult.NotApplied
+            : await _practiceRoomManager.BroadcastGameDamageAsync(
+                _currentGameRoom.RoomId,
+                this,
+                _localGameUid,
+                damage);
 
         Log.Information(
-            "Channel packet113 <- {Remote}: actionScalarRaw=0x{RawValue:X8} actionScalar={Scalar} trailing={Trailing}; packet114 local ack sent, knifeRearmCount={KnifeRearmCount}",
+            "Channel packet113 <- {Remote}: hurtRaw=0x{RawValue:X8} hurtScalar={Scalar} damage={Damage} trailing={Trailing}; packet114 local ack sent, knifeRearmCount={KnifeRearmCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, broadcastCount={BroadcastCount}",
             _remoteLabel,
             rawValue,
             scalar,
+            damage,
             reader.Remaining,
-            knifeRearmCount);
+            knifeRearmCount,
+            damageResult.Applied,
+            damageResult.VictimUid,
+            damageResult.VictimHealth,
+            damageResult.VictimMaxHealth,
+            damageResult.BroadcastCount);
     }
 
     private async Task HandlePacket156GameInfoOverlayRequestAsync(PacketReader reader)
@@ -2461,9 +2495,14 @@ internal sealed class PracticeRoomChannelProtocol
             _currentGameRoom.RoomId,
             this,
             shoot);
+        var damageResult = await _practiceRoomManager.BroadcastGameDamageAsync(
+            _currentGameRoom.RoomId,
+            this,
+            _localGameUid,
+            DefaultGameHurtDamage);
 
         Log.Information(
-            "Channel packet106 <- {Remote}: shoot action={Action} uid={Uid} slot={Slot} poseState={PoseState} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} optionalTag={OptionalTag} optionalValue={OptionalValue} optionalByte={OptionalByte} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet113 broadcastCount={BroadcastCount}",
+            "Channel packet106 <- {Remote}: shoot action={Action} uid={Uid} slot={Slot} poseState={PoseState} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} optionalTag={OptionalTag} optionalValue={OptionalValue} optionalByte={OptionalByte} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet113 broadcastCount={BroadcastCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, damageBroadcastCount={DamageBroadcastCount}",
             _remoteLabel,
             action,
             _localGameUid,
@@ -2478,7 +2517,12 @@ internal sealed class PracticeRoomChannelProtocol
             optionalByte,
             trailingBytes,
             trailingPayloadHex,
-            broadcastCount);
+            broadcastCount,
+            damageResult.Applied,
+            damageResult.VictimUid,
+            damageResult.VictimHealth,
+            damageResult.VictimMaxHealth,
+            damageResult.BroadcastCount);
     }
 
     private async Task HandlePacket112GameActionVectorAsync(PacketReader reader)
@@ -2942,6 +2986,21 @@ internal sealed class PracticeRoomChannelProtocol
 
         value = BitConverter.Int32BitsToSingle(rawValue);
         return true;
+    }
+
+    private static int ResolveGameHurtDamage(int rawValue, float scalar)
+    {
+        if (float.IsFinite(scalar) && scalar > 0f && scalar <= MaxGameHurtDamage)
+        {
+            return Math.Clamp((int)MathF.Round(scalar), 1, MaxGameHurtDamage);
+        }
+
+        if (rawValue is > 0 and <= MaxGameHurtDamage)
+        {
+            return rawValue;
+        }
+
+        return DefaultGameHurtDamage;
     }
 
     private static void WriteGameObjectDeltaFlags(PacketWriter writer, int flags)
@@ -3640,6 +3699,30 @@ internal sealed class PracticeRoomChannelProtocol
             actorUid,
             weaponSlot,
             trigger);
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket162RemoteHurtAsync(PracticeRoomManager.GameDamageAction damage)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(GameRemoteHurtPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteHurtObjectDeltaFlags);
+        writer.WriteByte(damage.VictimUid);
+        writer.WriteByte(damage.AttackerUid);
+        writer.WriteShort(GameRemoteHurtSubtype);
+        writer.WriteInt(damage.VictimHealth);
+        writer.WriteFloat(damage.Damage);
+
+        Log.Verbose(
+            "Channel packet162 -> {Remote}: hurt attackerUid={AttackerUid} victimUid={VictimUid} damage={Damage} health={Health}/{MaxHealth} subtype={Subtype}",
+            _remoteLabel,
+            damage.AttackerUid,
+            damage.VictimUid,
+            damage.Damage,
+            damage.VictimHealth,
+            damage.VictimMaxHealth,
+            GameRemoteHurtSubtype);
         return SendPacketAsync(writer);
     }
 

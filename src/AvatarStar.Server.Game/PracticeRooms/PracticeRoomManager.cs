@@ -8,6 +8,11 @@ internal sealed class PracticeRoomManager
 {
     private const byte DefaultHostSlotIndex = 1;
     private const byte MaxRoomSlotIndex = 24;
+    private const byte GameTeamBlue = 1;
+    private const byte GameTeamSpectator = 2;
+    private const int DefaultGamePlayerHealth = 1000;
+    private const float MovementRawCoordinateScale = 100f;
+    private const float ActionPoseRawCoordinateScale = 256f;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
 
     private static readonly Lazy<IReadOnlyList<BattleLevelChoice>> RandomBattleLevelChoices = new(LoadRandomBattleLevelChoices);
@@ -950,6 +955,31 @@ internal sealed class PracticeRoomManager
         }
     }
 
+    public void UpdateGamePlayerState(int roomId, byte uid, byte teamId, int maxHealth)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.ContainsKey(roomId))
+            {
+                return;
+            }
+
+            if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(uid, out var player))
+            {
+                UpsertGamePlayerNoLock(roomId, uid, 0, $"uid:{uid}");
+                player = _gamePlayersByRoomId[roomId][uid];
+            }
+
+            player.TeamId = teamId;
+            player.MaxHealth = Math.Max(1, maxHealth);
+            if (player.CurrentHealth <= 0 || player.CurrentHealth > player.MaxHealth)
+            {
+                player.CurrentHealth = player.MaxHealth;
+            }
+        }
+    }
+
     public bool TryFindGamePlayerPositionByName(
         int roomId,
         string characterName,
@@ -1046,6 +1076,12 @@ internal sealed class PracticeRoomManager
                 return 0;
             }
 
+            if (_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) &&
+                playersByUid.TryGetValue(shoot.Uid, out var player))
+            {
+                player.LastShoot = shoot;
+            }
+
             targets = channels.Keys
                 .Where(channel => !ReferenceEquals(channel, source))
                 .ToArray();
@@ -1066,6 +1102,50 @@ internal sealed class PracticeRoomManager
         }
 
         return sent;
+    }
+
+    public async Task<GameDamageBroadcastResult> BroadcastGameDamageAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte attackerUid,
+        int damage)
+    {
+        PracticeRoomChannelProtocol[] targets;
+        GameDamageAction? damageAction;
+
+        lock (_lock)
+        {
+            damageAction = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage);
+            if (damageAction is null ||
+                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return GameDamageBroadcastResult.NotApplied;
+            }
+
+            targets = channels.Keys.ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket162RemoteHurtAsync(damageAction.Value);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return new GameDamageBroadcastResult(
+            Applied: true,
+            BroadcastCount: sent,
+            VictimUid: damageAction.Value.VictimUid,
+            VictimHealth: damageAction.Value.VictimHealth,
+            VictimMaxHealth: damageAction.Value.VictimMaxHealth,
+            Damage: damageAction.Value.Damage);
     }
 
     public async Task<int> BroadcastGamePlayerLeftAsync(
@@ -1408,6 +1488,154 @@ internal sealed class PracticeRoomManager
         playersByUid[uid] = new GamePlayerRuntime(uid, characterId, normalizedName);
     }
 
+    private GameDamageAction? TryApplyEnemyDamageNoLock(int roomId, byte attackerUid, int damage)
+    {
+        if (damage <= 0 ||
+            !_roomsById.TryGetValue(roomId, out var room) ||
+            !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+            !playersByUid.TryGetValue(attackerUid, out var attacker))
+        {
+            return null;
+        }
+
+        var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
+        if (attackerTeamId == GameTeamSpectator)
+        {
+            return null;
+        }
+
+        var candidates = playersByUid.Values
+            .Where(player =>
+                player.Uid != attackerUid &&
+                player.CurrentHealth > 0 &&
+                IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)))
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            return null;
+        }
+
+        var victim = SelectDamageVictim(attacker, candidates);
+        var maxHealth = Math.Max(1, victim.MaxHealth);
+        var appliedDamage = Math.Clamp(damage, 1, maxHealth);
+        victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
+
+        return new GameDamageAction(
+            AttackerUid: attackerUid,
+            VictimUid: victim.Uid,
+            Damage: appliedDamage,
+            VictimHealth: victim.CurrentHealth,
+            VictimMaxHealth: maxHealth);
+    }
+
+    private static bool IsEnemyTeam(byte sourceTeamId, byte targetTeamId)
+    {
+        return sourceTeamId != GameTeamSpectator &&
+               targetTeamId != GameTeamSpectator &&
+               sourceTeamId != targetTeamId;
+    }
+
+    private static GamePlayerRuntime SelectDamageVictim(
+        GamePlayerRuntime attacker,
+        IReadOnlyList<GamePlayerRuntime> candidates)
+    {
+        return candidates
+            .OrderBy(candidate => ComputeDamageTargetScore(attacker, candidate))
+            .ThenBy(candidate => candidate.Uid)
+            .First();
+    }
+
+    private static float ComputeDamageTargetScore(GamePlayerRuntime attacker, GamePlayerRuntime candidate)
+    {
+        if (attacker.LastShoot is { } shoot &&
+            candidate.LastPosition is { } candidatePosition)
+        {
+            var origin = ShootOriginToWorld(shoot);
+            var direction = NormalizeOrZero(shoot.VectorX, shoot.VectorY, shoot.VectorZ);
+            var target = MovementPositionToWorld(candidatePosition);
+            if (direction.LengthSquared > 0f)
+            {
+                var toTargetX = target.X - origin.X;
+                var toTargetY = target.Y - origin.Y;
+                var toTargetZ = target.Z - origin.Z;
+                var projection = Dot(toTargetX, toTargetY, toTargetZ, direction.X, direction.Y, direction.Z);
+                var closestX = origin.X + (direction.X * projection);
+                var closestY = origin.Y + (direction.Y * projection);
+                var closestZ = origin.Z + (direction.Z * projection);
+                var rayDistance = DistanceSquared(target.X, target.Y, target.Z, closestX, closestY, closestZ);
+                var behindPenalty = projection < 0f ? MathF.Abs(projection) * 1000f : 0f;
+                return rayDistance + behindPenalty;
+            }
+        }
+
+        if (attacker.LastPosition is { } attackerPosition &&
+            candidate.LastPosition is { } targetPosition)
+        {
+            var source = MovementPositionToWorld(attackerPosition);
+            var target = MovementPositionToWorld(targetPosition);
+            return DistanceSquared(source.X, source.Y, source.Z, target.X, target.Y, target.Z);
+        }
+
+        return candidate.Uid;
+    }
+
+    private static (float X, float Y, float Z) ShootOriginToWorld(GameShootAction shoot)
+    {
+        return (
+            shoot.OriginXRaw / ActionPoseRawCoordinateScale,
+            shoot.OriginYRaw / ActionPoseRawCoordinateScale,
+            shoot.OriginZRaw / ActionPoseRawCoordinateScale);
+    }
+
+    private static (float X, float Y, float Z) MovementPositionToWorld(GamePosition position)
+    {
+        return (
+            position.XRaw / MovementRawCoordinateScale,
+            position.YRaw / MovementRawCoordinateScale,
+            position.ZRaw / MovementRawCoordinateScale);
+    }
+
+    private static (float X, float Y, float Z, float LengthSquared) NormalizeOrZero(float x, float y, float z)
+    {
+        var lengthSquared = (x * x) + (y * y) + (z * z);
+        if (!float.IsFinite(lengthSquared) || lengthSquared <= 0.000001f)
+        {
+            return (0f, 0f, 0f, 0f);
+        }
+
+        var length = MathF.Sqrt(lengthSquared);
+        return (x / length, y / length, z / length, 1f);
+    }
+
+    private static float Dot(float ax, float ay, float az, float bx, float by, float bz)
+    {
+        return (ax * bx) + (ay * by) + (az * bz);
+    }
+
+    private static float DistanceSquared(float ax, float ay, float az, float bx, float by, float bz)
+    {
+        var dx = ax - bx;
+        var dy = ay - by;
+        var dz = az - bz;
+        return (dx * dx) + (dy * dy) + (dz * dz);
+    }
+
+    private static byte ResolveGamePlayerTeamId(PracticeRoomSession room, GamePlayerRuntime player)
+    {
+        var member = room.Members.FirstOrDefault(candidate => candidate.CharacterId == player.CharacterId);
+        return member is null ? player.TeamId : ResolveGameTeamId(member);
+    }
+
+    private static byte ResolveGameTeamId(PracticeRoomMember? member)
+    {
+        return member?.SlotIndex switch
+        {
+            >= 9 and <= 16 => GameTeamBlue,
+            >= 17 and <= 24 => GameTeamSpectator,
+            _ => 0
+        };
+    }
+
     private static IEnumerable<PracticeRoomMember> OrderedGameMembers(PracticeRoomSession room)
     {
         return room.Members
@@ -1625,6 +1853,24 @@ internal sealed class PracticeRoomManager
         float VectorY,
         float VectorZ);
 
+    internal readonly record struct GameDamageAction(
+        byte AttackerUid,
+        byte VictimUid,
+        int Damage,
+        int VictimHealth,
+        int VictimMaxHealth);
+
+    internal readonly record struct GameDamageBroadcastResult(
+        bool Applied,
+        int BroadcastCount,
+        byte VictimUid,
+        int VictimHealth,
+        int VictimMaxHealth,
+        int Damage)
+    {
+        public static GameDamageBroadcastResult NotApplied { get; } = new(false, 0, 0, 0, 0, 0);
+    }
+
     internal readonly record struct GamePlayerSnapshot(
         byte Uid,
         long CharacterId,
@@ -1658,7 +1904,11 @@ internal sealed class PracticeRoomManager
         public byte Uid { get; }
         public long CharacterId { get; set; }
         public string CharacterName { get; set; }
+        public byte TeamId { get; set; }
+        public int MaxHealth { get; set; } = DefaultGamePlayerHealth;
+        public int CurrentHealth { get; set; } = DefaultGamePlayerHealth;
         public GamePosition? LastPosition { get; set; }
+        public GameShootAction? LastShoot { get; set; }
     }
 
     internal sealed class PracticeRoomSession
