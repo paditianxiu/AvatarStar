@@ -12,7 +12,7 @@ using Serilog;
 
 namespace AvatarStar.Server.Game;
 
-internal partial class GameClient : Client
+internal partial class GameClient : Client, IDisconnectAwareClient
 {
     private readonly IOptionsMonitor<SysAvatarPayloadConfig> _sysAvatarPayloadMonitor;
     private readonly PlayerStore _playerStore;
@@ -23,6 +23,10 @@ internal partial class GameClient : Client
 
     private static readonly int DumpMaxBytes =
         int.TryParse(Environment.GetEnvironmentVariable("AS_GAME_DUMP_MAX_BYTES"), out var v) && v > 0 ? v : 512;
+
+    private static readonly bool BroadcastPacket40RawBlob =
+        (Environment.GetEnvironmentVariable("AS_BROADCAST_PACKET40_RAW_BLOB") ?? "0")
+        .Equals("1", StringComparison.OrdinalIgnoreCase);
 
     private static void DumpPacket(string direction, System.Net.IPEndPoint remote, ReadOnlySpan<byte> data)
     {
@@ -283,6 +287,7 @@ internal partial class GameClient : Client
 
     private void ResetLobbySessionContext()
     {
+        _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
         _activeRoleId = 0;
         _activeRoleExtra = string.Empty;
         _lobbyRoomListReady = false;
@@ -670,9 +675,11 @@ internal partial class GameClient : Client
                 }
 
                 Log.Information("EnterLobby: remote={Remote} roleId={RoleId} extraLen={ExtraLen}", RemoteEndPoint, roleId, extra.Length);
+                _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
                 _activeRoleId = roleId;
                 _activeRoleExtra = extra;
                 _lobbyRoomListReady = false;
+                _practiceRoomManager.RegisterGameClient(roleId, this);
 
                 using var writer = new PacketWriter();
                 writer.WriteByte(1);          // packetId
@@ -804,6 +811,12 @@ internal partial class GameClient : Client
         var knifeRearmCount = await _practiceRoomManager.SendKnifeRearmForLobbyRawBlobAsync(
             _activeRoleId,
             "packet40-raw-blob");
+        var broadcastCount = BroadcastPacket40RawBlob
+            ? await _practiceRoomManager.BroadcastLobbyRawBlobAsync(
+                _activeRoleId,
+                payload,
+                "packet40-raw-blob")
+            : 0;
         if (knifeRearmCount > 0)
         {
             Log.Information(
@@ -811,6 +824,35 @@ internal partial class GameClient : Client
                 _activeRoleId,
                 knifeRearmCount);
         }
+
+        if (broadcastCount > 0)
+        {
+            Log.Information(
+                "PacketId=40 raw blob broadcast: roleId={RoleId} payloadBytes={PayloadBytes} broadcastCount={BroadcastCount}",
+                _activeRoleId,
+                payload.Length,
+                broadcastCount);
+        }
+    }
+
+    internal async Task SendPacket40RawBlobAsync(byte[] payload, string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteByte(40);
+        writer.WriteInt(payload.Length);
+        writer.WriteRaw(payload);
+
+        Log.Verbose(
+            "PacketId=40 raw blob -> {Remote}: len={Length} trigger={Trigger}",
+            RemoteEndPoint,
+            payload.Length,
+            trigger);
+        await SendAsync(writer);
+    }
+
+    public void OnClientDisconnected()
+    {
+        _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
     }
 
     protected override ClientBuffer CreateBuffer()

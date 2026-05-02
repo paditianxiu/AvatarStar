@@ -34,7 +34,6 @@ internal sealed class PracticeRoomChannelProtocol
     private const short InitialGamePlayerActionStateFlags = 0x0002;
     private const byte GamePlayerListTerminator = 0;
     private const int PlayerEnteringClearRetryCount = 3;
-    private const int GameActionReloadReadyCode = 12;
     private const int GameActionAlternateWeaponCode = 0x0F;
     private const int GameActionPreviousWeaponCode = 0x10;
     private const int GameActionNextWeaponCode = 0x11;
@@ -61,6 +60,28 @@ internal sealed class PracticeRoomChannelProtocol
     private const int MovementDebugSampleLogLimit = 96;
     private const string TeleportCommandName = "/tp";
     private const float MovementRawCoordinateScale = 100f;
+    private const float ActionPoseRawCoordinateScale = 256f;
+    private const short GameRemoteShootPacketId = 113;
+    private const int GameObjectDeltaActorUidFlag = 0x00000001;
+    private const int GameObjectDeltaWeaponSlotFlag = 0x00000004;
+    private const int GameObjectDeltaActionFlag = 0x00000008;
+    private const int GameObjectDeltaSkipTargetFlag = 0x00000020;
+    private const int GameObjectDeltaOriginFlag = 0x00200000;
+    private const int GameObjectDeltaVectorFlag = 0x00400000;
+    private const int GameObjectDeltaFacingFlag = 0x00800000;
+    private const int GameRemoteShootObjectDeltaFlags =
+        GameObjectDeltaActorUidFlag |
+        GameObjectDeltaWeaponSlotFlag |
+        GameObjectDeltaActionFlag |
+        GameObjectDeltaSkipTargetFlag |
+        GameObjectDeltaOriginFlag |
+        GameObjectDeltaVectorFlag |
+        GameObjectDeltaFacingFlag;
+    private const byte GameRemoteShootActionByte = 1;
+    private const byte GameRemoteShootSkipTargetMarker = 0xFE;
+    private const float ShootFallbackVectorLength = 12f;
+    private const float ShootVectorEpsilon = 0.001f;
+    private const float FacingRawAngleScale = 8192f;
 
     // Gameplay tuning knobs. Change these values and restart the server.
     // Weapon fire_time is resolved per weapon resource first, then scaled here.
@@ -915,7 +936,7 @@ internal sealed class PracticeRoomChannelProtocol
                 await HandlePacket105GameSyncAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 106:
-                HandlePacket106GameActionPose(reader);
+                await HandlePacket106GameActionPoseAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 112:
                 await HandlePacket112GameActionVectorAsync(reader);
@@ -924,13 +945,16 @@ internal sealed class PracticeRoomChannelProtocol
                 await HandlePacket113GameActionScalarAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 117:
-                await HandlePacket117GamePreShootAsync(reader);
+                await HandlePacket117GameReloadAsync(reader);
+                break;
+            case ChannelState.InGame when packetId == 118:
+                await HandlePacket118GameDropWeaponAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 120:
                 await HandlePacket120GameClientNotifyAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 125:
-                await HandlePacket125GameReloadStartAsync(reader);
+                HandlePacket125GamePickUpDropItem(reader);
                 break;
             case ChannelState.InGame when packetId == 121:
                 await HandlePacket121LeaveGameAsync(reader);
@@ -940,6 +964,9 @@ internal sealed class PracticeRoomChannelProtocol
                 break;
             case ChannelState.InGame when packetId == 141:
                 await HandlePacket141GameSpawnReadyAsync(reader);
+                break;
+            case ChannelState.InGame when packetId == 142:
+                await HandlePacket142GameReloadReadyAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 143:
                 await HandlePacket143GameActionStateAsync(reader);
@@ -2341,23 +2368,117 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPendingSilentLoadoutHudRefreshAsync("packet105");
     }
 
-    private void HandlePacket106GameActionPose(PacketReader reader)
+    private async Task HandlePacket106GameActionPoseAsync(PacketReader reader)
     {
-        var payloadLength = reader.Remaining;
-        if (!reader.TryReadFixedBytes(payloadLength, out var payload))
+        var payload = reader.RemainingSpan.ToArray();
+        if (!reader.TryReadByte(out var action) ||
+            !reader.TryReadShort(out var originXRaw) ||
+            !reader.TryReadShort(out var originYRaw) ||
+            !reader.TryReadShort(out var originZRaw) ||
+            !reader.TryReadShort(out var facing0Raw) ||
+            !reader.TryReadShort(out var facing1Raw) ||
+            !reader.TryReadByte(out var poseState) ||
+            !TryReadProtocolFloat(reader, out var vectorX) ||
+            !TryReadProtocolFloat(reader, out var vectorY) ||
+            !TryReadProtocolFloat(reader, out var vectorZ))
         {
             Log.Warning(
-                "Channel packet106 <- {Remote}: failed to consume action-pose payload remaining={Remaining}",
+                "Channel packet106 <- {Remote}: malformed action-pose payloadBytes={PayloadBytes} remaining={Remaining} hex={PayloadHex}",
                 _remoteLabel,
-                reader.Remaining);
+                payload.Length,
+                reader.Remaining,
+                Convert.ToHexString(payload));
             return;
         }
 
-        Log.Verbose(
-            "Channel packet106 <- {Remote}: action-pose payloadBytes={PayloadBytes} hex={PayloadHex}",
+        byte? optionalTag = null;
+        short? optionalValue = null;
+        byte? optionalByte = null;
+        if (reader.TryReadByte(out var optionalTagValue))
+        {
+            optionalTag = optionalTagValue;
+            if (optionalTagValue != 0 &&
+                reader.TryReadShort(out var optionalShortValue) &&
+                reader.TryReadByte(out var optionalByteValue))
+            {
+                optionalValue = optionalShortValue;
+                optionalByte = optionalByteValue;
+            }
+        }
+
+        var trailingBytes = reader.Remaining;
+        var trailingPayloadHex = string.Empty;
+        if (trailingBytes > 0)
+        {
+            reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
+            trailingPayloadHex = Convert.ToHexString(trailingPayload ?? Array.Empty<byte>());
+        }
+
+        var originX = ActionPoseRawToWorldCoordinate(originXRaw);
+        var originY = ActionPoseRawToWorldCoordinate(originYRaw);
+        var originZ = ActionPoseRawToWorldCoordinate(originZRaw);
+        if (_currentGameRoom is null)
+        {
+            Log.Warning(
+                "Channel packet106 <- {Remote}: action-pose ignored, no active game room action={Action} poseState={PoseState} origin={Origin} vector={Vector}",
+                _remoteLabel,
+                action,
+                poseState,
+                FormatGameVector3(originX, originY, originZ),
+                FormatGameVector3(vectorX, vectorY, vectorZ));
+            return;
+        }
+
+        if (!IsFiniteGameVector3(originX, originY, originZ) ||
+            !IsFiniteGameVector3(vectorX, vectorY, vectorZ))
+        {
+            Log.Warning(
+                "Channel packet106 <- {Remote}: action-pose skipped action={Action} poseState={PoseState} origin={Origin} vector={Vector} payloadBytes={PayloadBytes} hex={PayloadHex}",
+                _remoteLabel,
+                action,
+                poseState,
+                FormatGameVector3(originX, originY, originZ),
+                FormatGameVector3(vectorX, vectorY, vectorZ),
+                payload.Length,
+                Convert.ToHexString(payload));
+            return;
+        }
+
+        var slotOneBased = ResolveShootSlotOneBased(poseState);
+        var shoot = new PracticeRoomManager.GameShootAction(
+            _localGameUid,
+            action,
+            slotOneBased,
+            originXRaw,
+            originYRaw,
+            originZRaw,
+            facing0Raw,
+            facing1Raw,
+            vectorX,
+            vectorY,
+            vectorZ);
+        var broadcastCount = await _practiceRoomManager.BroadcastGameShootAsync(
+            _currentGameRoom.RoomId,
+            this,
+            shoot);
+
+        Log.Information(
+            "Channel packet106 <- {Remote}: shoot action={Action} uid={Uid} slot={Slot} poseState={PoseState} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} optionalTag={OptionalTag} optionalValue={OptionalValue} optionalByte={OptionalByte} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet113 broadcastCount={BroadcastCount}",
             _remoteLabel,
-            payload.Length,
-            Convert.ToHexString(payload));
+            action,
+            _localGameUid,
+            slotOneBased,
+            poseState,
+            FormatGameVector3(originX, originY, originZ),
+            FormatGameVector3(vectorX, vectorY, vectorZ),
+            unchecked((ushort)facing0Raw),
+            unchecked((ushort)facing1Raw),
+            optionalTag,
+            optionalValue,
+            optionalByte,
+            trailingBytes,
+            trailingPayloadHex,
+            broadcastCount);
     }
 
     private async Task HandlePacket112GameActionVectorAsync(PacketReader reader)
@@ -2398,58 +2519,27 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        var weaponSlotBroadcastCount = 0;
-        if (TryResolveWeaponSlotFromActionVector(action, out var actionWeaponSlot))
-        {
-            TryApplyLocalWeaponSlot(actionWeaponSlot);
-            weaponSlotBroadcastCount = await _practiceRoomManager.BroadcastGameWeaponSlotAsync(
-                _currentGameRoom.RoomId,
-                this,
-                _localGameUid,
-                actionWeaponSlot,
-                "packet112-action-slot");
-        }
-
-        var actionVector = new PracticeRoomManager.GameActionVector(
-            _localGameUid,
-            action,
-            originX,
-            originY,
-            originZ,
-            vectorX,
-            vectorY,
-            vectorZ,
-            facing0Raw,
-            facing1Raw,
-            DateTimeOffset.UtcNow);
-        await SendPacket119RemoteActionVectorAsync(actionVector, "packet112-local-ack");
-        var broadcastCount = await _practiceRoomManager.BroadcastGameActionVectorAsync(
-            _currentGameRoom.RoomId,
-            this,
-            actionVector);
         var specialRearmCount = await SendSpecialWeaponRearmIfDueAsync("packet112");
 
         Log.Information(
-            "Channel packet112 <- {Remote}: actionVector action={Action} uid={Uid} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet119 local ack sent, broadcastCount={BroadcastCount}, weaponSlotBroadcastCount={WeaponSlotBroadcastCount}, specialRearmCount={SpecialRearmCount}",
+            "Channel packet112 <- {Remote}: grenade-throw action={Action} uid={Uid} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; remote equipment-action broadcast skipped, specialRearmCount={SpecialRearmCount}",
             _remoteLabel,
             action,
-            actionVector.Uid,
+            _localGameUid,
             FormatGameVector3(originX, originY, originZ),
             FormatGameVector3(vectorX, vectorY, vectorZ),
             unchecked((ushort)facing0Raw),
             unchecked((ushort)facing1Raw),
             trailingBytes,
             trailingPayloadHex,
-            broadcastCount,
-            weaponSlotBroadcastCount,
             specialRearmCount);
     }
 
-    private async Task HandlePacket117GamePreShootAsync(PacketReader reader)
+    private async Task HandlePacket117GameReloadAsync(PacketReader reader)
     {
         if (_currentGameRoom is null)
         {
-            Log.Warning("Channel packet117 <- {Remote}: pre-shoot ignored, no active game room", _remoteLabel);
+            Log.Warning("Channel packet117 <- {Remote}: reload ignored, no active game room", _remoteLabel);
             return;
         }
 
@@ -2458,64 +2548,109 @@ internal sealed class PracticeRoomChannelProtocol
             var trailingBytes = reader.Remaining;
             reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
             Log.Verbose(
-                "Channel packet117 <- {Remote}: unexpected pre-shoot trailingBytes={TrailingBytes} hex={PayloadHex}",
+                "Channel packet117 <- {Remote}: unexpected reload trailingBytes={TrailingBytes} hex={PayloadHex}",
                 _remoteLabel,
                 trailingBytes,
                 Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
         }
 
-        var broadcastCount = await _practiceRoomManager.BroadcastGamePreShootAsync(
+        var broadcastCount = await _practiceRoomManager.BroadcastGameReloadActionAsync(
             _currentGameRoom.RoomId,
             this,
             _localGameUid);
-        var specialRearmCount = await SendSpecialWeaponRearmIfDueAsync("packet117");
 
         Log.Verbose(
-            "Channel packet117 <- {Remote}: pre-shoot uid={Uid} broadcastCount={BroadcastCount}, specialRearmCount={SpecialRearmCount}",
+            "Channel packet117 <- {Remote}: reload uid={Uid} broadcastCount={BroadcastCount}",
             _remoteLabel,
             _localGameUid,
-            broadcastCount,
-            specialRearmCount);
+            broadcastCount);
     }
 
-    private async Task HandlePacket125GameReloadStartAsync(PacketReader reader)
+    private async Task HandlePacket118GameDropWeaponAsync(PacketReader reader)
     {
         if (_currentGameRoom is null)
         {
-            Log.Warning("Channel packet125 <- {Remote}: reload ignored, no active game room", _remoteLabel);
+            Log.Warning("Channel packet118 <- {Remote}: drop-weapon ignored, no active game room", _remoteLabel);
             return;
         }
 
-        if (!reader.TryReadByte(out var actorUid))
-        {
-            Log.Warning(
-                "Channel packet125 <- {Remote}: malformed reload-start payload remaining={Remaining}",
-                _remoteLabel,
-                reader.Remaining);
-            return;
-        }
-
-        var reloadUid = actorUid == 0 ? _localGameUid : actorUid;
         if (reader.Remaining > 0)
         {
+            var trailingBytes = reader.Remaining;
+            reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
             Log.Verbose(
-                "Channel packet125 <- {Remote}: reload-start uid={Uid} trailing={Trailing}",
+                "Channel packet118 <- {Remote}: unexpected drop-weapon trailingBytes={TrailingBytes} hex={PayloadHex}",
                 _remoteLabel,
-                reloadUid,
-                reader.Remaining);
+                trailingBytes,
+                Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
         }
 
-        await SendPacket175GameReloadReadyAsync(reloadUid, "packet125-local-ack");
-        var broadcastCount = await _practiceRoomManager.BroadcastGameReloadAsync(
+        var broadcastCount = await _practiceRoomManager.BroadcastGameDropWeaponAsync(
             _currentGameRoom.RoomId,
             this,
-            reloadUid);
+            _localGameUid);
+
+        Log.Verbose(
+            "Channel packet118 <- {Remote}: drop-weapon uid={Uid} broadcastCount={BroadcastCount}",
+            _remoteLabel,
+            _localGameUid,
+            broadcastCount);
+    }
+
+    private void HandlePacket125GamePickUpDropItem(PacketReader reader)
+    {
+        if (_currentGameRoom is null)
+        {
+            Log.Warning("Channel packet125 <- {Remote}: pickup-drop-item ignored, no active game room", _remoteLabel);
+            return;
+        }
+
+        var payload = reader.RemainingSpan.ToArray();
+        if (reader.Remaining > 0)
+        {
+            reader.TryReadFixedBytes(reader.Remaining, out _);
+        }
 
         Log.Information(
-            "Channel packet125 <- {Remote}: reload-start uid={Uid}; packet175 local ack sent, broadcastCount={BroadcastCount}",
+            "Channel packet125 <- {Remote}: pickup-drop-item uid={Uid} payloadBytes={PayloadBytes} hex={PayloadHex}; broadcast skipped",
             _remoteLabel,
-            reloadUid,
-            broadcastCount);
+            _localGameUid,
+            payload.Length,
+            Convert.ToHexString(payload));
+    }
+
+    private async Task HandlePacket142GameReloadReadyAsync(PacketReader reader)
+    {
+        if (_currentGameRoom is null)
+        {
+            Log.Warning("Channel packet142 <- {Remote}: reload-ready ignored, no active game room", _remoteLabel);
+            return;
+        }
+
+        var slotOneBased = reader.TryReadByte(out var clientSlot) && clientSlot > 0
+            ? clientSlot
+            : ResolveCurrentReloadReadySlot();
+
+        if (reader.Remaining > 0)
+        {
+            var trailingBytes = reader.Remaining;
+            reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
+            Log.Verbose(
+                "Channel packet142 <- {Remote}: reload-ready slot={Slot} trailingBytes={TrailingBytes} hex={PayloadHex}",
+                _remoteLabel,
+                slotOneBased,
+                trailingBytes,
+                Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
+        }
+
+        slotOneBased = (byte)Math.Clamp((int)slotOneBased, 1, ClientWeaponSlotCount);
+        await SendPacket175GameReloadReadyAsync(slotOneBased, "packet142-reload-ready");
+
+        Log.Information(
+            "Channel packet142 <- {Remote}: reload-ready uid={Uid}; packet175 local ack sent slot={Slot}",
+            _remoteLabel,
+            _localGameUid,
+            slotOneBased);
     }
 
     private async Task HandlePacket143GameActionStateAsync(PacketReader reader)
@@ -2573,39 +2708,11 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        if (actionCode != GameActionReloadReadyCode || actionState != GameActionStateInactive)
-        {
-            Log.Verbose(
-                "Channel packet143 <- {Remote}: actionCode={ActionCode} state={ActionState} consumed",
-                _remoteLabel,
-                actionCode,
-                actionState);
-            return;
-        }
-
-        var reloadReadyUids = ResolveReloadReadyCandidateUids();
-        foreach (var reloadReadyUid in reloadReadyUids)
-        {
-            await SendPacket175GameReloadReadyAsync(reloadReadyUid, "packet143-action-ready");
-        }
-
-        var broadcastCount = 0;
-        foreach (var reloadReadyUid in reloadReadyUids)
-        {
-            broadcastCount += await _practiceRoomManager.BroadcastGameReloadReadyAsync(
-                _currentGameRoom.RoomId,
-                this,
-                reloadReadyUid,
-                "packet143-remote-action-ready");
-        }
-
-        Log.Information(
-            "Channel packet143 <- {Remote}: actionCode={ActionCode} state={ActionState}; packet175 local ack sent uids={Uids}, broadcastCount={BroadcastCount}",
+        Log.Verbose(
+            "Channel packet143 <- {Remote}: actionCode={ActionCode} state={ActionState} consumed",
             _remoteLabel,
             actionCode,
-            actionState,
-            string.Join(",", reloadReadyUids),
-            broadcastCount);
+            actionState);
     }
 
     private bool TryResolveWeaponSlotChange(
@@ -2721,18 +2828,6 @@ internal sealed class PracticeRoomChannelProtocol
         return false;
     }
 
-    private static bool TryResolveWeaponSlotFromActionVector(byte action, out byte weaponSlot)
-    {
-        if (action > 0 && action <= ClientWeaponSlotCount)
-        {
-            weaponSlot = (byte)(action - 1);
-            return true;
-        }
-
-        weaponSlot = 0;
-        return false;
-    }
-
     private bool TryApplyLocalWeaponSlot(byte weaponSlot, byte maxSlotExclusive = ClientWeaponSlotCount)
     {
         if (weaponSlot >= maxSlotExclusive || weaponSlot == _currentWeaponSlot)
@@ -2763,26 +2858,19 @@ internal sealed class PracticeRoomChannelProtocol
             .ToArray();
     }
 
-    private IReadOnlyList<byte> ResolveReloadReadyCandidateUids()
+    private byte ResolveCurrentReloadReadySlot()
     {
-        if (_currentGameRoom is not null)
-        {
-            var playerState = GetLocalPlayerState(_currentGameRoom);
-            var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
-            var equipmentSlots = GetSupportedGameEquipmentItems(loadoutItems)
-                .Select(item => item.Slot)
-                .Where(slot => slot > 0)
-                .Distinct()
-                .OrderBy(slot => slot)
-                .ToArray();
+        return (byte)(Math.Min((int)_currentWeaponSlot, ClientWeaponSlotCount - 1) + 1);
+    }
 
-            if (equipmentSlots.Length > 0)
-            {
-                return equipmentSlots;
-            }
+    private byte ResolveShootSlotOneBased(byte poseState)
+    {
+        if (poseState is > 0 and <= ClientWeaponSlotCount)
+        {
+            return poseState;
         }
 
-        return new[] { _localGameUid };
+        return ResolveCurrentReloadReadySlot();
     }
 
     private static int GetGameMovementOptionalByteCount(byte flags)
@@ -2821,6 +2909,75 @@ internal sealed class PracticeRoomChannelProtocol
 
         value = BitConverter.Int32BitsToSingle(rawValue);
         return true;
+    }
+
+    private static void WriteGameObjectDeltaFlags(PacketWriter writer, int flags)
+    {
+        writer.WriteByte((byte)(flags >> 24));
+        writer.WriteByte((byte)(flags >> 16));
+        writer.WriteByte((byte)(flags >> 8));
+        writer.WriteByte((byte)flags);
+    }
+
+    private static void WriteCompressedVector3Raw(PacketWriter writer, short x, short y, short z)
+    {
+        writer.WriteShort(x);
+        writer.WriteShort(y);
+        writer.WriteShort(z);
+    }
+
+    private static void WriteCompressedVector3(PacketWriter writer, float x, float y, float z)
+    {
+        writer.WriteShort(ToCompressedVectorRaw(x));
+        writer.WriteShort(ToCompressedVectorRaw(y));
+        writer.WriteShort(ToCompressedVectorRaw(z));
+    }
+
+    private static short ToCompressedVectorRaw(float value)
+    {
+        if (!float.IsFinite(value))
+        {
+            return 0;
+        }
+
+        return (short)Math.Clamp(
+            (int)MathF.Round(value * ActionPoseRawCoordinateScale),
+            short.MinValue + 1,
+            short.MaxValue);
+    }
+
+    private static (float X, float Y, float Z) ResolveRemoteShootVector(PracticeRoomManager.GameShootAction shoot)
+    {
+        if (IsUsableShootVector(shoot.VectorX, shoot.VectorY, shoot.VectorZ))
+        {
+            return (shoot.VectorX, shoot.VectorY, shoot.VectorZ);
+        }
+
+        var yaw = shoot.Facing0Raw / FacingRawAngleScale;
+        var pitch = shoot.Facing1Raw / FacingRawAngleScale;
+        var cosPitch = MathF.Cos(pitch);
+        var x = MathF.Sin(yaw) * cosPitch * ShootFallbackVectorLength;
+        var y = MathF.Sin(pitch) * ShootFallbackVectorLength;
+        var z = -MathF.Cos(yaw) * cosPitch * ShootFallbackVectorLength;
+        return IsFiniteGameVector3(x, y, z) ? (x, y, z) : (0f, 0f, -ShootFallbackVectorLength);
+    }
+
+    private static bool IsUsableShootVector(float x, float y, float z)
+    {
+        return IsFiniteGameVector3(x, y, z) &&
+               (MathF.Abs(x) > ShootVectorEpsilon ||
+                MathF.Abs(y) > ShootVectorEpsilon ||
+                MathF.Abs(z) > ShootVectorEpsilon);
+    }
+
+    private static float ActionPoseRawToWorldCoordinate(short raw)
+    {
+        return raw / ActionPoseRawCoordinateScale;
+    }
+
+    private static bool IsFiniteGameVector3(float x, float y, float z)
+    {
+        return float.IsFinite(x) && float.IsFinite(y) && float.IsFinite(z);
     }
 
     private static MovementSyncSample DecodeGameMovementSample(byte flags, byte[] payload)
@@ -3377,14 +3534,58 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    internal Task SendPacket117RemotePreShootAsync(byte actorUid)
+    internal Task SendPacket113RemoteShootAsync(PracticeRoomManager.GameShootAction shoot)
+    {
+        using var writer = new PacketWriter();
+        var vector = ResolveRemoteShootVector(shoot);
+
+        writer.WriteShort(GameRemoteShootPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteShootObjectDeltaFlags);
+        writer.WriteByte(shoot.Uid);
+        writer.WriteByte(shoot.SlotOneBased);
+        writer.WriteByte(GameRemoteShootActionByte);
+        writer.WriteByte(GameRemoteShootSkipTargetMarker);
+        WriteCompressedVector3Raw(writer, shoot.OriginXRaw, shoot.OriginYRaw, shoot.OriginZRaw);
+        WriteCompressedVector3(writer, vector.X, vector.Y, vector.Z);
+        writer.WriteShort(shoot.Facing0Raw);
+        writer.WriteShort(shoot.Facing1Raw);
+
+        Log.Verbose(
+            "Channel packet113 -> {Remote}: remote shoot uid={Uid} action={Action} slot={Slot} originRaw=({OriginX},{OriginY},{OriginZ}) vector={Vector} facing0={Facing0} facing1={Facing1}",
+            _remoteLabel,
+            shoot.Uid,
+            shoot.Action,
+            shoot.SlotOneBased,
+            shoot.OriginXRaw,
+            shoot.OriginYRaw,
+            shoot.OriginZRaw,
+            FormatGameVector3(vector.X, vector.Y, vector.Z),
+            unchecked((ushort)shoot.Facing0Raw),
+            unchecked((ushort)shoot.Facing1Raw));
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket117RemoteReloadActionAsync(byte actorUid)
     {
         using var writer = new PacketWriter();
         writer.WriteShort(117);
         writer.WriteByte(actorUid);
 
         Log.Verbose(
-            "Channel packet117 -> {Remote}: remote pre-shoot uid={Uid}",
+            "Channel packet117 -> {Remote}: remote reload uid={Uid}",
+            _remoteLabel,
+            actorUid);
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket118RemoteDropWeaponAsync(byte actorUid)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(118);
+        writer.WriteByte(actorUid);
+
+        Log.Verbose(
+            "Channel packet118 -> {Remote}: remote drop-weapon uid={Uid}",
             _remoteLabel,
             actorUid);
         return SendPacketAsync(writer);
@@ -3424,59 +3625,16 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    internal Task SendPacket119RemoteActionVectorAsync(
-        PracticeRoomManager.GameActionVector actionVector,
-        string trigger)
-    {
-        using var writer = new PacketWriter();
-        writer.WriteShort(119);
-        writer.WriteByte(actionVector.Uid);
-        writer.WriteByte(actionVector.Action);
-        writer.WriteFloat(actionVector.OriginX);
-        writer.WriteFloat(actionVector.OriginY);
-        writer.WriteFloat(actionVector.OriginZ);
-        writer.WriteFloat(actionVector.VectorX);
-        writer.WriteFloat(actionVector.VectorY);
-        writer.WriteFloat(actionVector.VectorZ);
-        writer.WriteShort(actionVector.Facing0Raw);
-        writer.WriteShort(actionVector.Facing1Raw);
-
-        Log.Verbose(
-            "Channel packet119 -> {Remote}: action-vector uid={Uid} action={Action} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} trigger={Trigger}",
-            _remoteLabel,
-            actionVector.Uid,
-            actionVector.Action,
-            FormatGameVector3(actionVector.OriginX, actionVector.OriginY, actionVector.OriginZ),
-            FormatGameVector3(actionVector.VectorX, actionVector.VectorY, actionVector.VectorZ),
-            unchecked((ushort)actionVector.Facing0Raw),
-            unchecked((ushort)actionVector.Facing1Raw),
-            trigger);
-        return SendPacketAsync(writer);
-    }
-
-    internal Task SendPacket125RemoteReloadAsync(byte actorUid)
-    {
-        using var writer = new PacketWriter();
-        writer.WriteShort(125);
-        writer.WriteByte(actorUid);
-
-        Log.Verbose(
-            "Channel packet125 -> {Remote}: remote reload-start uid={Uid}",
-            _remoteLabel,
-            actorUid);
-        return SendPacketAsync(writer);
-    }
-
-    internal Task SendPacket175GameReloadReadyAsync(byte actorUid, string trigger)
+    internal Task SendPacket175GameReloadReadyAsync(byte slotOneBased, string trigger)
     {
         using var writer = new PacketWriter();
         writer.WriteShort(175);
-        writer.WriteByte(actorUid);
+        writer.WriteByte(slotOneBased);
 
         Log.Verbose(
-            "Channel packet175 -> {Remote}: reload-ready uid={Uid} trigger={Trigger}",
+            "Channel packet175 -> {Remote}: reload-ready slot={Slot} trigger={Trigger}",
             _remoteLabel,
-            actorUid,
+            slotOneBased,
             trigger);
         return SendPacketAsync(writer);
     }

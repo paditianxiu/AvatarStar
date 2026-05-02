@@ -37,6 +37,7 @@ internal sealed class PracticeRoomManager
     private readonly Dictionary<int, Dictionary<byte, GameMovementDelta>> _gameMovementByRoomId = new();
     private readonly Dictionary<int, HashSet<byte>> _retiredGameUidsByRoomId = new();
     private readonly Dictionary<PendingChannelJoinKey, Queue<PendingChannelJoin>> _pendingChannelJoins = new();
+    private readonly Dictionary<long, GameClient> _gameClientsByCharacterId = new();
 
     private int _nextRoomId = 1;
     private int _nextChannelToken = 1;
@@ -51,6 +52,36 @@ internal sealed class PracticeRoomManager
     }
 
     public int ChannelPort { get; }
+
+    public void RegisterGameClient(long characterId, GameClient client)
+    {
+        if (characterId == 0)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            _gameClientsByCharacterId[characterId] = client;
+        }
+    }
+
+    public void UnregisterGameClient(long characterId, GameClient client)
+    {
+        if (characterId == 0)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            if (_gameClientsByCharacterId.TryGetValue(characterId, out var existing) &&
+                ReferenceEquals(existing, client))
+            {
+                _gameClientsByCharacterId.Remove(characterId);
+            }
+        }
+    }
 
     public string ResolveChannelHost(IPAddress lobbyLocalAddress)
     {
@@ -782,12 +813,17 @@ internal sealed class PracticeRoomManager
         lock (_lock)
         {
             if (!TryResolveRoomIdByCharacterNoLock(characterId, out roomId) ||
-                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
+                !_roomCharacterByChannelByRoomId.TryGetValue(roomId, out var charactersByChannel))
             {
                 return 0;
             }
 
-            targets = channels.Keys.ToArray();
+            targets = channels.Keys
+                .Where(channel =>
+                    charactersByChannel.TryGetValue(channel, out var channelCharacterId) &&
+                    channelCharacterId == characterId)
+                .ToArray();
         }
 
         var sent = 0;
@@ -811,6 +847,65 @@ internal sealed class PracticeRoomManager
                 roomId,
                 targets.Length,
                 sent);
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastLobbyRawBlobAsync(
+        long sourceCharacterId,
+        byte[] payload,
+        string trigger)
+    {
+        if (sourceCharacterId == 0 || payload.Length == 0)
+        {
+            return 0;
+        }
+
+        int roomId;
+        GameClient[] targets;
+        lock (_lock)
+        {
+            if (!TryResolveRoomIdByCharacterNoLock(sourceCharacterId, out roomId) ||
+                !_roomsById.TryGetValue(roomId, out var room))
+            {
+                return 0;
+            }
+
+            targets = room.Members
+                .Where(member => member.CharacterId != sourceCharacterId)
+                .Select(member => _gameClientsByCharacterId.TryGetValue(member.CharacterId, out var client)
+                    ? client
+                    : null)
+                .Where(client => client is not null)
+                .Cast<GameClient>()
+                .Distinct()
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket40RawBlobAsync(payload, trigger);
+                sent++;
+            }
+            catch
+            {
+            }
+        }
+
+        if (sent > 0)
+        {
+            Log.Information(
+                "Practice room packet40 raw blob broadcast: sourceCharacterId={CharacterId} roomId={RoomId} payloadBytes={PayloadBytes} targetCount={TargetCount} sent={Sent} trigger={Trigger}",
+                sourceCharacterId,
+                roomId,
+                payload.Length,
+                targets.Length,
+                sent,
+                trigger);
         }
 
         return sent;
@@ -937,6 +1032,42 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
+    public async Task<int> BroadcastGameShootAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        GameShootAction shoot)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket113RemoteShootAsync(shoot);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
     public async Task<int> BroadcastGamePlayerLeftAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
@@ -1031,7 +1162,7 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
-    public async Task<int> BroadcastGameReloadAsync(
+    public async Task<int> BroadcastGameReloadActionAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
         byte actorUid)
@@ -1055,8 +1186,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket125RemoteReloadAsync(actorUid);
-                await target.SendPacket175GameReloadReadyAsync(actorUid, "packet125-remote-ack");
+                await target.SendPacket117RemoteReloadActionAsync(actorUid);
                 sent++;
             }
             catch
@@ -1068,44 +1198,7 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
-    public async Task<int> BroadcastGameReloadReadyAsync(
-        int roomId,
-        PracticeRoomChannelProtocol source,
-        byte actorUid,
-        string trigger)
-    {
-        PracticeRoomChannelProtocol[] targets;
-
-        lock (_lock)
-        {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
-            {
-                return 0;
-            }
-
-            targets = channels.Keys
-                .Where(channel => !ReferenceEquals(channel, source))
-                .ToArray();
-        }
-
-        var sent = 0;
-        foreach (var target in targets)
-        {
-            try
-            {
-                await target.SendPacket175GameReloadReadyAsync(actorUid, trigger);
-                sent++;
-            }
-            catch
-            {
-                UnregisterGameChannel(roomId, target, out _);
-            }
-        }
-
-        return sent;
-    }
-
-    public async Task<int> BroadcastGamePreShootAsync(
+    public async Task<int> BroadcastGameDropWeaponAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
         byte actorUid)
@@ -1129,7 +1222,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket117RemotePreShootAsync(actorUid);
+                await target.SendPacket118RemoteDropWeaponAsync(actorUid);
                 sent++;
             }
             catch
@@ -1168,42 +1261,6 @@ internal sealed class PracticeRoomManager
             try
             {
                 await target.SendPacket128RemoteWeaponSlotAsync(actorUid, weaponSlot, trigger);
-                sent++;
-            }
-            catch
-            {
-                UnregisterGameChannel(roomId, target, out _);
-            }
-        }
-
-        return sent;
-    }
-
-    public async Task<int> BroadcastGameActionVectorAsync(
-        int roomId,
-        PracticeRoomChannelProtocol source,
-        GameActionVector actionVector)
-    {
-        PracticeRoomChannelProtocol[] targets;
-
-        lock (_lock)
-        {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
-            {
-                return 0;
-            }
-
-            targets = channels.Keys
-                .Where(channel => !ReferenceEquals(channel, source))
-                .ToArray();
-        }
-
-        var sent = 0;
-        foreach (var target in targets)
-        {
-            try
-            {
-                await target.SendPacket119RemoteActionVectorAsync(actionVector, "packet112-remote-broadcast");
                 sent++;
             }
             catch
@@ -1553,6 +1610,19 @@ internal sealed class PracticeRoomManager
         byte[] OptionalPayload,
         DateTimeOffset LastSeenAt);
 
+    internal readonly record struct GameShootAction(
+        byte Uid,
+        byte Action,
+        byte SlotOneBased,
+        short OriginXRaw,
+        short OriginYRaw,
+        short OriginZRaw,
+        short Facing0Raw,
+        short Facing1Raw,
+        float VectorX,
+        float VectorY,
+        float VectorZ);
+
     internal readonly record struct GamePlayerSnapshot(
         byte Uid,
         long CharacterId,
@@ -1573,19 +1643,6 @@ internal sealed class PracticeRoomManager
         long CharacterId,
         string CharacterName,
         GamePosition Position);
-
-    internal sealed record GameActionVector(
-        byte Uid,
-        byte Action,
-        float OriginX,
-        float OriginY,
-        float OriginZ,
-        float VectorX,
-        float VectorY,
-        float VectorZ,
-        short Facing0Raw,
-        short Facing1Raw,
-        DateTimeOffset LastSeenAt);
 
     private sealed class GamePlayerRuntime
     {

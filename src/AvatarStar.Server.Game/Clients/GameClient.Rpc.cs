@@ -526,7 +526,9 @@ internal partial class GameClient
 
                 // "造型�?: the client expects `avatar` + `position` fields for type=6 items (see avatar_d.lua).
 
+                _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
                 _activeRoleId = created.Character.Id;
+                _practiceRoomManager.RegisterGameClient(_activeRoleId, this);
                 writer.WriteString("ok = 1\nwarning = nil");
                 await SendAsync(writer);
                 return;
