@@ -11,6 +11,7 @@ internal sealed class PracticeRoomManager
     private const byte GameTeamBlue = 1;
     private const byte GameTeamSpectator = 2;
     private const int DefaultGamePlayerHealth = 1000;
+    private const int GameAutoRespawnDelayMilliseconds = 3000;
     private const float MovementRawCoordinateScale = 100f;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
@@ -1126,17 +1127,32 @@ internal sealed class PracticeRoomManager
         }
 
         var sent = 0;
+        var deathSent = 0;
         foreach (var target in targets)
         {
             try
             {
                 await target.SendPacket162RemoteHurtAsync(damageAction.Value);
                 sent++;
+                if (damageAction.Value.Killed)
+                {
+                    await target.SendPacket184RemoteFatalHitAsync(damageAction.Value);
+                    deathSent++;
+                }
             }
             catch
             {
                 UnregisterGameChannel(roomId, target, out _);
             }
+        }
+
+        if (damageAction.Value.Killed)
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                damageAction.Value.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-kill");
         }
 
         return new GameDamageBroadcastResult(
@@ -1145,7 +1161,9 @@ internal sealed class PracticeRoomManager
             VictimUid: damageAction.Value.VictimUid,
             VictimHealth: damageAction.Value.VictimHealth,
             VictimMaxHealth: damageAction.Value.VictimMaxHealth,
-            Damage: damageAction.Value.Damage);
+            Damage: damageAction.Value.Damage,
+            Killed: damageAction.Value.Killed,
+            DeathBroadcastCount: deathSent);
     }
 
     public async Task<int> BroadcastGamePlayerLeftAsync(
@@ -1229,6 +1247,148 @@ internal sealed class PracticeRoomManager
                 else
                 {
                     await target.SendPacket107GamePlayerEnterAsync(actorUid, teamId, "remote-player-enter");
+                }
+
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGamePlayerRespawnAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid)
+    {
+        PracticeRoomChannelProtocol[] targets;
+        PracticeRoomSession? room;
+        long characterId;
+
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out room) ||
+                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
+                !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(actorUid, out var player))
+            {
+                return 0;
+            }
+
+            characterId = player.CharacterId;
+            if (characterId == 0)
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendRemoteGamePlayerRespawnAsync(
+                    room,
+                    characterId,
+                    actorUid,
+                    "remote-player-respawn");
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    private async Task RespawnGamePlayerAfterDelayAsync(
+        int roomId,
+        byte actorUid,
+        int delayMilliseconds,
+        string trigger)
+    {
+        try
+        {
+            await Task.Delay(delayMilliseconds);
+            var sent = await RespawnGamePlayerAsync(roomId, actorUid, trigger);
+            Log.Information(
+                "Channel auto respawn processed: roomId={RoomId} uid={Uid} trigger={Trigger} broadcastCount={BroadcastCount}",
+                roomId,
+                actorUid,
+                trigger,
+                sent);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(
+                ex,
+                "Channel auto respawn failed: roomId={RoomId} uid={Uid} trigger={Trigger}",
+                roomId,
+                actorUid,
+                trigger);
+        }
+    }
+
+    private async Task<int> RespawnGamePlayerAsync(
+        int roomId,
+        byte actorUid,
+        string trigger)
+    {
+        KeyValuePair<PracticeRoomChannelProtocol, byte>[] targets;
+        PracticeRoomSession? room;
+        long characterId;
+
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out room) ||
+                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
+                !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(actorUid, out var player))
+            {
+                return 0;
+            }
+
+            if (player.CurrentHealth > 0)
+            {
+                return 0;
+            }
+
+            player.CurrentHealth = Math.Max(1, player.MaxHealth);
+            characterId = player.CharacterId;
+            if (characterId == 0)
+            {
+                return 0;
+            }
+
+            targets = channels.ToArray();
+        }
+
+        var sent = 0;
+        foreach (var (target, targetUid) in targets)
+        {
+            try
+            {
+                if (targetUid == actorUid)
+                {
+                    await target.SendLocalGamePlayerRespawnAsync(room, trigger);
+                }
+                else
+                {
+                    await target.SendRemoteGamePlayerRespawnAsync(
+                        room,
+                        characterId,
+                        actorUid,
+                        trigger);
                 }
 
                 sent++;
@@ -1516,16 +1676,19 @@ internal sealed class PracticeRoomManager
         }
 
         var victim = SelectDamageVictim(attacker, candidates);
+        var previousHealth = victim.CurrentHealth;
         var maxHealth = Math.Max(1, victim.MaxHealth);
         var appliedDamage = Math.Clamp(damage, 1, maxHealth);
         victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
+        var killed = previousHealth > 0 && victim.CurrentHealth == 0;
 
         return new GameDamageAction(
             AttackerUid: attackerUid,
             VictimUid: victim.Uid,
             Damage: appliedDamage,
             VictimHealth: victim.CurrentHealth,
-            VictimMaxHealth: maxHealth);
+            VictimMaxHealth: maxHealth,
+            Killed: killed);
     }
 
     private static bool IsEnemyTeam(byte sourceTeamId, byte targetTeamId)
@@ -1858,7 +2021,8 @@ internal sealed class PracticeRoomManager
         byte VictimUid,
         int Damage,
         int VictimHealth,
-        int VictimMaxHealth);
+        int VictimMaxHealth,
+        bool Killed);
 
     internal readonly record struct GameDamageBroadcastResult(
         bool Applied,
@@ -1866,9 +2030,11 @@ internal sealed class PracticeRoomManager
         byte VictimUid,
         int VictimHealth,
         int VictimMaxHealth,
-        int Damage)
+        int Damage,
+        bool Killed,
+        int DeathBroadcastCount)
     {
-        public static GameDamageBroadcastResult NotApplied { get; } = new(false, 0, 0, 0, 0, 0);
+        public static GameDamageBroadcastResult NotApplied { get; } = new(false, 0, 0, 0, 0, 0, false, 0);
     }
 
     internal readonly record struct GamePlayerSnapshot(
