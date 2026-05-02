@@ -14,6 +14,8 @@ internal sealed class PracticeRoomManager
     private const int GameAutoRespawnDelayMilliseconds = 3000;
     private const float MovementRawCoordinateScale = 100f;
     private const float ActionPoseRawCoordinateScale = 256f;
+    private const float FacingRawAngleScale = 8192f;
+    private const float ShootVectorEpsilon = 0.001f;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
 
     private static readonly Lazy<IReadOnlyList<BattleLevelChoice>> RandomBattleLevelChoices = new(LoadRandomBattleLevelChoices);
@@ -1109,18 +1111,20 @@ internal sealed class PracticeRoomManager
         int roomId,
         PracticeRoomChannelProtocol source,
         byte attackerUid,
-        int damage)
+        int damage,
+        GameDamageHitRule? hitRule = null,
+        byte clientTargetUid = 0)
     {
         PracticeRoomChannelProtocol[] targets;
-        GameDamageAction? damageAction;
+        GameDamageAttempt damageAttempt;
 
         lock (_lock)
         {
-            damageAction = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage);
-            if (damageAction is null ||
+            damageAttempt = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage, hitRule, clientTargetUid);
+            if (damageAttempt.Action is null ||
                 !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
             {
-                return GameDamageBroadcastResult.NotApplied;
+                return CreateGameDamageNotAppliedResult(damageAttempt);
             }
 
             targets = channels.Keys.ToArray();
@@ -1132,11 +1136,11 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket162RemoteHurtAsync(damageAction.Value);
+                await target.SendPacket162RemoteHurtAsync(damageAttempt.Action.Value);
                 sent++;
-                if (damageAction.Value.Killed)
+                if (damageAttempt.Action.Value.Killed)
                 {
-                    await target.SendPacket184RemoteFatalHitAsync(damageAction.Value);
+                    await target.SendPacket184RemoteFatalHitAsync(damageAttempt.Action.Value);
                     deathSent++;
                 }
             }
@@ -1146,11 +1150,11 @@ internal sealed class PracticeRoomManager
             }
         }
 
-        if (damageAction.Value.Killed)
+        if (damageAttempt.Action.Value.Killed)
         {
             _ = RespawnGamePlayerAfterDelayAsync(
                 roomId,
-                damageAction.Value.VictimUid,
+                damageAttempt.Action.Value.VictimUid,
                 GameAutoRespawnDelayMilliseconds,
                 "auto-respawn-after-kill");
         }
@@ -1158,12 +1162,17 @@ internal sealed class PracticeRoomManager
         return new GameDamageBroadcastResult(
             Applied: true,
             BroadcastCount: sent,
-            VictimUid: damageAction.Value.VictimUid,
-            VictimHealth: damageAction.Value.VictimHealth,
-            VictimMaxHealth: damageAction.Value.VictimMaxHealth,
-            Damage: damageAction.Value.Damage,
-            Killed: damageAction.Value.Killed,
-            DeathBroadcastCount: deathSent);
+            VictimUid: damageAttempt.Action.Value.VictimUid,
+            VictimHealth: damageAttempt.Action.Value.VictimHealth,
+            VictimMaxHealth: damageAttempt.Action.Value.VictimMaxHealth,
+            Damage: damageAttempt.Action.Value.Damage,
+            Killed: damageAttempt.Action.Value.Killed,
+            DeathBroadcastCount: deathSent,
+            Reason: damageAttempt.Reason,
+            CandidateCount: damageAttempt.CandidateCount,
+            PositionedCandidateCount: damageAttempt.PositionedCandidateCount,
+            AttackerTeamId: damageAttempt.AttackerTeamId,
+            BestHitScore: damageAttempt.BestHitScore);
     }
 
     public async Task<int> BroadcastGamePlayerLeftAsync(
@@ -1648,20 +1657,37 @@ internal sealed class PracticeRoomManager
         playersByUid[uid] = new GamePlayerRuntime(uid, characterId, normalizedName);
     }
 
-    private GameDamageAction? TryApplyEnemyDamageNoLock(int roomId, byte attackerUid, int damage)
+    private GameDamageAttempt TryApplyEnemyDamageNoLock(
+        int roomId,
+        byte attackerUid,
+        int damage,
+        GameDamageHitRule? hitRule,
+        byte clientTargetUid)
     {
-        if (damage <= 0 ||
-            !_roomsById.TryGetValue(roomId, out var room) ||
-            !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
-            !playersByUid.TryGetValue(attackerUid, out var attacker))
+        if (damage <= 0)
         {
-            return null;
+            return GameDamageAttempt.NotApplied("invalid-damage");
+        }
+
+        if (!_roomsById.TryGetValue(roomId, out var room))
+        {
+            return GameDamageAttempt.NotApplied("room-missing");
+        }
+
+        if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        {
+            return GameDamageAttempt.NotApplied("player-state-missing");
+        }
+
+        if (!playersByUid.TryGetValue(attackerUid, out var attacker))
+        {
+            return GameDamageAttempt.NotApplied("attacker-missing");
         }
 
         var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
         if (attackerTeamId == GameTeamSpectator)
         {
-            return null;
+            return GameDamageAttempt.NotApplied("attacker-spectator", attackerTeamId: attackerTeamId);
         }
 
         var candidates = playersByUid.Values
@@ -1670,25 +1696,219 @@ internal sealed class PracticeRoomManager
                 player.CurrentHealth > 0 &&
                 IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)))
             .ToArray();
+        var positionedCandidateCount = candidates.Count(player => player.LastPosition is not null);
         if (candidates.Length == 0)
         {
-            return null;
+            return GameDamageAttempt.NotApplied("no-enemy-candidates", attackerTeamId: attackerTeamId);
         }
 
-        var victim = SelectDamageVictim(attacker, candidates);
+        if (clientTargetUid == 0 &&
+            hitRule is { RequireShootHit: true, UseProximityHit: false })
+        {
+            return GameDamageAttempt.NotApplied(
+                "no-client-hit-target",
+                candidates.Length,
+                positionedCandidateCount,
+                attackerTeamId);
+        }
+
+        float bestHitScore;
+        var victim = clientTargetUid == 0
+            ? null
+            : candidates.FirstOrDefault(candidate => candidate.Uid == clientTargetUid);
+        if (clientTargetUid != 0 && victim is null)
+        {
+            return GameDamageAttempt.NotApplied(
+                "client-target-not-enemy",
+                candidates.Length,
+                positionedCandidateCount,
+                attackerTeamId);
+        }
+
+        var reason = "client-hit";
+        if (victim is null)
+        {
+            victim = hitRule is { RequireShootHit: true, UseProximityHit: true } proximityRule
+                ? SelectProximityHitVictim(attacker, candidates, proximityRule, out bestHitScore)
+                : hitRule is { RequireShootHit: true } rule
+                    ? SelectShootHitVictim(attacker, candidates, rule, out bestHitScore)
+                    : SelectDamageVictim(attacker, candidates, out bestHitScore);
+            reason = "hit";
+        }
+        else
+        {
+            bestHitScore = ComputeDamageTargetScore(attacker, victim);
+        }
+
+        if (victim is null)
+        {
+            reason = positionedCandidateCount == 0
+                ? "no-positioned-candidates"
+                : hitRule is { RequireShootHit: true } && attacker.LastShoot is null
+                    ? "attacker-shoot-missing"
+                    : "miss";
+            return GameDamageAttempt.NotApplied(
+                reason,
+                candidates.Length,
+                positionedCandidateCount,
+                attackerTeamId,
+                bestHitScore);
+        }
+
         var previousHealth = victim.CurrentHealth;
         var maxHealth = Math.Max(1, victim.MaxHealth);
         var appliedDamage = Math.Clamp(damage, 1, maxHealth);
         victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
         var killed = previousHealth > 0 && victim.CurrentHealth == 0;
 
-        return new GameDamageAction(
-            AttackerUid: attackerUid,
-            VictimUid: victim.Uid,
-            Damage: appliedDamage,
-            VictimHealth: victim.CurrentHealth,
-            VictimMaxHealth: maxHealth,
-            Killed: killed);
+        return new GameDamageAttempt(
+            new GameDamageAction(
+                AttackerUid: attackerUid,
+                VictimUid: victim.Uid,
+                Damage: appliedDamage,
+                VictimHealth: victim.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: killed),
+            reason,
+            candidates.Length,
+            positionedCandidateCount,
+            attackerTeamId,
+            bestHitScore);
+    }
+
+    private static GamePlayerRuntime? SelectProximityHitVictim(
+        GamePlayerRuntime attacker,
+        IReadOnlyList<GamePlayerRuntime> candidates,
+        GameDamageHitRule rule,
+        out float bestScore)
+    {
+        var scoredCandidates = candidates
+            .Select(candidate => new
+            {
+                Player = candidate,
+                Hit = TryComputeProximityHitScore(attacker, candidate, rule, out var score),
+                Score = score
+            })
+            .ToArray();
+        bestScore = scoredCandidates.Length == 0 ? float.MaxValue : scoredCandidates.Min(candidate => candidate.Score);
+        return scoredCandidates
+            .Where(candidate => candidate.Hit)
+            .OrderBy(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Player.Uid)
+            .Select(candidate => candidate.Player)
+            .FirstOrDefault();
+    }
+
+    private static bool TryComputeProximityHitScore(
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime candidate,
+        GameDamageHitRule rule,
+        out float score)
+    {
+        score = float.MaxValue;
+        if (candidate.LastPosition is not { } candidatePosition)
+        {
+            return false;
+        }
+
+        var source = attacker.LastShoot is { } shoot
+            ? ShootOriginToWorld(shoot)
+            : attacker.LastPosition is { } attackerPosition
+                ? MovementPositionToWorld(attackerPosition)
+                : default;
+        if (!float.IsFinite(source.X) || !float.IsFinite(source.Y) || !float.IsFinite(source.Z))
+        {
+            return false;
+        }
+
+        var target = MovementPositionToWorld(candidatePosition);
+        var maxDistance = MathF.Max(0.1f, rule.MaxRange + rule.HitRadius);
+        var maxDistanceSquared = maxDistance * maxDistance;
+        var bestScore = float.MaxValue;
+        var hit = false;
+        foreach (var targetY in new[] { target.Y, target.Y + 0.8f, target.Y + 1.6f })
+        {
+            var distanceSquared = DistanceSquared(source.X, source.Y, source.Z, target.X, targetY, target.Z);
+            bestScore = MathF.Min(bestScore, distanceSquared);
+            hit |= distanceSquared <= maxDistanceSquared;
+        }
+
+        score = bestScore;
+        return hit;
+    }
+
+    private static GamePlayerRuntime? SelectShootHitVictim(
+        GamePlayerRuntime attacker,
+        IReadOnlyList<GamePlayerRuntime> candidates,
+        GameDamageHitRule rule,
+        out float bestScore)
+    {
+        var scoredCandidates = candidates
+            .Select(candidate => new
+            {
+                Player = candidate,
+                Hit = TryComputeShootHitScore(attacker, candidate, rule, out var score),
+                Score = score
+            })
+            .ToArray();
+        bestScore = scoredCandidates.Length == 0 ? float.MaxValue : scoredCandidates.Min(candidate => candidate.Score);
+        return scoredCandidates
+            .Where(candidate => candidate.Hit)
+            .OrderBy(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Player.Uid)
+            .Select(candidate => candidate.Player)
+            .FirstOrDefault();
+    }
+
+    private static bool TryComputeShootHitScore(
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime candidate,
+        GameDamageHitRule rule,
+        out float score)
+    {
+        score = float.MaxValue;
+        if (attacker.LastShoot is not { } shoot ||
+            candidate.LastPosition is not { } candidatePosition)
+        {
+            return false;
+        }
+
+        var direction = ResolveShootDirection(shoot);
+        if (direction.LengthSquared <= 0f)
+        {
+            return false;
+        }
+
+        var origin = ShootOriginToWorld(shoot);
+        var target = MovementPositionToWorld(candidatePosition);
+        var maxRange = MathF.Max(0.1f, rule.MaxRange);
+        var hitRadius = MathF.Max(0.1f, rule.HitRadius);
+        var hitRadiusSquared = hitRadius * hitRadius;
+        var bestScore = float.MaxValue;
+        var hit = false;
+
+        // Approximate the player as a small vertical capsule; positions are usually feet/root.
+        foreach (var targetY in new[] { target.Y, target.Y + 0.8f, target.Y + 1.6f })
+        {
+            var toTargetX = target.X - origin.X;
+            var toTargetY = targetY - origin.Y;
+            var toTargetZ = target.Z - origin.Z;
+            var projection = Dot(toTargetX, toTargetY, toTargetZ, direction.X, direction.Y, direction.Z);
+            if (projection < -0.25f || projection > maxRange)
+            {
+                continue;
+            }
+
+            var closestX = origin.X + (direction.X * projection);
+            var closestY = origin.Y + (direction.Y * projection);
+            var closestZ = origin.Z + (direction.Z * projection);
+            var distanceSquared = DistanceSquared(target.X, targetY, target.Z, closestX, closestY, closestZ);
+            bestScore = MathF.Min(bestScore, distanceSquared);
+            hit |= distanceSquared <= hitRadiusSquared;
+        }
+
+        score = bestScore;
+        return hit;
     }
 
     private static bool IsEnemyTeam(byte sourceTeamId, byte targetTeamId)
@@ -1700,13 +1920,97 @@ internal sealed class PracticeRoomManager
 
     private static GamePlayerRuntime SelectDamageVictim(
         GamePlayerRuntime attacker,
-        IReadOnlyList<GamePlayerRuntime> candidates)
+        IReadOnlyList<GamePlayerRuntime> candidates,
+        out float bestScore)
     {
-        return candidates
-            .OrderBy(candidate => ComputeDamageTargetScore(attacker, candidate))
-            .ThenBy(candidate => candidate.Uid)
+        var scoredCandidates = candidates
+            .Select(candidate => new
+            {
+                Player = candidate,
+                Score = ComputeDamageTargetScore(attacker, candidate)
+            })
+            .ToArray();
+        bestScore = scoredCandidates.Min(candidate => candidate.Score);
+        return scoredCandidates
+            .OrderBy(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Player.Uid)
+            .Select(candidate => candidate.Player)
             .First();
     }
+
+    public bool HasGamePosition(int roomId, byte uid)
+    {
+        lock (_lock)
+        {
+            return _gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) &&
+                   playersByUid.TryGetValue(uid, out var player) &&
+                   player.LastPosition is not null;
+        }
+    }
+
+    public void UpdateGamePositionIfMissing(int roomId, byte uid, GamePosition position)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.ContainsKey(roomId))
+            {
+                return;
+            }
+
+            if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(uid, out var player))
+            {
+                UpsertGamePlayerNoLock(roomId, uid, 0, $"uid:{uid}");
+                player = _gamePlayersByRoomId[roomId][uid];
+            }
+
+            player.LastPosition ??= position;
+        }
+    }
+
+    private readonly record struct GameDamageAttempt(
+        GameDamageAction? Action,
+        string Reason,
+        int CandidateCount,
+        int PositionedCandidateCount,
+        byte AttackerTeamId,
+        float BestHitScore)
+    {
+        public static GameDamageAttempt NotApplied(
+            string reason,
+            int candidateCount = 0,
+            int positionedCandidateCount = 0,
+            byte attackerTeamId = GameTeamSpectator,
+            float bestHitScore = float.MaxValue)
+        {
+            return new GameDamageAttempt(
+                null,
+                reason,
+                candidateCount,
+                positionedCandidateCount,
+                attackerTeamId,
+                bestHitScore);
+        }
+    }
+
+    private static GameDamageBroadcastResult CreateGameDamageNotAppliedResult(GameDamageAttempt attempt)
+    {
+        return new GameDamageBroadcastResult(
+            Applied: false,
+            BroadcastCount: 0,
+            VictimUid: 0,
+            VictimHealth: 0,
+            VictimMaxHealth: 0,
+            Damage: 0,
+            Killed: false,
+            DeathBroadcastCount: 0,
+            Reason: attempt.Reason,
+            CandidateCount: attempt.CandidateCount,
+            PositionedCandidateCount: attempt.PositionedCandidateCount,
+            AttackerTeamId: attempt.AttackerTeamId,
+            BestHitScore: attempt.BestHitScore);
+    }
+
 
     private static float ComputeDamageTargetScore(GamePlayerRuntime attacker, GamePlayerRuntime candidate)
     {
@@ -1714,7 +2018,7 @@ internal sealed class PracticeRoomManager
             candidate.LastPosition is { } candidatePosition)
         {
             var origin = ShootOriginToWorld(shoot);
-            var direction = NormalizeOrZero(shoot.VectorX, shoot.VectorY, shoot.VectorZ);
+            var direction = ResolveShootDirection(shoot);
             var target = MovementPositionToWorld(candidatePosition);
             if (direction.LengthSquared > 0f)
             {
@@ -1740,6 +2044,23 @@ internal sealed class PracticeRoomManager
         }
 
         return candidate.Uid;
+    }
+
+    private static (float X, float Y, float Z, float LengthSquared) ResolveShootDirection(GameShootAction shoot)
+    {
+        var direction = NormalizeOrZero(shoot.VectorX, shoot.VectorY, shoot.VectorZ);
+        if (direction.LengthSquared > 0f)
+        {
+            return direction;
+        }
+
+        var yaw = shoot.Facing0Raw / FacingRawAngleScale;
+        var pitch = shoot.Facing1Raw / FacingRawAngleScale;
+        var cosPitch = MathF.Cos(pitch);
+        return NormalizeOrZero(
+            MathF.Sin(yaw) * cosPitch,
+            MathF.Sin(pitch),
+            -MathF.Cos(yaw) * cosPitch);
     }
 
     private static (float X, float Y, float Z) ShootOriginToWorld(GameShootAction shoot)
@@ -2016,6 +2337,12 @@ internal sealed class PracticeRoomManager
         float VectorY,
         float VectorZ);
 
+    internal readonly record struct GameDamageHitRule(
+        bool RequireShootHit,
+        bool UseProximityHit,
+        float HitRadius,
+        float MaxRange);
+
     internal readonly record struct GameDamageAction(
         byte AttackerUid,
         byte VictimUid,
@@ -2032,9 +2359,27 @@ internal sealed class PracticeRoomManager
         int VictimMaxHealth,
         int Damage,
         bool Killed,
-        int DeathBroadcastCount)
+        int DeathBroadcastCount,
+        string Reason,
+        int CandidateCount,
+        int PositionedCandidateCount,
+        byte AttackerTeamId,
+        float BestHitScore)
     {
-        public static GameDamageBroadcastResult NotApplied { get; } = new(false, 0, 0, 0, 0, 0, false, 0);
+        public static GameDamageBroadcastResult NotApplied { get; } = new(
+            false,
+            0,
+            0,
+            0,
+            0,
+            0,
+            false,
+            0,
+            "not-applied",
+            0,
+            0,
+            GameTeamSpectator,
+            float.MaxValue);
     }
 
     internal readonly record struct GamePlayerSnapshot(

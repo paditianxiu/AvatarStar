@@ -98,6 +98,14 @@ internal sealed class PracticeRoomChannelProtocol
     private const short GameRemoteHurtSubtype = 73;
     private const int DefaultGameHurtDamage = 100;
     private const int MaxGameHurtDamage = 100000;
+    private const float DefaultShootHitRadius = 1.6f;
+    private const float ShotgunShootHitRadius = 3.0f;
+    private const float MeleeShootHitRadius = 2.2f;
+    private const float ShieldShootHitRadius = 2.6f;
+    private const float DefaultShootMaxRange = 60f;
+    private const float ShotgunShootMaxRange = 15f;
+    private const float MeleeShootMaxRange = 2.8f;
+    private const float ShieldShootMaxRange = 3.2f;
     private const float ShootFallbackVectorLength = 12f;
     private const float ShootVectorEpsilon = 0.001f;
     private const float FacingRawAngleScale = 8192f;
@@ -1998,6 +2006,7 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             ResolveGameTeamId(localMember),
             ResolveGamePlayerHealth(localPlayerState?.Character));
+        UpdateLocalGameSpawnPosition(room, overwriteExisting: false, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
         _gameInitSpawnHandshakeSent = false;
@@ -2189,6 +2198,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _localGameUid,
                 ResolveGameTeamId(localMember),
                 ResolveGamePlayerHealth(localPlayerState?.Character));
+            UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet141");
         }
 
         if (UseLegacyHotbarBootstrapSequence)
@@ -2231,7 +2241,7 @@ internal sealed class PracticeRoomChannelProtocol
                 damage);
 
         Log.Information(
-            "Channel packet113 <- {Remote}: hurtRaw=0x{RawValue:X8} hurtScalar={Scalar} damage={Damage} trailing={Trailing}; packet114 local ack sent, knifeRearmCount={KnifeRearmCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, killed={Killed}, broadcastCount={BroadcastCount}, deathBroadcastCount={DeathBroadcastCount}",
+            "Channel packet113 <- {Remote}: hurtRaw=0x{RawValue:X8} hurtScalar={Scalar} damage={Damage} trailing={Trailing}; packet114 local ack sent, knifeRearmCount={KnifeRearmCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, killed={Killed}, broadcastCount={BroadcastCount}, deathBroadcastCount={DeathBroadcastCount}, damageReason={DamageReason}, candidates={DamageCandidateCount}, positioned={DamagePositionedCandidateCount}, attackerTeam={DamageAttackerTeamId}, bestHitScore={DamageBestHitScore}",
             _remoteLabel,
             rawValue,
             scalar,
@@ -2244,7 +2254,12 @@ internal sealed class PracticeRoomChannelProtocol
             damageResult.VictimMaxHealth,
             damageResult.Killed,
             damageResult.BroadcastCount,
-            damageResult.DeathBroadcastCount);
+            damageResult.DeathBroadcastCount,
+            damageResult.Reason,
+            damageResult.CandidateCount,
+            damageResult.PositionedCandidateCount,
+            damageResult.AttackerTeamId,
+            FormatGameHitScore(damageResult.BestHitScore));
     }
 
     private async Task HandlePacket156GameInfoOverlayRequestAsync(PacketReader reader)
@@ -2289,6 +2304,7 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             ResolveGameTeamId(localMember),
             maxHealth);
+        UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet162");
 
         await SendPacket111GameSpawnAsync(_currentGameRoom);
         var broadcastCount = await _practiceRoomManager.BroadcastGamePlayerRespawnAsync(
@@ -2546,6 +2562,7 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         var slotOneBased = ResolveShootSlotOneBased(poseState);
+        UpdateLocalGamePositionFromActionPose(originX, originY, originZ, facing0Raw, facing1Raw);
         var shoot = new PracticeRoomManager.GameShootAction(
             _localGameUid,
             action,
@@ -2562,19 +2579,29 @@ internal sealed class PracticeRoomChannelProtocol
             _currentGameRoom.RoomId,
             this,
             shoot);
+        var weaponItem = ResolveLocalLoadoutItem(slotOneBased);
+        var weaponDamage = ResolveGameWeaponDamage(weaponItem);
+        var hitRule = ResolveGameWeaponHitRule(weaponItem);
+        var clientTargetUid = ResolveClientShootTargetUid(optionalTag, optionalValue);
         var damageResult = await _practiceRoomManager.BroadcastGameDamageAsync(
             _currentGameRoom.RoomId,
             this,
             _localGameUid,
-            DefaultGameHurtDamage);
+            weaponDamage,
+            hitRule,
+            clientTargetUid);
 
         Log.Information(
-            "Channel packet106 <- {Remote}: shoot action={Action} uid={Uid} slot={Slot} poseState={PoseState} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} optionalTag={OptionalTag} optionalValue={OptionalValue} optionalByte={OptionalByte} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet113 broadcastCount={BroadcastCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, killed={Killed}, damageBroadcastCount={DamageBroadcastCount}, deathBroadcastCount={DeathBroadcastCount}",
+            "Channel packet106 <- {Remote}: shoot action={Action} uid={Uid} slot={Slot} poseState={PoseState} weapon={WeaponResource} weaponDamage={WeaponDamage} hitRadius={HitRadius} maxRange={MaxRange} origin={Origin} vector={Vector} facing0={Facing0} facing1={Facing1} optionalTag={OptionalTag} optionalValue={OptionalValue} optionalByte={OptionalByte} clientTargetUid={ClientTargetUid} trailingBytes={TrailingBytes} trailingPayload={TrailingPayloadHex}; packet113 broadcastCount={BroadcastCount}, damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, killed={Killed}, damageBroadcastCount={DamageBroadcastCount}, deathBroadcastCount={DeathBroadcastCount}, damageReason={DamageReason}, candidates={DamageCandidateCount}, positioned={DamagePositionedCandidateCount}, attackerTeam={DamageAttackerTeamId}, bestHitScore={DamageBestHitScore}",
             _remoteLabel,
             action,
             _localGameUid,
             slotOneBased,
             poseState,
+            weaponItem?.Resource ?? "-",
+            weaponDamage,
+            hitRule.HitRadius,
+            hitRule.MaxRange,
             FormatGameVector3(originX, originY, originZ),
             FormatGameVector3(vectorX, vectorY, vectorZ),
             unchecked((ushort)facing0Raw),
@@ -2582,6 +2609,7 @@ internal sealed class PracticeRoomChannelProtocol
             optionalTag,
             optionalValue,
             optionalByte,
+            clientTargetUid,
             trailingBytes,
             trailingPayloadHex,
             broadcastCount,
@@ -2591,7 +2619,12 @@ internal sealed class PracticeRoomChannelProtocol
             damageResult.VictimMaxHealth,
             damageResult.Killed,
             damageResult.BroadcastCount,
-            damageResult.DeathBroadcastCount);
+            damageResult.DeathBroadcastCount,
+            damageResult.Reason,
+            damageResult.CandidateCount,
+            damageResult.PositionedCandidateCount,
+            damageResult.AttackerTeamId,
+            FormatGameHitScore(damageResult.BestHitScore));
     }
 
     private async Task HandlePacket112GameActionVectorAsync(PacketReader reader)
@@ -3017,6 +3050,136 @@ internal sealed class PracticeRoomChannelProtocol
         var playerState = GetLocalPlayerState(_currentGameRoom);
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
         return loadoutItems.FirstOrDefault(item => item.Slot == slotOneBased && IsSupportedGameEquipmentItem(item));
+    }
+
+    private static int ResolveGameWeaponDamage(PlayerStore.PlayerState.GameLoadoutItem? item)
+    {
+        if (item is not null &&
+            TryGetWeaponTipNumber(item.Resource, "output", out var output) &&
+            output > 0f)
+        {
+            return Math.Clamp((int)MathF.Round(output), 1, MaxGameHurtDamage);
+        }
+
+        return DefaultGameHurtDamage;
+    }
+
+    private byte ResolveClientShootTargetUid(byte? optionalTag, short? optionalValue)
+    {
+        if (optionalTag is not > 0 ||
+            optionalTag.Value == _localGameUid)
+        {
+            return 0;
+        }
+
+        return optionalTag.Value;
+    }
+
+    private static PracticeRoomManager.GameDamageHitRule ResolveGameWeaponHitRule(
+        PlayerStore.PlayerState.GameLoadoutItem? item)
+    {
+        var hitRadius = item?.Subtype switch
+        {
+            4 => ShotgunShootHitRadius,
+            6 => MeleeShootHitRadius,
+            13 => ShieldShootHitRadius,
+            _ => DefaultShootHitRadius
+        };
+        var maxRange = item?.Subtype switch
+        {
+            4 => ShotgunShootMaxRange,
+            6 => MeleeShootMaxRange,
+            13 => ShieldShootMaxRange,
+            _ => DefaultShootMaxRange
+        };
+
+        if (item is not null &&
+            TryGetWeaponTipNumber(item.Resource, "distance", out var distance) &&
+            distance > 0f)
+        {
+            maxRange = Math.Clamp(NormalizeWeaponDistance(distance), 0.5f, DefaultShootMaxRange);
+        }
+
+        return new PracticeRoomManager.GameDamageHitRule(
+            RequireShootHit: true,
+            UseProximityHit: item?.Subtype is 6 or 13,
+            HitRadius: hitRadius,
+            MaxRange: maxRange);
+    }
+
+    private static float NormalizeWeaponDistance(float distance)
+    {
+        return distance > 100f ? distance / 40f : distance;
+    }
+
+    private static bool TryGetWeaponTipNumber(string resource, string propertyName, out float value)
+    {
+        value = 0f;
+        if (!ShopItemDatabase.TryGetShopItemByResource(resource, out var item) ||
+            item.Tip is not IReadOnlyDictionary<string, object?> tip ||
+            !tip.TryGetValue(propertyName, out var propertyValue))
+        {
+            return false;
+        }
+
+        return TryReadTipNumber(propertyValue, out value);
+    }
+
+    private static bool TryReadTipNumber(object? value, out float number)
+    {
+        number = 0f;
+        switch (value)
+        {
+            case float f when float.IsFinite(f):
+                number = f;
+                return true;
+            case double d when double.IsFinite(d):
+                number = (float)d;
+                return true;
+            case int i:
+                number = i;
+                return true;
+            case long l:
+                number = l;
+                return true;
+            case IReadOnlyList<object?> list:
+                foreach (var item in list)
+                {
+                    if (TryReadTipNumber(item, out number))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            case JsonElement element:
+                return TryReadJsonElementNumber(element, out number);
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadJsonElementNumber(JsonElement element, out float number)
+    {
+        number = 0f;
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.Number when element.TryGetSingle(out var single) && float.IsFinite(single):
+                number = single;
+                return true;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    if (TryReadJsonElementNumber(item, out number))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            default:
+                return false;
+        }
     }
 
     private static int GetGameMovementOptionalByteCount(byte flags)
@@ -4062,6 +4225,7 @@ internal sealed class PracticeRoomChannelProtocol
         string trigger)
     {
         _knownGamePlayerUids.Add(_localGameUid);
+        UpdateLocalGameSpawnPosition(room, overwriteExisting: true, trigger);
         return SendPacket111GameSpawnAsync(room, trigger);
     }
 
@@ -5056,6 +5220,13 @@ internal sealed class PracticeRoomChannelProtocol
             $"({FormatProtocolFloat(x)},{FormatProtocolFloat(y)},{FormatProtocolFloat(z)})");
     }
 
+    private static string FormatGameHitScore(float value)
+    {
+        return float.IsFinite(value) && value < float.MaxValue
+            ? FormatProtocolFloat(value)
+            : "-";
+    }
+
     private static bool TryGetTipFirstNumberAny(object? tip, out double value, params string[] keys)
     {
         foreach (var key in keys)
@@ -5869,6 +6040,71 @@ internal sealed class PracticeRoomChannelProtocol
         // The reference server avoids the origin because some maps place dead-space
         // volumes there. Keep the spawn explicit until per-map spawn tables are decoded.
         return (-22f, 2f, 15f, 0f);
+    }
+
+    private void UpdateLocalGameSpawnPosition(
+        PracticeRoomManager.PracticeRoomSession room,
+        bool overwriteExisting,
+        string trigger)
+    {
+        if (!overwriteExisting &&
+            _practiceRoomManager.HasGamePosition(room.RoomId, _localGameUid))
+        {
+            return;
+        }
+
+        var (x, y, z, _) = ResolveSpawnPoint(room);
+        var position = new PracticeRoomManager.GamePosition(
+            WorldToRawCoordinate(x),
+            WorldToRawCoordinate(y),
+            WorldToRawCoordinate(z),
+            null,
+            null,
+            null,
+            DateTimeOffset.UtcNow);
+
+        if (overwriteExisting)
+        {
+            _practiceRoomManager.UpdateGamePosition(room.RoomId, _localGameUid, position);
+        }
+        else
+        {
+            _practiceRoomManager.UpdateGamePositionIfMissing(room.RoomId, _localGameUid, position);
+        }
+
+        Log.Verbose(
+            "Channel game position seed: trigger={Trigger} uid={Uid} position=({X},{Y},{Z}) overwrite={Overwrite}",
+            trigger,
+            _localGameUid,
+            FormatProtocolFloat(x),
+            FormatProtocolFloat(y),
+            FormatProtocolFloat(z),
+            overwriteExisting);
+    }
+
+    private void UpdateLocalGamePositionFromActionPose(
+        float originX,
+        float originY,
+        float originZ,
+        short facing0Raw,
+        short facing1Raw)
+    {
+        if (_currentGameRoom is null)
+        {
+            return;
+        }
+
+        _practiceRoomManager.UpdateGamePosition(
+            _currentGameRoom.RoomId,
+            _localGameUid,
+            new PracticeRoomManager.GamePosition(
+                WorldToRawCoordinate(originX),
+                WorldToRawCoordinate(originY),
+                WorldToRawCoordinate(originZ),
+                null,
+                facing0Raw,
+                facing1Raw,
+                DateTimeOffset.UtcNow));
     }
 
     private PracticeRoomManager.PracticeRoomMember? GetLocalGameMember(PracticeRoomManager.PracticeRoomSession room)
