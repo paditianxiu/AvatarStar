@@ -60,7 +60,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const bool EnableMovementCoordinateChangeLog = false;
     private const int MovementDebugSampleLogLimit = 96;
     private const string TeleportCommandName = "/tp";
-    private const float MovementRawCoordinateScale = 100f;
+    private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const short GameRemoteShootPacketId = 113;
     private const short GameRemoteHurtPacketId = 162;

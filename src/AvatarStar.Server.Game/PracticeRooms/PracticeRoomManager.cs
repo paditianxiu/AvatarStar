@@ -12,8 +12,8 @@ internal sealed class PracticeRoomManager
     private const byte GameTeamSpectator = 2;
     private const int DefaultGamePlayerHealth = 1000;
     private const int GameAutoRespawnDelayMilliseconds = 3000;
-    private const float MovementRawCoordinateScale = 100f;
     private const float ActionPoseRawCoordinateScale = 256f;
+    private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
     private const float FacingRawAngleScale = 8192f;
     private const float ShootVectorEpsilon = 0.001f;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
