@@ -46,6 +46,7 @@ internal sealed class PracticeRoomManager
     private readonly Dictionary<int, HashSet<byte>> _retiredGameUidsByRoomId = new();
     private readonly Dictionary<PendingChannelJoinKey, Queue<PendingChannelJoin>> _pendingChannelJoins = new();
     private readonly Dictionary<long, GameClient> _gameClientsByCharacterId = new();
+    private readonly Dictionary<long, GameClientRpcActivity> _gameClientRpcActivityByCharacterId = new();
 
     private int _nextRoomId = 1;
     private int _nextChannelToken = 1;
@@ -87,7 +88,31 @@ internal sealed class PracticeRoomManager
                 ReferenceEquals(existing, client))
             {
                 _gameClientsByCharacterId.Remove(characterId);
+                _gameClientRpcActivityByCharacterId.Remove(characterId);
             }
+        }
+    }
+
+    public void MarkGameClientRpcActivity(long characterId, string rpcName)
+    {
+        if (characterId <= 0)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            _gameClientRpcActivityByCharacterId[characterId] = new GameClientRpcActivity(
+                DateTimeOffset.UtcNow,
+                rpcName);
+        }
+    }
+
+    public bool TryGetGameClientRpcActivity(long characterId, out GameClientRpcActivity activity)
+    {
+        lock (_lock)
+        {
+            return _gameClientRpcActivityByCharacterId.TryGetValue(characterId, out activity);
         }
     }
 
@@ -983,6 +1008,57 @@ internal sealed class PracticeRoomManager
         }
     }
 
+    public bool TrySetGamePlayerHealth(
+        int roomId,
+        byte uid,
+        int health,
+        out GameDamageAction action)
+    {
+        lock (_lock)
+        {
+            action = default;
+            if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(uid, out var player))
+            {
+                return false;
+            }
+
+            var clampedHealth = Math.Clamp(health, 1, 100000);
+            player.MaxHealth = clampedHealth;
+            player.CurrentHealth = clampedHealth;
+            action = new GameDamageAction(
+                AttackerUid: uid,
+                VictimUid: uid,
+                Damage: 0,
+                VictimHealth: clampedHealth,
+                VictimMaxHealth: clampedHealth,
+                Killed: false);
+            return true;
+        }
+    }
+
+    public bool TryGetGamePlayerHealth(
+        int roomId,
+        byte uid,
+        out int currentHealth,
+        out int maxHealth)
+    {
+        lock (_lock)
+        {
+            currentHealth = 0;
+            maxHealth = 0;
+            if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(uid, out var player))
+            {
+                return false;
+            }
+
+            currentHealth = player.CurrentHealth;
+            maxHealth = player.MaxHealth;
+            return true;
+        }
+    }
+
     public bool TryFindGamePlayerPositionByName(
         int roomId,
         string characterName,
@@ -1199,6 +1275,38 @@ internal sealed class PracticeRoomManager
             try
             {
                 await target.SendPacket108GamePlayerLeaveAsync(actorUid, "remote-player-leave");
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameDamageHitAsync(
+        int roomId,
+        GameDamageAction action)
+    {
+        PracticeRoomChannelProtocol[] targets;
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys.ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket184RemoteDamageHitAsync(action);
                 sent++;
             }
             catch
@@ -2428,6 +2536,10 @@ internal sealed class PracticeRoomManager
         short? Facing0Raw,
         short? Facing1Raw,
         DateTimeOffset LastSeenAt);
+
+    internal readonly record struct GameClientRpcActivity(
+        DateTimeOffset LastSeenAt,
+        string RpcName);
 
     internal readonly record struct GamePlayerPosition(
         byte Uid,

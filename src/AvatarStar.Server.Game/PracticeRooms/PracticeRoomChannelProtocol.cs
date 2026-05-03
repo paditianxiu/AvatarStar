@@ -45,6 +45,10 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte ClientWeaponSlotNotifyMax = 18;
     private const byte ClientScrollableWeaponSlotCount = 7;
     private const int SilentLoadoutHudRefreshRetryCount = 0;
+    private const int DeferredGameEnterStartDelayMilliseconds = 4000;
+    private const int DeferredGameEnterPacket100DelayMilliseconds = 0;
+    private const int DeferredGameEnterRpcQuietMilliseconds = 1500;
+    private const int DeferredGameEnterMaxDelayMilliseconds = 10000;
     private const int GameInitSpawnFallbackDelayMilliseconds = 500;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
@@ -60,6 +64,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const bool EnableMovementCoordinateChangeLog = false;
     private const int MovementDebugSampleLogLimit = 96;
     private const string TeleportCommandName = "/tp";
+    private const string SetCommandName = "/set";
     private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const short GameRemoteShootPacketId = 113;
@@ -119,6 +124,7 @@ internal sealed class PracticeRoomChannelProtocol
 
     // Character movement tuning sent by packet103.
     // The first four fields are read right after maxHealth and copied into actor movement scalars.
+    private const short GameCharacterInfoPacketId = 103;
     private const float CharacterWalkSpeed = 5f;
     private const float CharacterRollSlideScale = 8f;
     private const float CharacterJumpAirSpeed = 8f;
@@ -840,6 +846,9 @@ internal sealed class PracticeRoomChannelProtocol
     private byte _lastGameMovementInputByte;
     private byte _lastGameMovementTick;
     private bool _hasLastGameMovementInputByte;
+    private int? _setHealthOverride;
+    private float? _setWalkSpeedOverride;
+    private float? _setJumpHeightOverride;
 
     public PracticeRoomChannelProtocol(
         PracticeRoomManager practiceRoomManager,
@@ -1058,6 +1067,11 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task<bool> TryHandleInGameCommandAsync(short packetId, string command)
     {
+        if (IsSetCommand(command))
+        {
+            return await TryHandleSetCommandAsync(packetId, command);
+        }
+
         if (!IsTeleportCommand(command))
         {
             return false;
@@ -1260,6 +1274,17 @@ internal sealed class PracticeRoomChannelProtocol
 
         return command.Length == TeleportCommandName.Length ||
             char.IsWhiteSpace(command[TeleportCommandName.Length]);
+    }
+
+    private static bool IsSetCommand(string command)
+    {
+        if (!command.StartsWith(SetCommandName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return command.Length == SetCommandName.Length ||
+            char.IsWhiteSpace(command[SetCommandName.Length]);
     }
 
     private static bool TryParseTeleportCoordinates(
@@ -1743,6 +1768,9 @@ internal sealed class PracticeRoomChannelProtocol
         _lastGameMovementInputByte = 0;
         _lastGameMovementTick = 0;
         _hasLastGameMovementInputByte = false;
+        _setHealthOverride = null;
+        _setWalkSpeedOverride = null;
+        _setJumpHeightOverride = null;
         StopKnifeAutoRearmLoop();
     }
 
@@ -1922,8 +1950,17 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPacket2RoomInfoChangedAsync(room);
         await SendPacket18RoomClientListSyncAsync(room);
         await SendPacket8GameStartNotifyAsync();
-        await BeginGameEnterSequenceAsync(room, "packet10-start");
         await _practiceRoomManager.BroadcastGameStartAsync(room.RoomId, this);
+        ScheduleDeferredGameEnterSequence(
+            room,
+            "packet10-start",
+            DeferredGameEnterStartDelayMilliseconds);
+
+        Log.Information(
+            "Channel packet10 start accepted from {Remote}: roomId={RoomId}; deferredEnterDelayMs={DelayMs}",
+            _remoteLabel,
+            room.RoomId,
+            DeferredGameEnterStartDelayMilliseconds);
     }
 
     private async Task HandlePacket100EnterGameAsync(PacketReader reader)
@@ -1950,13 +1987,16 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         Log.Information(
-            "Channel packet100 enter accepted from {Remote}: roomId={RoomId} contextId={ContextId}",
+            "Channel packet100 enter accepted from {Remote}: roomId={RoomId} contextId={ContextId}; waiting for RPC quiet window",
             _remoteLabel,
             room.RoomId,
             room.ContextId);
 
         await _practiceRoomManager.BroadcastRoomSnapshotAsync(room.RoomId);
-        await BeginGameEnterSequenceAsync(room, "packet100-enter");
+        ScheduleDeferredGameEnterSequence(
+            room,
+            "packet100-enter",
+            DeferredGameEnterPacket100DelayMilliseconds);
     }
 
     private async Task HandlePacket100DuplicateEnterGameAsync(PacketReader reader)
@@ -2013,7 +2053,7 @@ internal sealed class PracticeRoomChannelProtocol
             room.RoomId,
             _localGameUid,
             ResolveGameTeamId(localMember),
-            ResolveGamePlayerHealth(localPlayerState?.Character));
+            ResolveLocalGamePlayerHealth(localPlayerState?.Character));
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
@@ -2065,6 +2105,91 @@ internal sealed class PracticeRoomChannelProtocol
             UseLegacyHotbarBootstrapSequence);
     }
 
+    private void ScheduleDeferredGameEnterSequence(
+        PracticeRoomManager.PracticeRoomSession room,
+        string source,
+        int initialDelayMilliseconds)
+    {
+        var roomId = room.RoomId;
+        var generation = _gameInitSpawnHandshakeGeneration;
+        _ = BeginDeferredGameEnterSequenceAsync(room, roomId, generation, source, initialDelayMilliseconds);
+    }
+
+    private async Task BeginDeferredGameEnterSequenceAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        int roomId,
+        int generation,
+        string source,
+        int initialDelayMilliseconds)
+    {
+        try
+        {
+            if (initialDelayMilliseconds > 0)
+            {
+                await Task.Delay(initialDelayMilliseconds);
+            }
+
+            if (_state != ChannelState.InRoom ||
+                _currentRoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration)
+            {
+                return;
+            }
+
+            var quietWaitMs = await WaitForGameClientRpcQuietAsync(roomId, generation);
+            if (_state != ChannelState.InRoom ||
+                _currentRoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration)
+            {
+                return;
+            }
+
+            Log.Information(
+                "Channel deferred game enter bootstrap -> {Remote}: source={Source} roomId={RoomId} delayMs={DelayMs} rpcQuietWaitMs={QuietWaitMs}",
+                _remoteLabel,
+                source,
+                roomId,
+                initialDelayMilliseconds,
+                quietWaitMs);
+
+            await BeginGameEnterSequenceAsync(room, source);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(
+                ex,
+                "Channel deferred game enter bootstrap failed -> {Remote}: source={Source} roomId={RoomId}",
+                _remoteLabel,
+                source,
+                roomId);
+        }
+    }
+
+    private async Task<int> WaitForGameClientRpcQuietAsync(int roomId, int generation)
+    {
+        var started = DateTimeOffset.UtcNow;
+        var waitedMs = 0;
+        while ((_state == ChannelState.InRoom || _state == ChannelState.InGame) &&
+               _currentRoomId == roomId &&
+               generation == _gameInitSpawnHandshakeGeneration &&
+               _practiceRoomManager.TryGetGameClientRpcActivity(_currentCharacterId, out var activity))
+        {
+            var now = DateTimeOffset.UtcNow;
+            var idleMs = (int)Math.Max(0, (now - activity.LastSeenAt).TotalMilliseconds);
+            if (idleMs >= DeferredGameEnterRpcQuietMilliseconds ||
+                (now - started).TotalMilliseconds >= DeferredGameEnterMaxDelayMilliseconds)
+            {
+                break;
+            }
+
+            var delayMs = Math.Clamp(DeferredGameEnterRpcQuietMilliseconds - idleMs, 100, 250);
+            await Task.Delay(delayMs);
+            waitedMs = (int)Math.Max(waitedMs, (DateTimeOffset.UtcNow - started).TotalMilliseconds);
+        }
+
+        return waitedMs;
+    }
+
     public async Task SendRoomSnapshotAsync(PracticeRoomManager.PracticeRoomSession room)
     {
         if (_currentRoomId != room.RoomId)
@@ -2086,7 +2211,16 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPacket2RoomInfoChangedAsync(room);
         await SendPacket18RoomClientListSyncAsync(room);
         await SendPacket8GameStartNotifyAsync();
-        await BeginGameEnterSequenceAsync(room, "remote-start");
+        ScheduleDeferredGameEnterSequence(
+            room,
+            "remote-start",
+            DeferredGameEnterStartDelayMilliseconds);
+
+        Log.Information(
+            "Channel remote game start -> {Remote}: roomId={RoomId}; deferredEnterDelayMs={DelayMs}",
+            _remoteLabel,
+            room.RoomId,
+            DeferredGameEnterStartDelayMilliseconds);
     }
 
     private async Task HandlePacket103GameCharacterRequestAsync(PacketReader reader)
@@ -2128,6 +2262,201 @@ internal sealed class PracticeRoomChannelProtocol
         return true;
     }
 
+    private async Task<bool> TryHandleSetCommandAsync(short packetId, string command)
+    {
+        if (_currentGameRoom is null)
+        {
+            Log.Warning(
+                "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=no-active-room",
+                _remoteLabel,
+                packetId,
+                command);
+            return true;
+        }
+
+        var args = command.Length <= SetCommandName.Length
+            ? string.Empty
+            : command[SetCommandName.Length..].Trim();
+        var parts = args.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length != 2)
+        {
+            Log.Warning(
+                "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=invalid-set-syntax",
+                _remoteLabel,
+                packetId,
+                command);
+            return true;
+        }
+
+        var key = parts[0].Trim();
+        var valueText = parts[1].Trim();
+        if (key.Equals("health", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!int.TryParse(valueText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var health))
+            {
+                Log.Warning(
+                    "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=invalid-health",
+                    _remoteLabel,
+                    packetId,
+                    command);
+                return true;
+            }
+
+            await SetLocalHealthAsync(Math.Clamp(health, 1, 100000), packetId);
+            return true;
+        }
+
+        if (!float.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        {
+            Log.Warning(
+                "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=invalid-float",
+                _remoteLabel,
+                packetId,
+                command);
+            return true;
+        }
+
+        value = Math.Clamp(value, 0.1f, 1000f);
+        if (key.Equals("speed", StringComparison.OrdinalIgnoreCase))
+        {
+            _setWalkSpeedOverride = value;
+            await RefreshLocalCharacterCreateAsync("set-speed");
+            await SendLocalStateUiRefreshAsync("set-speed");
+            Log.Information(
+                "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} speed={Speed}",
+                SetCommandName,
+                _remoteLabel,
+                packetId,
+                _localGameUid,
+                FormatProtocolFloat(value));
+            return true;
+        }
+
+        if (key.Equals("jump", StringComparison.OrdinalIgnoreCase))
+        {
+            _setJumpHeightOverride = value;
+            await RefreshLocalCharacterCreateAsync("set-jump");
+            await SendLocalStateUiRefreshAsync("set-jump");
+            Log.Information(
+                "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} jump={Jump}",
+                SetCommandName,
+                _remoteLabel,
+                packetId,
+                _localGameUid,
+                FormatProtocolFloat(value));
+            return true;
+        }
+
+        Log.Warning(
+            "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=unknown-set-key key={Key}",
+            _remoteLabel,
+            packetId,
+            command,
+            key);
+        return true;
+    }
+
+    private async Task SetLocalHealthAsync(int health, short packetId)
+    {
+        if (_currentGameRoom is null)
+        {
+            return;
+        }
+
+        _setHealthOverride = health;
+        if (!_practiceRoomManager.TrySetGamePlayerHealth(
+                _currentGameRoom.RoomId,
+                _localGameUid,
+                health,
+                out var action))
+        {
+            Log.Warning(
+                "In-game command {Command} failed from {Remote}: packetId={PacketId} localUid={LocalUid} health={Health} reason=player-not-found",
+                SetCommandName,
+                _remoteLabel,
+                packetId,
+                _localGameUid,
+                health);
+            return;
+        }
+
+        var broadcastCount = await _practiceRoomManager.BroadcastGameDamageHitAsync(_currentGameRoom.RoomId, action);
+        await SendLocalStateUiRefreshAsync("set-health", health);
+        Log.Information(
+            "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} health={Health} broadcastCount={BroadcastCount}",
+            SetCommandName,
+            _remoteLabel,
+            packetId,
+            _localGameUid,
+            health,
+            broadcastCount);
+    }
+
+    private async Task SendLocalStateUiRefreshAsync(string trigger, int? healthOverride = null)
+    {
+        if (_currentGameRoom is null)
+        {
+            return;
+        }
+
+        var hasKnownPosition = TryGetLocalGamePosition(out var position);
+        if (!hasKnownPosition)
+        {
+            var (spawnX, spawnY, spawnZ, _) = ResolveSpawnPoint(_currentGameRoom);
+            position = new PracticeRoomManager.GamePosition(
+                WorldToRawCoordinate(spawnX),
+                WorldToRawCoordinate(spawnY),
+                WorldToRawCoordinate(spawnZ),
+                null,
+                null,
+                null,
+                DateTimeOffset.UtcNow);
+            _practiceRoomManager.UpdateGamePositionIfMissing(_currentGameRoom.RoomId, _localGameUid, position);
+        }
+
+        var refreshTrigger = hasKnownPosition ? trigger : $"{trigger}-spawn-fallback";
+        var health = healthOverride ?? ResolveLocalRuntimeHealth(_currentGameRoom);
+        await SendPacket111GameTeleportAsync(
+            RawToWorldCoordinate(position.XRaw),
+            RawToWorldCoordinate(position.YRaw),
+            RawToWorldCoordinate(position.ZRaw),
+            position.YawRaw.HasValue ? RawToWorldCoordinate(position.YawRaw.Value) : 0f,
+            refreshTrigger,
+            health);
+        Log.Information(
+            "Channel packet111 state refresh -> {Remote}: trigger={Trigger} uid={Uid} health={Health} positionRaw=({X},{Y},{Z})",
+            _remoteLabel,
+            refreshTrigger,
+            _localGameUid,
+            health,
+            position.XRaw,
+            position.YRaw,
+            position.ZRaw);
+    }
+
+    private async Task RefreshLocalCharacterCreateAsync(string trigger)
+    {
+        if (_currentGameRoom is null)
+        {
+            return;
+        }
+
+        var player = ResolveGamePlayersForPacket(_currentGameRoom)
+            .FirstOrDefault(player => player.Uid == _localGameUid);
+        if (player is null)
+        {
+            return;
+        }
+
+        await SendPacket103GameCharacterCreateAsync(player);
+        Log.Information(
+            "Channel packet{PacketId} refresh -> {Remote}: trigger={Trigger} uid={Uid}",
+            GameCharacterInfoPacketId,
+            _remoteLabel,
+            trigger,
+            _localGameUid);
+    }
+
     private void ScheduleGameInitSpawnHandshakeFallback(
         PracticeRoomManager.PracticeRoomSession room,
         string source)
@@ -2155,11 +2484,28 @@ internal sealed class PracticeRoomChannelProtocol
             }
 
             Log.Information(
-                "Channel game init/spawn fallback -> {Remote}: source={Source} roomId={RoomId} delayMs={DelayMs}",
+                "Channel game init/spawn fallback waiting for RPC quiet -> {Remote}: source={Source} roomId={RoomId} delayMs={DelayMs}",
                 _remoteLabel,
                 source,
                 roomId,
                 GameInitSpawnFallbackDelayMilliseconds);
+
+            var quietWaitMs = await WaitForGameClientRpcQuietAsync(roomId, generation);
+            if (_state != ChannelState.InGame ||
+                _currentGameRoom is not { } activeRoom ||
+                activeRoom.RoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration)
+            {
+                return;
+            }
+
+            Log.Information(
+                "Channel game init/spawn fallback -> {Remote}: source={Source} roomId={RoomId} delayMs={DelayMs} rpcQuietWaitMs={QuietWaitMs}",
+                _remoteLabel,
+                source,
+                roomId,
+                GameInitSpawnFallbackDelayMilliseconds,
+                quietWaitMs);
 
             await SendGameInitSpawnPacketsAsync(room, "game-enter-fallback", preferKnownPosition: false);
             _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
@@ -2312,7 +2658,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _currentGameRoom.RoomId,
                 _localGameUid,
                 ResolveGameTeamId(localMember),
-                ResolveGamePlayerHealth(localPlayerState?.Character));
+                ResolveLocalGamePlayerHealth(localPlayerState?.Character));
             UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet141");
         }
 
@@ -2413,7 +2759,7 @@ internal sealed class PracticeRoomChannelProtocol
         var localMember = GetLocalGameMember(_currentGameRoom);
         var localCharacterId = localMember?.CharacterId ?? _currentGameRoom.HostCharacterId;
         var localPlayerState = ResolvePlayerState(localCharacterId);
-        var maxHealth = ResolveGamePlayerHealth(localPlayerState?.Character);
+        var maxHealth = ResolveLocalGamePlayerHealth(localPlayerState?.Character);
         _practiceRoomManager.UpdateGamePlayerState(
             _currentGameRoom.RoomId,
             _localGameUid,
@@ -4161,7 +4507,7 @@ internal sealed class PracticeRoomChannelProtocol
         var loadoutSource = playerState?.GetGameLoadoutSource() ?? "empty";
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
         var loadoutGroups = BuildGameLoadoutGroups(loadoutItems);
-        var playerHealth = ResolveGamePlayerHealth(character);
+        var playerHealth = ResolveLocalGamePlayerHealth(character);
         var teamId = ResolveGameTeamId(member);
         var packet106HeaderByte = UseLegacyHotbarBootstrapSequence ? career : teamId;
         var gamePlayers = ResolveGamePlayersForPacket(room);
@@ -4465,6 +4811,25 @@ internal sealed class PracticeRoomChannelProtocol
         return Math.Max(character?.MaxHealth ?? 0, DefaultSpawnHealth);
     }
 
+    private int ResolveLocalGamePlayerHealth(CharacterInfo? character)
+    {
+        return _setHealthOverride ?? ResolveGamePlayerHealth(character);
+    }
+
+    private int ResolveLocalRuntimeHealth(PracticeRoomManager.PracticeRoomSession room)
+    {
+        if (_practiceRoomManager.TryGetGamePlayerHealth(
+                room.RoomId,
+                _localGameUid,
+                out var currentHealth,
+                out _))
+        {
+            return Math.Max(1, currentHealth);
+        }
+
+        return ResolveLocalGamePlayerHealth(GetLocalPlayerState(room)?.Character);
+    }
+
     private static byte ResolveGameTeamId(PracticeRoomManager.PracticeRoomMember? member)
     {
         return member?.SlotIndex switch
@@ -4647,7 +5012,7 @@ internal sealed class PracticeRoomChannelProtocol
             level,
             rankType,
             rankLevel,
-            ResolveGamePlayerHealth(character),
+            snapshot.Uid == _localGameUid ? ResolveLocalGamePlayerHealth(character) : ResolveGamePlayerHealth(character),
             playerState,
             character,
             loadoutItems,
@@ -5593,7 +5958,9 @@ internal sealed class PracticeRoomChannelProtocol
         }
     }
 
-    private Task SendPacket103GameCharacterCreateAsync(GamePacketPlayer player)
+    private Task SendPacket103GameCharacterCreateAsync(
+        GamePacketPlayer player,
+        short packetId = GameCharacterInfoPacketId)
     {
         using var writer = new PacketWriter();
         var playerState = player.PlayerState;
@@ -5608,11 +5975,29 @@ internal sealed class PracticeRoomChannelProtocol
         var avatarParts = GetAvatarBlobParts(character?.EquipAvatar);
         var independentTrinketItems = player.IndependentTrinketItems;
         var independentTrinketResources = independentTrinketItems.Select(item => item.Resource).ToArray();
+        var isLocalPlayer = player.Uid == _localGameUid;
+        var walkSpeed = isLocalPlayer ? _setWalkSpeedOverride ?? CharacterWalkSpeed : CharacterWalkSpeed;
+        var rollSlideScale = isLocalPlayer && _setWalkSpeedOverride.HasValue
+            ? CharacterRollSlideScale * (walkSpeed / CharacterWalkSpeed)
+            : CharacterRollSlideScale;
+        var jumpAirSpeed = isLocalPlayer ? _setJumpHeightOverride ?? CharacterJumpAirSpeed : CharacterJumpAirSpeed;
         var flyMotionProfile = ResolveCharacterFlyMotionProfile(independentTrinketItems);
+        if (isLocalPlayer && _setJumpHeightOverride.HasValue)
+        {
+            var jumpInitialVelocityY = ResolveJumpInitialVelocityY(
+                _setJumpHeightOverride.Value,
+                flyMotionProfile.RiseAccelerationY,
+                flyMotionProfile.RiseTotalTime);
+            flyMotionProfile = flyMotionProfile with
+            {
+                RiseInitialVelocityY = jumpInitialVelocityY
+            };
+        }
+
         var characterMoveInfo = CreateCharacterMoveInfo(flyMotionProfile);
         if (UseLegacyMinimalPacket103CharacterCreate)
         {
-            writer.WriteShort(103);
+            writer.WriteShort(packetId);
             writer.WriteByte(player.Uid);
             writer.WriteByte(1);
             writer.WriteLong(characterId);
@@ -5652,7 +6037,8 @@ internal sealed class PracticeRoomChannelProtocol
             writer.WriteByte(0);
 
             Log.Information(
-                "Channel packet103 -> {Remote}: uid={Uid} characterId={CharacterId} career={Career} maxHealth={MaxHealth} legacyMinimal=True avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} independentTrinkets={IndependentTrinkets}",
+                "Channel packet{PacketId} -> {Remote}: uid={Uid} characterId={CharacterId} career={Career} maxHealth={MaxHealth} legacyMinimal=True avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} independentTrinkets={IndependentTrinkets}",
+                packetId,
                 _remoteLabel,
                 player.Uid,
                 characterId,
@@ -5670,7 +6056,7 @@ internal sealed class PracticeRoomChannelProtocol
         var equipmentItems = player.EquipmentItems;
         var teamId = player.TeamId;
 
-        writer.WriteShort(103);
+        writer.WriteShort(packetId);
         writer.WriteByte(player.Uid);
         writer.WriteByte(teamId);
         writer.WriteLong(characterId);
@@ -5683,9 +6069,9 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(career);
         writer.WriteByte(0);
         writer.WriteInt(maxHealth);
-        writer.WriteFloat(CharacterWalkSpeed);
-        writer.WriteFloat(CharacterRollSlideScale);
-        writer.WriteFloat(CharacterJumpAirSpeed);
+        writer.WriteFloat(walkSpeed);
+        writer.WriteFloat(rollSlideScale);
+        writer.WriteFloat(jumpAirSpeed);
         writer.WriteFloat(CharacterGravityScale);
         WriteGameEquipmentBlock(writer, equipmentItems);
 
@@ -5715,7 +6101,8 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteInt(0);
 
         Log.Information(
-            "Channel packet103 -> {Remote}: uid={Uid} teamId={TeamId} characterId={CharacterId} level={Level} rankType={RankType} rankLevel={RankLevel} career={Career} maxHealth={MaxHealth} movementTuning={MovementTuning} equipmentBlockCount={EquipmentBlockCount} avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} moveInfoCount={MoveInfoCount} modelReady={ModelReady} modelReadyResource={ModelReadyResource} modelReadyLevel={ModelReadyLevel} loadoutSource={LoadoutSource} backpackStats=True independentTrinkets={IndependentTrinkets} loadout={Loadout}",
+            "Channel packet{PacketId} -> {Remote}: uid={Uid} teamId={TeamId} characterId={CharacterId} level={Level} rankType={RankType} rankLevel={RankLevel} career={Career} maxHealth={MaxHealth} movementScalars=({WalkSpeed},{RollSlide},{JumpAir},{Gravity}) movementTuning={MovementTuning} equipmentBlockCount={EquipmentBlockCount} avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} moveInfoCount={MoveInfoCount} modelReady={ModelReady} modelReadyResource={ModelReadyResource} modelReadyLevel={ModelReadyLevel} loadoutSource={LoadoutSource} backpackStats=True independentTrinkets={IndependentTrinkets} loadout={Loadout}",
+            packetId,
             _remoteLabel,
             player.Uid,
             teamId,
@@ -5725,6 +6112,10 @@ internal sealed class PracticeRoomChannelProtocol
             rankLevel,
             career,
             maxHealth,
+            FormatProtocolFloat(walkSpeed),
+            FormatProtocolFloat(rollSlideScale),
+            FormatProtocolFloat(jumpAirSpeed),
+            FormatProtocolFloat(CharacterGravityScale),
             FormatCharacterMovementTuningSummary(flyMotionProfile),
             equipmentItems.Count,
             avatarParts.Count(part => !string.IsNullOrWhiteSpace(part) && part != "{}"),
@@ -5810,6 +6201,12 @@ internal sealed class PracticeRoomChannelProtocol
     {
         return (flyProfile.RiseInitialVelocityY * flyProfile.RiseTotalTime) +
             (0.5f * flyProfile.RiseAccelerationY * flyProfile.RiseTotalTime * flyProfile.RiseTotalTime);
+    }
+
+    private static float ResolveJumpInitialVelocityY(float targetHeight, float accelerationY, float totalTime)
+    {
+        var time = totalTime <= 0.01f ? CharacterJump2TotalTime : totalTime;
+        return (targetHeight - (0.5f * accelerationY * time * time)) / time;
     }
 
     private static float EstimateFinalHorizontalSpeed(CharacterFlyMotionProfile flyProfile)
@@ -6031,7 +6428,13 @@ internal sealed class PracticeRoomChannelProtocol
         return string.IsNullOrWhiteSpace(value) ? "{}" : value!;
     }
 
-    private Task SendPacket111GameTeleportAsync(float x, float y, float z, float yaw, string source)
+    private Task SendPacket111GameTeleportAsync(
+        float x,
+        float y,
+        float z,
+        float yaw,
+        string source,
+        int? healthOverride = null)
     {
         if (_currentGameRoom is null)
         {
@@ -6040,7 +6443,7 @@ internal sealed class PracticeRoomChannelProtocol
 
         using var writer = new PacketWriter();
         var playerState = GetLocalPlayerState(_currentGameRoom);
-        var health = ResolveGamePlayerHealth(playerState?.Character);
+        var health = healthOverride ?? ResolveLocalGamePlayerHealth(playerState?.Character);
         const short actorState = InitialGamePlayerActionStateFlags;
         const float actorFloat = 0f;
 

@@ -377,6 +377,7 @@ internal partial class GameClient
         var rpcArgs = new Dictionary<string, string>(StringComparer.Ordinal);
 
         Log.Debug("RPC: id={RpcId}, name={RpcName}, remaining={Remaining}", rpcId, rpcName, reader.Remaining);
+        _practiceRoomManager.MarkGameClientRpcActivity(_activeRoleId, rpcName);
 
         while (reader.Remaining > 0)
         {
