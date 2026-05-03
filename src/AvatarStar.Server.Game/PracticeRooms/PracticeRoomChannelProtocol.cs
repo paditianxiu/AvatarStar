@@ -52,6 +52,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const int GameInitSpawnFallbackDelayMilliseconds = 500;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
+    private const string GameLoadoutAmmoOneClipPropertyName = "ammo_one_clip";
     private const double SpecialWeaponRearmMinSeconds = 0.25;
     private const double SpecialWeaponRearmMaxSeconds = 2.5;
     private static readonly bool EnableKnifeAutoRearmLoop = false;
@@ -849,6 +850,7 @@ internal sealed class PracticeRoomChannelProtocol
     private int? _setHealthOverride;
     private float? _setWalkSpeedOverride;
     private float? _setJumpHeightOverride;
+    private readonly Dictionary<long, int> _setBulletAmmoOneClipOverridesByItemId = new();
 
     public PracticeRoomChannelProtocol(
         PracticeRoomManager practiceRoomManager,
@@ -1771,6 +1773,7 @@ internal sealed class PracticeRoomChannelProtocol
         _setHealthOverride = null;
         _setWalkSpeedOverride = null;
         _setJumpHeightOverride = null;
+        _setBulletAmmoOneClipOverridesByItemId.Clear();
         StopKnifeAutoRearmLoop();
     }
 
@@ -2306,6 +2309,22 @@ internal sealed class PracticeRoomChannelProtocol
             return true;
         }
 
+        if (key.Equals("bullet", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!int.TryParse(valueText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var bulletCount))
+            {
+                Log.Warning(
+                    "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=invalid-bullet",
+                    _remoteLabel,
+                    packetId,
+                    command);
+                return true;
+            }
+
+            await SetLocalWeaponBulletCountAsync(Math.Clamp(bulletCount, 0, 100000), packetId);
+            return true;
+        }
+
         if (!float.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
         {
             Log.Warning(
@@ -2321,7 +2340,6 @@ internal sealed class PracticeRoomChannelProtocol
         {
             _setWalkSpeedOverride = value;
             await RefreshLocalCharacterCreateAsync("set-speed");
-            await SendLocalStateUiRefreshAsync("set-speed");
             Log.Information(
                 "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} speed={Speed}",
                 SetCommandName,
@@ -2336,7 +2354,6 @@ internal sealed class PracticeRoomChannelProtocol
         {
             _setJumpHeightOverride = value;
             await RefreshLocalCharacterCreateAsync("set-jump");
-            await SendLocalStateUiRefreshAsync("set-jump");
             Log.Information(
                 "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} jump={Jump}",
                 SetCommandName,
@@ -2354,6 +2371,61 @@ internal sealed class PracticeRoomChannelProtocol
             command,
             key);
         return true;
+    }
+
+    private async Task SetLocalWeaponBulletCountAsync(int bulletCount, short packetId)
+    {
+        var slotOneBased = ResolveCurrentReloadReadySlot();
+        var item = ResolveLocalLoadoutItem(slotOneBased);
+        if (item is null)
+        {
+            Log.Warning(
+                "In-game command {Command} failed from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} bullet={BulletCount} reason=current-weapon-not-found",
+                SetCommandName,
+                _remoteLabel,
+                packetId,
+                _localGameUid,
+                slotOneBased,
+                bulletCount);
+            return;
+        }
+
+        var ammoOneClip = bulletCount;
+        _setBulletAmmoOneClipOverridesByItemId[item.ItemId] = ammoOneClip;
+
+        if (_currentGameRoom is not null)
+        {
+            await RefreshLocalCharacterCreateAsync("set-bullet");
+        }
+
+        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            GameLoadoutAmmoOneClipPropertyName,
+            ammoOneClip,
+            "set-bullet");
+        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            GameLoadoutHudRefreshPropertyName,
+            bulletCount,
+            "set-bullet");
+        await SendPacket175GameReloadReadyAsync(slotOneBased, "set-bullet");
+        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            GameLoadoutHudRefreshPropertyName,
+            bulletCount,
+            "set-bullet-after-ack");
+
+        Log.Information(
+            "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} itemId={ItemId} resource={Resource} bullet={BulletCount} ammoOneClip={AmmoOneClip}; packet103 character refresh sent, packet143 ammo refresh sent, packet175 local ack sent",
+            SetCommandName,
+            _remoteLabel,
+            packetId,
+            _localGameUid,
+            slotOneBased,
+            item.ItemId,
+            item.Resource,
+            bulletCount,
+            ammoOneClip);
     }
 
     private async Task SetLocalHealthAsync(int health, short packetId)
@@ -4749,11 +4821,24 @@ internal sealed class PracticeRoomChannelProtocol
         PlayerStore.PlayerState.GameLoadoutItem item,
         string trigger)
     {
+        return SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            GameLoadoutHudRefreshPropertyName,
+            ResolveAmmoOneClipForClient(item),
+            trigger);
+    }
+
+    private Task SendPacket143GameLoadoutItemPropertyRefreshAsync(
+        PlayerStore.PlayerState.GameLoadoutItem item,
+        string propertyName,
+        int value,
+        string trigger)
+    {
         using var writer = new PacketWriter();
         writer.WriteShort(143);
         writer.WriteLong(item.ItemId);
-        writer.WriteString(GameLoadoutHudRefreshPropertyName);
-        writer.WriteInt(ResolveAmmoOneClip(item));
+        writer.WriteString(propertyName);
+        writer.WriteInt(value);
         writer.WriteByte(GameLoadoutHudReadyState);
 
         Log.Verbose(
@@ -4764,12 +4849,12 @@ internal sealed class PracticeRoomChannelProtocol
             item.ItemId,
             item.Resource,
             GameLoadoutHudReadyState,
-            GameLoadoutHudRefreshPropertyName,
-            ResolveAmmoOneClip(item));
+            propertyName,
+            value);
         return SendPacketAsync(writer);
     }
 
-    private static void WriteGamePlayerList(
+    private void WriteGamePlayerList(
         PacketWriter writer,
         PracticeRoomManager.PracticeRoomSession room,
         IReadOnlyList<GamePacketPlayer> gamePlayers)
@@ -5044,7 +5129,7 @@ internal sealed class PracticeRoomChannelProtocol
         return string.Empty;
     }
 
-    private static void WriteGameLoadoutGroups(
+    private void WriteGameLoadoutGroups(
         PacketWriter writer,
         IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem[]> loadoutGroups)
     {
@@ -5109,7 +5194,7 @@ internal sealed class PracticeRoomChannelProtocol
             .ToArray();
     }
 
-    private static string FormatGameLoadoutSummary(IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> loadoutItems)
+    private string FormatGameLoadoutSummary(IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> loadoutItems)
     {
         if (loadoutItems.Count == 0)
         {
@@ -5120,8 +5205,8 @@ internal sealed class PracticeRoomChannelProtocol
             "; ",
             loadoutItems.Select(item =>
             {
-                var stats = ResolveGameWeaponRuntimeStats(item);
-                var properties = ResolveGameLoadoutProperties(item);
+                var stats = ResolveGameWeaponRuntimeStatsForClient(item);
+                var properties = ResolveGameLoadoutPropertiesForClient(item);
                 var propertyText = properties.Count == 0
                     ? "props=0"
                     : string.Join(",", properties.Select(property => $"{property.Name}:{property.Value}/{property.MaxValue}"));
@@ -5198,7 +5283,7 @@ internal sealed class PracticeRoomChannelProtocol
         return TimeSpan.FromSeconds(seconds);
     }
 
-    private static void WriteGameEquipmentBlock(
+    private void WriteGameEquipmentBlock(
         PacketWriter writer,
         IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> equipmentItems)
     {
@@ -5219,7 +5304,7 @@ internal sealed class PracticeRoomChannelProtocol
         return subtype == 0 ? (byte)1 : subtype;
     }
 
-    private static void WriteGameEquipmentEntry(
+    private void WriteGameEquipmentEntry(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
@@ -5263,11 +5348,11 @@ internal sealed class PracticeRoomChannelProtocol
         }
     }
 
-    private static void WriteGameEquipmentCommonPayload(
+    private void WriteGameEquipmentCommonPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         writer.WriteString(TrimProtocolString(item.Resource, 63));
         writer.WriteString(TrimProtocolString(ResolveGameEquipmentDisplayName(item), 255));
@@ -5275,11 +5360,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(stats.Range);
     }
 
-    private static void WriteBasicWeaponEquipmentPayload(
+    private void WriteBasicWeaponEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteGameEquipmentCommonPayload(writer, item);
 
@@ -5294,11 +5379,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(0);
     }
 
-    private static void WriteExplosiveProjectileEquipmentPayload(
+    private void WriteExplosiveProjectileEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteBasicWeaponEquipmentPayload(writer, item);
         writer.WriteFloat(stats.ExplodeTime);
@@ -5307,11 +5392,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(stats.ExplodeParticleHasBuff);
     }
 
-    private static void WriteThrowableExplosiveEquipmentPayload(
+    private void WriteThrowableExplosiveEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteBasicWeaponEquipmentPayload(writer, item);
         writer.WriteFloat(stats.ExplodeTime);
@@ -5322,11 +5407,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(stats.TrajectoryValue);
     }
 
-    private static void WriteGrenadeLauncherEquipmentPayload(
+    private void WriteGrenadeLauncherEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteExplosiveProjectileEquipmentPayload(writer, item);
         writer.WriteFloat(stats.ExtraProjectileValue0);
@@ -5334,22 +5419,22 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(stats.ExtraProjectileValue2);
     }
 
-    private static void WriteCrossbowExplosiveEquipmentPayload(
+    private void WriteCrossbowExplosiveEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteExplosiveProjectileEquipmentPayload(writer, item);
         writer.WriteFloat(stats.ExtraProjectileValue0);
         writer.WriteFloat(stats.ExtraProjectileValue1);
     }
 
-    private static void WriteCompactGameEquipmentPayload(
+    private void WriteCompactGameEquipmentPayload(
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var stats = ResolveGameWeaponRuntimeStats(item);
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
 
         WriteGameEquipmentCommonPayload(writer, item);
         writer.WriteFloat(stats.FireTime);
@@ -5532,7 +5617,7 @@ internal sealed class PracticeRoomChannelProtocol
             ExtraProjectileValue2: extraProjectileValue2);
     }
 
-    private static void WriteGameLoadoutItem(PacketWriter writer, PlayerStore.PlayerState.GameLoadoutItem item)
+    private void WriteGameLoadoutItem(PacketWriter writer, PlayerStore.PlayerState.GameLoadoutItem item)
     {
         var subtype = NormalizeGameEquipmentSubtype(item.Subtype);
 
@@ -5543,12 +5628,12 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(item.Grade);
         writer.WriteString(TrimProtocolString(item.DisplayName, 255));
         writer.WriteByte(subtype);
-        writer.WriteInt(0);
+        WriteGameLoadoutProperties(writer, item);
     }
 
-    private static void WriteGameLoadoutProperties(PacketWriter writer, PlayerStore.PlayerState.GameLoadoutItem item)
+    private void WriteGameLoadoutProperties(PacketWriter writer, PlayerStore.PlayerState.GameLoadoutItem item)
     {
-        var properties = ResolveGameLoadoutProperties(item);
+        var properties = ResolveGameLoadoutPropertiesForPacket106(item);
         writer.WriteInt(properties.Count);
         foreach (var property in properties)
         {
@@ -5556,6 +5641,21 @@ internal sealed class PracticeRoomChannelProtocol
             writer.WriteInt(property.Value);
             writer.WriteInt(property.MaxValue);
         }
+    }
+
+    private IReadOnlyList<GameLoadoutProperty> ResolveGameLoadoutPropertiesForPacket106(
+        PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        if (!_setBulletAmmoOneClipOverridesByItemId.TryGetValue(item.ItemId, out var ammoOneClip))
+        {
+            return Array.Empty<GameLoadoutProperty>();
+        }
+
+        return
+        [
+            new GameLoadoutProperty(GameLoadoutAmmoOneClipPropertyName, ammoOneClip, ammoOneClip),
+            new GameLoadoutProperty(GameLoadoutHudRefreshPropertyName, ammoOneClip, ammoOneClip),
+        ];
     }
 
     private static IReadOnlyList<GameLoadoutProperty> ResolveGameLoadoutProperties(PlayerStore.PlayerState.GameLoadoutItem item)
@@ -5569,8 +5669,8 @@ internal sealed class PracticeRoomChannelProtocol
         var ammoOneClip = ResolveAmmoOneClip(item);
         if (ammoOneClip > 0)
         {
-            properties.Add(new GameLoadoutProperty("ammo_one_clip", ammoOneClip, ammoOneClip));
-            properties.Add(new GameLoadoutProperty("ammo_in_clip", ammoOneClip, ammoOneClip));
+            properties.Add(new GameLoadoutProperty(GameLoadoutAmmoOneClipPropertyName, ammoOneClip, ammoOneClip));
+            properties.Add(new GameLoadoutProperty(GameLoadoutHudRefreshPropertyName, ammoOneClip, ammoOneClip));
         }
 
         var shootBulletCount = ResolveShootBulletCount(item);
@@ -5580,6 +5680,47 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         return properties;
+    }
+
+    private IReadOnlyList<GameLoadoutProperty> ResolveGameLoadoutPropertiesForClient(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        if (item.ItemType != 2 || string.IsNullOrWhiteSpace(item.Resource))
+        {
+            return Array.Empty<GameLoadoutProperty>();
+        }
+
+        var properties = new List<GameLoadoutProperty>(3);
+        var ammoOneClip = ResolveAmmoOneClipForClient(item);
+        if (ammoOneClip > 0)
+        {
+            properties.Add(new GameLoadoutProperty(GameLoadoutAmmoOneClipPropertyName, ammoOneClip, ammoOneClip));
+            properties.Add(new GameLoadoutProperty(GameLoadoutHudRefreshPropertyName, ammoOneClip, ammoOneClip));
+        }
+
+        var shootBulletCount = ResolveShootBulletCount(item);
+        if (shootBulletCount > 0)
+        {
+            properties.Add(new GameLoadoutProperty("shoot_bullet_count", shootBulletCount, shootBulletCount));
+        }
+
+        return properties;
+    }
+
+    private GameWeaponRuntimeStats ResolveGameWeaponRuntimeStatsForClient(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var stats = ResolveGameWeaponRuntimeStats(item);
+        var ammoOneClip = ResolveAmmoOneClipForClient(item);
+        return ammoOneClip == stats.AmmoOneClip
+            ? stats
+            : stats with { AmmoOneClip = ammoOneClip };
+    }
+
+    private int ResolveAmmoOneClipForClient(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var ammoOneClip = ResolveAmmoOneClip(item);
+        return _setBulletAmmoOneClipOverridesByItemId.TryGetValue(item.ItemId, out var overrideValue)
+            ? overrideValue
+            : ammoOneClip;
     }
 
     private static int ResolveAmmoOneClip(PlayerStore.PlayerState.GameLoadoutItem item)
