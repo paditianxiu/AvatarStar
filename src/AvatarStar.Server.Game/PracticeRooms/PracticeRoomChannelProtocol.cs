@@ -45,10 +45,10 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte ClientWeaponSlotNotifyMax = 18;
     private const byte ClientScrollableWeaponSlotCount = 7;
     private const int SilentLoadoutHudRefreshRetryCount = 0;
-    private const int DeferredGameEnterStartDelayMilliseconds = 4000;
+    private const int DeferredGameEnterStartDelayMilliseconds = 1000;
     private const int DeferredGameEnterPacket100DelayMilliseconds = 0;
-    private const int DeferredGameEnterRpcQuietMilliseconds = 1500;
-    private const int DeferredGameEnterMaxDelayMilliseconds = 10000;
+    private const int DeferredGameEnterRpcQuietMilliseconds = 500;
+    private const int DeferredGameEnterMaxDelayMilliseconds = 3000;
     private const int GameInitSpawnFallbackDelayMilliseconds = 500;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
@@ -1754,8 +1754,8 @@ internal sealed class PracticeRoomChannelProtocol
         _localGameUid = LocalGameUid;
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
-        Volatile.Write(ref _gameInitSpawnHandshakeStarted, 0);
-        Volatile.Write(ref _activeClientGameInitRefreshSent, 0);
+        Interlocked.Exchange(ref _gameInitSpawnHandshakeStarted, 0);
+        Interlocked.Exchange(ref _activeClientGameInitRefreshSent, 0);
         unchecked
         {
             _gameInitSpawnHandshakeGeneration++;
@@ -2690,6 +2690,13 @@ internal sealed class PracticeRoomChannelProtocol
         string trigger,
         bool preferKnownPosition)
     {
+        // 先发送初始化包
+        await SendPacket106GameInitAsync(room);
+
+        // 添加短暂延迟
+        await Task.Delay(50);
+
+        // 再发送生成位置包
         if (preferKnownPosition && TryGetLocalGamePosition(out var position))
         {
             await SendPacket111GameTeleportAsync(
@@ -2703,8 +2710,6 @@ internal sealed class PracticeRoomChannelProtocol
         {
             await SendPacket111GameSpawnAsync(room, trigger);
         }
-
-        await SendPacket106GameInitAsync(room);
     }
 
     private async Task SendActiveClientGameInitRefreshOnceAsync(string trigger)
