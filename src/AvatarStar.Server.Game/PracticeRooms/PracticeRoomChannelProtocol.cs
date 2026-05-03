@@ -851,7 +851,7 @@ internal sealed class PracticeRoomChannelProtocol
     private float? _setWalkSpeedOverride;
     private float? _setJumpHeightOverride;
     private readonly Dictionary<long, int> _setBulletAmmoOneClipOverridesByItemId = new();
-
+    private readonly Dictionary<long, float> _setWeaponFireTimeOverridesByItemId = new();
     public PracticeRoomChannelProtocol(
         PracticeRoomManager practiceRoomManager,
         PlayerStore playerStore,
@@ -1774,6 +1774,7 @@ internal sealed class PracticeRoomChannelProtocol
         _setWalkSpeedOverride = null;
         _setJumpHeightOverride = null;
         _setBulletAmmoOneClipOverridesByItemId.Clear();
+        _setWeaponFireTimeOverridesByItemId.Clear();
         StopKnifeAutoRearmLoop();
     }
 
@@ -2325,6 +2326,26 @@ internal sealed class PracticeRoomChannelProtocol
             return true;
         }
 
+        if (key.Equals("rof", StringComparison.OrdinalIgnoreCase) || 
+    key.Equals("firetime", StringComparison.OrdinalIgnoreCase) ||
+    key.Equals("firespeed", StringComparison.OrdinalIgnoreCase))
+{
+    if (!float.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var fireTime))
+    {
+        Log.Warning(
+            "In-game command ignored from {Remote}: packetId={PacketId} command={Command} reason=invalid-rof",
+            _remoteLabel,
+            packetId,
+            command);
+        return true;
+    }
+
+    // 射速值越小越快，限制在合理范围
+    fireTime = Math.Clamp(fireTime, 0.01f, 10f);
+    await SetLocalWeaponFireTimeAsync(fireTime, packetId);
+    return true;
+}
+
         if (!float.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
         {
             Log.Warning(
@@ -2339,7 +2360,7 @@ internal sealed class PracticeRoomChannelProtocol
         if (key.Equals("speed", StringComparison.OrdinalIgnoreCase))
         {
             _setWalkSpeedOverride = value;
-            await RefreshLocalCharacterCreateAsync("set-speed");
+            await RefreshLocalCharacterCreateWithPositionSaveAsync("set-speed");
             Log.Information(
                 "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} speed={Speed}",
                 SetCommandName,
@@ -2350,10 +2371,12 @@ internal sealed class PracticeRoomChannelProtocol
             return true;
         }
 
+
+
         if (key.Equals("jump", StringComparison.OrdinalIgnoreCase))
         {
             _setJumpHeightOverride = value;
-            await RefreshLocalCharacterCreateAsync("set-jump");
+            await RefreshLocalCharacterCreateWithPositionSaveAsync("set-jump");
             Log.Information(
                 "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} jump={Jump}",
                 SetCommandName,
@@ -2373,6 +2396,54 @@ internal sealed class PracticeRoomChannelProtocol
         return true;
     }
 
+    private async Task SetLocalWeaponFireTimeAsync(float fireTime, short packetId)
+    {
+        var slotOneBased = ResolveCurrentReloadReadySlot();
+        var item = ResolveLocalLoadoutItem(slotOneBased);
+        if (item is null)
+        {
+            Log.Warning(
+                "In-game command {Command} failed from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} fireTime={FireTime} reason=current-weapon-not-found",
+                SetCommandName,
+                _remoteLabel,
+                packetId,
+                _localGameUid,
+                slotOneBased,
+                fireTime);
+            return;
+        }
+
+        // 保存射速覆盖值
+        _setWeaponFireTimeOverridesByItemId[item.ItemId] = fireTime;
+
+        // 使用带位置保存的刷新来应用新属性
+        await RefreshLocalCharacterCreateWithPositionSaveAsync($"set-rof-{fireTime}");
+
+        // 额外发送 weapon stats 更新包（如果客户端支持）
+        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            "fire_time",  // 射速属性名
+            (int)(fireTime * 1000), // 转换为毫秒或保持合适格式
+            "set-rof");
+
+        // 刷新 HUD 显示
+        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
+            item,
+            GameLoadoutHudRefreshPropertyName,
+            ResolveAmmoOneClipForClient(item),
+            "set-rof-refresh");
+
+        Log.Information(
+            "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} itemId={ItemId} resource={Resource} fireTime={FireTime} (lower = faster fire rate)",
+            SetCommandName,
+            _remoteLabel,
+            packetId,
+            _localGameUid,
+            slotOneBased,
+            item.ItemId,
+            item.Resource,
+            fireTime);
+    }
     private async Task SetLocalWeaponBulletCountAsync(int bulletCount, short packetId)
     {
         var slotOneBased = ResolveCurrentReloadReadySlot();
@@ -2393,30 +2464,19 @@ internal sealed class PracticeRoomChannelProtocol
         var ammoOneClip = bulletCount;
         _setBulletAmmoOneClipOverridesByItemId[item.ItemId] = ammoOneClip;
 
-        if (_currentGameRoom is not null)
-        {
-            await RefreshLocalCharacterCreateAsync("set-bullet");
-        }
+        // 使用带位置保存的刷新，而不是直接刷新
+        await RefreshLocalCharacterCreateWithPositionSaveAsync("set-bullet");
 
-        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
-            item,
-            GameLoadoutAmmoOneClipPropertyName,
-            ammoOneClip,
-            "set-bullet");
-        await SendPacket143GameLoadoutItemPropertyRefreshAsync(
-            item,
-            GameLoadoutHudRefreshPropertyName,
-            bulletCount,
-            "set-bullet");
+        // 刷新完成后，再发送额外的 reload 确认包
         await SendPacket175GameReloadReadyAsync(slotOneBased, "set-bullet");
         await SendPacket143GameLoadoutItemPropertyRefreshAsync(
             item,
             GameLoadoutHudRefreshPropertyName,
             bulletCount,
-            "set-bullet-after-ack");
+            "set-bullet-after");
 
         Log.Information(
-            "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} itemId={ItemId} resource={Resource} bullet={BulletCount} ammoOneClip={AmmoOneClip}; packet103 character refresh sent, packet143 ammo refresh sent, packet175 local ack sent",
+            "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} slot={Slot} itemId={ItemId} resource={Resource} bullet={BulletCount} ammoOneClip={AmmoOneClip}; character refreshed with position preserved",
             SetCommandName,
             _remoteLabel,
             packetId,
@@ -2427,7 +2487,6 @@ internal sealed class PracticeRoomChannelProtocol
             bulletCount,
             ammoOneClip);
     }
-
     private async Task SetLocalHealthAsync(int health, short packetId)
     {
         if (_currentGameRoom is null)
@@ -2527,6 +2586,38 @@ internal sealed class PracticeRoomChannelProtocol
             _remoteLabel,
             trigger,
             _localGameUid);
+    }
+
+    private async Task RefreshLocalCharacterCreateWithPositionSaveAsync(string trigger)
+    {
+        if (_currentGameRoom is null) return;
+
+        // 保存当前位置
+        var hasPosition = TryGetLocalGamePosition(out var savedPosition);
+
+        // 刷新角色
+        await RefreshLocalCharacterCreateAsync(trigger);
+
+        // 恢复位置
+        if (hasPosition)
+        {
+            await Task.Delay(50); // 等待客户端处理
+
+            // 发送位置纠正包
+            await SendPacket111GameTeleportAsync(
+                RawToWorldCoordinate(savedPosition.XRaw),
+                RawToWorldCoordinate(savedPosition.YRaw),
+                RawToWorldCoordinate(savedPosition.ZRaw),
+                0f,
+                $"{trigger}-position-restore");
+
+            Log.Information(
+                "Position restored after character refresh: trigger={Trigger} position=({X},{Y},{Z})",
+                trigger,
+                RawToWorldCoordinate(savedPosition.XRaw),
+                RawToWorldCoordinate(savedPosition.YRaw),
+                RawToWorldCoordinate(savedPosition.ZRaw));
+        }
     }
 
     private void ScheduleGameInitSpawnHandshakeFallback(
@@ -5710,6 +5801,14 @@ internal sealed class PracticeRoomChannelProtocol
     {
         var stats = ResolveGameWeaponRuntimeStats(item);
         var ammoOneClip = ResolveAmmoOneClipForClient(item);
+
+        // 应用射速覆盖
+        if (_setWeaponFireTimeOverridesByItemId.TryGetValue(item.ItemId, out var overriddenFireTime))
+        {
+            stats = stats with { FireTime = overriddenFireTime };
+            Log.Verbose("Applied fire time override for item {ItemId}: {FireTime}", item.ItemId, overriddenFireTime);
+        }
+
         return ammoOneClip == stats.AmmoOneClip
             ? stats
             : stats with { AmmoOneClip = ammoOneClip };
