@@ -1695,7 +1695,7 @@ internal sealed class PracticeRoomManager
                 player.CurrentHealth > 0 &&
                 IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)))
             .ToArray();
-        var positionedCandidateCount = candidates.Count(player => player.LastPosition is not null);
+        var positionedCandidateCount = candidates.Count(HasAnyGamePosition);
         if (candidates.Length == 0)
         {
             return GameDamageAttempt.NotApplied("no-enemy-candidates", attackerTeamId: attackerTeamId);
@@ -1805,22 +1805,12 @@ internal sealed class PracticeRoomManager
         out float score)
     {
         score = float.MaxValue;
-        if (candidate.LastPosition is not { } candidatePosition)
+        if (!TryResolveProximityWorldPosition(attacker, preferShoot: true, out var source) ||
+            !TryResolveProximityWorldPosition(candidate, preferShoot: false, out var target))
         {
             return false;
         }
 
-        var source = attacker.LastShoot is { } shoot
-            ? ShootOriginToWorld(shoot)
-            : attacker.LastPosition is { } attackerPosition
-                ? MovementPositionToWorld(attackerPosition)
-                : default;
-        if (!float.IsFinite(source.X) || !float.IsFinite(source.Y) || !float.IsFinite(source.Z))
-        {
-            return false;
-        }
-
-        var target = MovementPositionToWorld(candidatePosition);
         var maxDistance = MathF.Max(0.1f, rule.MaxRange + rule.HitRadius);
         var maxDistanceSquared = maxDistance * maxDistance;
         var bestScore = float.MaxValue;
@@ -1834,6 +1824,41 @@ internal sealed class PracticeRoomManager
 
         score = bestScore;
         return hit;
+    }
+
+    private static bool HasAnyGamePosition(GamePlayerRuntime player)
+    {
+        return player.LastPosition is not null || player.LastShoot is not null;
+    }
+
+    private static bool TryResolveProximityWorldPosition(
+        GamePlayerRuntime player,
+        bool preferShoot,
+        out (float X, float Y, float Z) position)
+    {
+        if (player.LastShoot is { } shoot &&
+            (preferShoot ||
+             player.LastPosition is null ||
+             shoot.LastSeenAt >= player.LastPosition.Value.LastSeenAt))
+        {
+            position = ShootOriginToWorld(shoot);
+            return IsFinitePosition(position);
+        }
+
+        if (player.LastPosition is { } movementPosition)
+        {
+            position = MovementPositionToWorld(movementPosition);
+            return IsFinitePosition(position);
+        }
+
+        if (player.LastShoot is { } fallbackShoot)
+        {
+            position = ShootOriginToWorld(fallbackShoot);
+            return IsFinitePosition(position);
+        }
+
+        position = default;
+        return false;
     }
 
     private static GamePlayerRuntime? SelectShootHitVictim(
@@ -2076,6 +2101,13 @@ internal sealed class PracticeRoomManager
             position.XRaw / MovementRawCoordinateScale,
             position.YRaw / MovementRawCoordinateScale,
             position.ZRaw / MovementRawCoordinateScale);
+    }
+
+    private static bool IsFinitePosition((float X, float Y, float Z) position)
+    {
+        return float.IsFinite(position.X) &&
+               float.IsFinite(position.Y) &&
+               float.IsFinite(position.Z);
     }
 
     private static (float X, float Y, float Z, float LengthSquared) NormalizeOrZero(float x, float y, float z)
@@ -2334,7 +2366,8 @@ internal sealed class PracticeRoomManager
         short Facing1Raw,
         float VectorX,
         float VectorY,
-        float VectorZ);
+        float VectorZ,
+        DateTimeOffset LastSeenAt);
 
     internal readonly record struct GameDamageHitRule(
         bool RequireShootHit,

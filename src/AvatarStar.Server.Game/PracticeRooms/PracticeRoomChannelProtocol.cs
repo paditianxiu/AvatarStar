@@ -45,6 +45,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte ClientWeaponSlotNotifyMax = 18;
     private const byte ClientScrollableWeaponSlotCount = 7;
     private const int SilentLoadoutHudRefreshRetryCount = 0;
+    private const int GameInitSpawnFallbackDelayMilliseconds = 500;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
     private const double SpecialWeaponRearmMinSeconds = 0.25;
@@ -823,7 +824,9 @@ internal sealed class PracticeRoomChannelProtocol
     private int _silentLoadoutHudRefreshRetriesRemaining;
     private bool _localPlayerEnterPacketSent;
     private bool _localPlayerEnterBroadcastSent;
-    private bool _gameInitSpawnHandshakeSent;
+    private int _gameInitSpawnHandshakeStarted;
+    private int _gameInitSpawnHandshakeGeneration;
+    private int _activeClientGameInitRefreshSent;
     private long _candidateCharacterId;
     private long _currentCharacterId;
     private byte _localGameUid = LocalGameUid;
@@ -1724,7 +1727,12 @@ internal sealed class PracticeRoomChannelProtocol
         _localGameUid = LocalGameUid;
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
-        _gameInitSpawnHandshakeSent = false;
+        Volatile.Write(ref _gameInitSpawnHandshakeStarted, 0);
+        Volatile.Write(ref _activeClientGameInitRefreshSent, 0);
+        unchecked
+        {
+            _gameInitSpawnHandshakeGeneration++;
+        }
         _playerEnteringClearRetriesRemaining = 0;
         _silentLoadoutHudRefreshRetriesRemaining = 0;
         _currentWeaponSlot = 0;
@@ -2006,10 +2014,15 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             ResolveGameTeamId(localMember),
             ResolveGamePlayerHealth(localPlayerState?.Character));
-        UpdateLocalGameSpawnPosition(room, overwriteExisting: false, source);
+        UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
-        _gameInitSpawnHandshakeSent = false;
+        Volatile.Write(ref _gameInitSpawnHandshakeStarted, 0);
+        Volatile.Write(ref _activeClientGameInitRefreshSent, 0);
+        unchecked
+        {
+            _gameInitSpawnHandshakeGeneration++;
+        }
         _playerEnteringClearRetriesRemaining = 0;
         _silentLoadoutHudRefreshRetriesRemaining = 0;
         _currentWeaponSlot = 0;
@@ -2033,9 +2046,14 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPacket105GameLoadingReadyAsync();
         if (UseLegacyHotbarBootstrapSequence)
         {
-            _gameInitSpawnHandshakeSent = true;
-            await SendPacket111GameSpawnAsync(room);
-            await SendPacket106GameInitAsync(room);
+            if (TryBeginGameInitSpawnHandshake())
+            {
+                await SendGameInitSpawnPacketsAsync(room, "legacy-hotbar-bootstrap", preferKnownPosition: false);
+            }
+        }
+        else
+        {
+            ScheduleGameInitSpawnHandshakeFallback(room, source);
         }
 
         Log.Information(
@@ -2087,21 +2105,118 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        if (_gameInitSpawnHandshakeSent)
+        if (!TryBeginGameInitSpawnHandshake())
         {
             Log.Verbose("Channel packet103 character request from {Remote} ignored: game init/spawn handshake already sent", _remoteLabel);
             return;
         }
 
-        _gameInitSpawnHandshakeSent = true;
         Log.Information("Channel packet103 <- {Remote}: client requested game init/spawn handshake", _remoteLabel);
 
-        // packet106 is only dispatched by the client after packet111 advances the game substate.
-        await SendPacket111GameSpawnAsync(_currentGameRoom);
-        await SendPacket106GameInitAsync(_currentGameRoom);
+        await SendGameInitSpawnPacketsAsync(_currentGameRoom, "packet103", preferKnownPosition: false);
         await SendLocalPlayerEnteredOnceAsync();
         _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
         await SendPendingPlayerEnteringClearAsync("packet111");
+    }
+
+    private bool TryBeginGameInitSpawnHandshake()
+    {
+        if (Interlocked.Exchange(ref _gameInitSpawnHandshakeStarted, 1) != 0)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    private void ScheduleGameInitSpawnHandshakeFallback(
+        PracticeRoomManager.PracticeRoomSession room,
+        string source)
+    {
+        var roomId = room.RoomId;
+        var generation = _gameInitSpawnHandshakeGeneration;
+        _ = SendGameInitSpawnHandshakeFallbackAsync(roomId, generation, source);
+    }
+
+    private async Task SendGameInitSpawnHandshakeFallbackAsync(
+        int roomId,
+        int generation,
+        string source)
+    {
+        try
+        {
+            await Task.Delay(GameInitSpawnFallbackDelayMilliseconds);
+            if (_state != ChannelState.InGame ||
+                _currentGameRoom is not { } room ||
+                room.RoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration ||
+                !TryBeginGameInitSpawnHandshake())
+            {
+                return;
+            }
+
+            Log.Information(
+                "Channel game init/spawn fallback -> {Remote}: source={Source} roomId={RoomId} delayMs={DelayMs}",
+                _remoteLabel,
+                source,
+                roomId,
+                GameInitSpawnFallbackDelayMilliseconds);
+
+            await SendGameInitSpawnPacketsAsync(room, "game-enter-fallback", preferKnownPosition: false);
+            _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
+            await SendPendingPlayerEnteringClearAsync("game-enter-fallback");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(
+                ex,
+                "Channel game init/spawn fallback failed -> {Remote}: source={Source} roomId={RoomId}",
+                _remoteLabel,
+                source,
+                roomId);
+        }
+    }
+
+    private async Task SendGameInitSpawnPacketsAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        string trigger,
+        bool preferKnownPosition)
+    {
+        if (preferKnownPosition && TryGetLocalGamePosition(out var position))
+        {
+            await SendPacket111GameTeleportAsync(
+                RawToWorldCoordinate(position.XRaw),
+                RawToWorldCoordinate(position.YRaw),
+                RawToWorldCoordinate(position.ZRaw),
+                0f,
+                trigger);
+        }
+        else
+        {
+            await SendPacket111GameSpawnAsync(room, trigger);
+        }
+
+        await SendPacket106GameInitAsync(room);
+    }
+
+    private async Task SendActiveClientGameInitRefreshOnceAsync(string trigger)
+    {
+        if (_currentGameRoom is null ||
+            Interlocked.Exchange(ref _activeClientGameInitRefreshSent, 1) != 0)
+        {
+            return;
+        }
+
+        Log.Information(
+            "Channel active-client init refresh -> {Remote}: trigger={Trigger} roomId={RoomId}",
+            _remoteLabel,
+            trigger,
+            _currentGameRoom.RoomId);
+
+        await SendGameInitSpawnPacketsAsync(_currentGameRoom, trigger, preferKnownPosition: true);
+        await SendLocalPlayerEnteredOnceAsync();
+        _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
+        await SendPendingPlayerEnteringClearAsync(trigger);
+        await SendPendingSilentLoadoutHudRefreshAsync(trigger);
     }
 
     private async Task HandlePacket104GamePingAsync(PacketReader reader)
@@ -2481,6 +2596,7 @@ internal sealed class PracticeRoomChannelProtocol
             broadcastCount,
             trailingPayloadHex);
 
+        await SendActiveClientGameInitRefreshOnceAsync("packet105-active-client");
         await SendPendingPlayerEnteringClearAsync("packet105");
         await SendPendingSilentLoadoutHudRefreshAsync("packet105");
     }
@@ -2574,7 +2690,8 @@ internal sealed class PracticeRoomChannelProtocol
             facing1Raw,
             vectorX,
             vectorY,
-            vectorZ);
+            vectorZ,
+            DateTimeOffset.UtcNow);
         var broadcastCount = await _practiceRoomManager.BroadcastGameShootAsync(
             _currentGameRoom.RoomId,
             this,

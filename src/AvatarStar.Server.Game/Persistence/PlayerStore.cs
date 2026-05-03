@@ -687,6 +687,41 @@ internal sealed class PlayerStore
             }
         }
 
+        private void EnsureDefaultWeaponHotKeySlots()
+        {
+            if (_hotKeySlots.Values.Any(slot =>
+                    slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                    IsBattleLoadoutResource(slot.Resource)))
+            {
+                return;
+            }
+
+            if (!Storages.TryGetValue((int)ShopItemDatabase.ItemType.Equipment, out var equipmentStorage))
+            {
+                return;
+            }
+
+            var slot = 1;
+            foreach (var item in equipmentStorage.Values
+                         .Where(IsBattleLoadoutItem)
+                         .OrderBy(item => item.Slot)
+                         .Take(MaxWeaponHotKeyCount))
+            {
+                _hotKeySlots[slot] = new HotKeySlot(
+                    Slot: slot,
+                    Type: item.Type,
+                    ItemId: item.Pid,
+                    Resource: item.Resource,
+                    Grade: item.Grade,
+                    Quantity: item.Quantity,
+                    UnitType: item.UnitType,
+                    Unit: item.Unit,
+                    Subtype: item.Subtype,
+                    Sid: item.Sid);
+                slot++;
+            }
+        }
+
         private int CountWeaponHotKeys()
         {
             return _hotKeySlots.Values.Count(x => x.Type == 2);
@@ -751,6 +786,7 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
             NormalizeHotKeySlots();
+            EnsureDefaultWeaponHotKeySlots();
             SyncEquipmentEquipFlags();
 
             totalSlots = totalSlots <= 0 ? HotKeySlotCount : Math.Clamp(totalSlots, 1, HotKeySlotCount);
@@ -925,6 +961,7 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
             NormalizeHotKeySlots();
+            EnsureDefaultWeaponHotKeySlots();
 
             var hotKeyLoadout = _hotKeySlots.Values
                 .Where(slot =>
@@ -942,6 +979,7 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
             NormalizeHotKeySlots();
+            EnsureDefaultWeaponHotKeySlots();
 
             return _hotKeySlots.Values.Any(slot =>
                 slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
