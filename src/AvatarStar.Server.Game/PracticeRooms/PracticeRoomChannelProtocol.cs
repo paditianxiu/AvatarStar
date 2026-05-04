@@ -2511,7 +2511,8 @@ internal sealed class PracticeRoomChannelProtocol
                 _currentGameRoom.RoomId,
                 _localGameUid,
                 health,
-                out var action))
+                out var action,
+                allowMaxHealthOverride: true))
         {
             Log.Warning(
                 "In-game command {Command} failed from {Remote}: packetId={PacketId} localUid={LocalUid} health={Health} reason=player-not-found",
@@ -5258,6 +5259,20 @@ internal sealed class PracticeRoomChannelProtocol
         return _setCurrentHealthOverride ?? ResolveLocalGamePlayerMaxHealth(GetLocalPlayerState(room)?.Character);
     }
 
+    private int ResolveLocalRuntimeMaxHealth(PracticeRoomManager.PracticeRoomSession room)
+    {
+        if (_practiceRoomManager.TryGetGamePlayerHealth(
+                room.RoomId,
+                _localGameUid,
+                out _,
+                out var maxHealth))
+        {
+            return Math.Max(1, maxHealth);
+        }
+
+        return ResolveLocalGamePlayerMaxHealth(GetLocalPlayerState(room)?.Character);
+    }
+
     private static byte ResolveGameTeamId(PracticeRoomManager.PracticeRoomMember? member)
     {
         return member?.SlotIndex switch
@@ -6968,8 +6983,7 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         using var writer = new PacketWriter();
-        var playerState = GetLocalPlayerState(_currentGameRoom);
-        var maxHealth = ResolveLocalGamePlayerMaxHealth(playerState?.Character);
+        var maxHealth = ResolveLocalRuntimeMaxHealth(_currentGameRoom);
         const short actorState = InitialGamePlayerActionStateFlags;
         const float actorFloat = 0f;
 

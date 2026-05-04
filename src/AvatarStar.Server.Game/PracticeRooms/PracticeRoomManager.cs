@@ -11,6 +11,7 @@ internal sealed class PracticeRoomManager
     private const byte GameTeamBlue = 1;
     private const byte GameTeamSpectator = 2;
     private const int DefaultGamePlayerHealth = 1000;
+    private const int MaxGamePlayerHealthOverride = 100000;
     private const int GameAutoRespawnDelayMilliseconds = 3000;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
@@ -1016,7 +1017,8 @@ internal sealed class PracticeRoomManager
         int roomId,
         byte uid,
         int health,
-        out GameDamageAction action)
+        out GameDamageAction action,
+        bool allowMaxHealthOverride = false)
     {
         lock (_lock)
         {
@@ -1027,7 +1029,13 @@ internal sealed class PracticeRoomManager
                 return false;
             }
 
-            var clampedHealth = Math.Clamp(health, 1, player.MaxHealth);
+            var requestedHealth = Math.Clamp(health, 1, MaxGamePlayerHealthOverride);
+            if (allowMaxHealthOverride && requestedHealth > player.MaxHealth)
+            {
+                player.MaxHealth = requestedHealth;
+            }
+
+            var clampedHealth = Math.Clamp(requestedHealth, 1, player.MaxHealth);
             player.CurrentHealth = clampedHealth;
             action = new GameDamageAction(
                 AttackerUid: uid,
