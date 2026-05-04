@@ -1816,34 +1816,33 @@ internal partial class GameClient
                     _activeRoleId = created.Character.Id;
                     _practiceRoomManager.RegisterGameClient(_activeRoleId, this);
 
-                    // ========== 为新建角色添加金宝箱和金钥匙 ==========
-                    // 现在 _activeRoleId 已经更新，可以正确获取到新创建的角色
+           
                     var newPlayer = GetActivePlayerStateOrDefault();
                     if (newPlayer != null)
                     {
                         // 金宝箱 - 9999个
                         newPlayer.TryGrantInventoryItem(
-                            type: 3,                    // Item type
-                            subtype: 400,              // Box subtype
+                            type: 3,                    
+                            subtype: 400,             
                             grade: 1,
-                            sid: 20550,                // 如果没有特定SID就用0
-                            resource: "baoxiang_jin",  // 金宝箱的资源名
+                            sid: 20550,                
+                            resource: "baoxiang_jin",  
                             quantity: 99999,
                             unitType: 1,
                             unit: 99999);
 
                         // 金钥匙 - 9999个
                         newPlayer.TryGrantInventoryItem(
-                            type: 3,                    // Item type
-                            subtype: 401,              // Key subtype
+                            type: 3,                   
+                            subtype: 401,             
                             grade: 1,
                             sid: 20725,
-                            resource: "yaoshi_jin",    // 金钥匙的资源名
+                            resource: "yaoshi_jin",    
                             quantity: 99999,
                             unitType: 1,
                             unit: 99999);
                     }
-                    // =============================================
+           
 
                     writer.WriteString("ok = 1\nwarning = nil");
                     await SendAsync(writer);

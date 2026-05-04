@@ -109,13 +109,22 @@ internal sealed class PracticeRoomChannelProtocol
     private const float ShotgunShootHitRadius = 3.0f;
     private const float MeleeShootHitRadius = 2.2f;
     private const float ShieldShootHitRadius = 2.6f;
+    private const float HeavyProjectileHitRadius = 4.5f;
+    private const float ArrowProjectileHitRadius = 1.8f;
     private const float DefaultShootMaxRange = 60f;
     private const float ShotgunShootMaxRange = 15f;
     private const float MeleeShootMaxRange = 2.8f;
     private const float ShieldShootMaxRange = 3.2f;
+    private const float HeavyProjectileKnockbackDistance = 4.2f;
+    private const float ArrowProjectileKnockbackDistance = 2.4f;
+    private const float HeavyProjectileKnockbackLift = 0.35f;
+    private const float ArrowProjectileKnockbackLift = 0.2f;
     private const float ShootFallbackVectorLength = 12f;
     private const float ShootVectorEpsilon = 0.001f;
     private const float FacingRawAngleScale = 8192f;
+    private const int AngleRawMask = 0xFFFF;
+    private const int ProjectileNotifyMinHitPayloadBytes = 6;
+    private const double ProjectileNotifyDedupSeconds = 0.5;
 
     // Gameplay tuning knobs. Change these values and restart the server.
     // Weapon fire_time is resolved per weapon resource first, then scaled here.
@@ -844,6 +853,7 @@ internal sealed class PracticeRoomChannelProtocol
     private PracticeRoomManager.PracticeRoomSession? _currentGameRoom;
     private readonly HashSet<byte> _knownGamePlayerUids = new();
     private readonly Dictionary<byte, DateTimeOffset> _lastSpecialWeaponRearmBySlot = new();
+    private readonly Dictionary<string, DateTimeOffset> _recentProjectileNotifyByKey = new();
     private CancellationTokenSource? _knifeAutoRearmCts;
     private int _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
     private byte _lastGameMovementInputByte;
@@ -987,6 +997,9 @@ internal sealed class PracticeRoomChannelProtocol
                 break;
             case ChannelState.InGame when packetId == 113:
                 await HandlePacket113GameActionScalarAsync(reader);
+                break;
+            case ChannelState.InGame when packetId == 114:
+                await HandlePacket114GameProjectileNotifyAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 117:
                 await HandlePacket117GameReloadAsync(reader);
@@ -2893,6 +2906,80 @@ internal sealed class PracticeRoomChannelProtocol
             FormatGameHitScore(damageResult.BestHitScore));
     }
 
+    private async Task HandlePacket114GameProjectileNotifyAsync(PacketReader reader)
+    {
+        var payload = reader.RemainingSpan.ToArray();
+        if (payload.Length > 0)
+        {
+            _ = reader.TryReadFixedBytes(payload.Length, out _);
+        }
+
+        PracticeRoomManager.GameDamageBroadcastResult damageResult;
+        string reason;
+        byte attackerUid = 0;
+        byte slotOneBased = 0;
+        if (_currentGameRoom is null)
+        {
+            reason = "room-missing";
+            damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
+        }
+        else if (!TryReadProjectileNotifyHit(payload, out attackerUid, out slotOneBased))
+        {
+            reason = "payload-not-hit";
+            damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
+        }
+        else if (attackerUid == _localGameUid)
+        {
+            reason = "self-notify";
+            damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
+        }
+        else if (!_practiceRoomManager.TryGetRecentProjectileDamage(
+                     _currentGameRoom.RoomId,
+                     attackerUid,
+                     slotOneBased,
+                     out var damage,
+                     out var hitRule))
+        {
+            reason = "recent-projectile-missing";
+            damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
+        }
+        else if (IsDuplicateProjectileNotify(_currentGameRoom.RoomId, attackerUid, _localGameUid, slotOneBased))
+        {
+            reason = "duplicate";
+            damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
+        }
+        else
+        {
+            damageResult = await _practiceRoomManager.BroadcastGameDamageAsync(
+                _currentGameRoom.RoomId,
+                this,
+                attackerUid,
+                damage,
+                hitRule,
+                _localGameUid);
+            reason = damageResult.Reason;
+        }
+
+        Log.Information(
+            "Channel packet114 <- {Remote}: projectile notify uid={Uid} attackerUid={AttackerUid} slot={Slot} payloadBytes={PayloadBytes} hex={PayloadHex} shorts={Shorts} floats={Floats}; damageApplied={DamageApplied}, victimUid={VictimUid}, victimHealth={VictimHealth}/{VictimMaxHealth}, killed={Killed}, damageBroadcastCount={DamageBroadcastCount}, deathBroadcastCount={DeathBroadcastCount}, damageReason={DamageReason}",
+            _remoteLabel,
+            _localGameUid,
+            attackerUid,
+            slotOneBased,
+            payload.Length,
+            Convert.ToHexString(payload),
+            FormatProjectilePayloadShorts(payload),
+            FormatProjectilePayloadFloats(payload),
+            damageResult.Applied,
+            damageResult.VictimUid,
+            damageResult.VictimHealth,
+            damageResult.VictimMaxHealth,
+            damageResult.Killed,
+            damageResult.BroadcastCount,
+            damageResult.DeathBroadcastCount,
+            reason);
+    }
+
     private async Task HandlePacket156GameInfoOverlayRequestAsync(PacketReader reader)
     {
         if (reader.Remaining > 0)
@@ -3711,20 +3798,27 @@ internal sealed class PracticeRoomChannelProtocol
     private static PracticeRoomManager.GameDamageHitRule ResolveGameWeaponHitRule(
         PlayerStore.PlayerState.GameLoadoutItem? item)
     {
-        var hitRadius = item?.Subtype switch
+        var subtype = item is null ? (byte)0 : NormalizeGameEquipmentSubtype(item.Subtype);
+        var hitRadius = subtype switch
         {
             4 => ShotgunShootHitRadius,
             6 => MeleeShootHitRadius,
             13 => ShieldShootHitRadius,
+            12 or 16 => ArrowProjectileHitRadius,
             _ => DefaultShootHitRadius
         };
-        var maxRange = item?.Subtype switch
+        var maxRange = subtype switch
         {
             4 => ShotgunShootMaxRange,
             6 => MeleeShootMaxRange,
             13 => ShieldShootMaxRange,
+            11 => DefaultShootMaxRange,
+            12 or 16 => DefaultShootMaxRange,
             _ => DefaultShootMaxRange
         };
+        var knockbackDistance = 0f;
+        var knockbackLift = 0f;
+        var allowServerHitWithoutClientTarget = false;
 
         if (item is not null &&
             TryGetWeaponTipNumber(item.Resource, "distance", out var distance) &&
@@ -3733,11 +3827,66 @@ internal sealed class PracticeRoomChannelProtocol
             maxRange = Math.Clamp(NormalizeWeaponDistance(distance), 0.5f, DefaultShootMaxRange);
         }
 
+        if (item is not null && IsHeavyProjectileWeapon(item))
+        {
+            hitRadius = ResolveWeaponDamageRadius(item, HeavyProjectileHitRadius);
+            maxRange = DefaultShootMaxRange;
+            knockbackDistance = HeavyProjectileKnockbackDistance;
+            knockbackLift = HeavyProjectileKnockbackLift;
+            allowServerHitWithoutClientTarget = true;
+        }
+        else if (item is not null && IsArrowProjectileWeapon(item))
+        {
+            hitRadius = ResolveWeaponDamageRadius(item, ArrowProjectileHitRadius);
+            maxRange = DefaultShootMaxRange;
+            knockbackDistance = ArrowProjectileKnockbackDistance;
+            knockbackLift = ArrowProjectileKnockbackLift;
+            allowServerHitWithoutClientTarget = true;
+        }
+
         return new PracticeRoomManager.GameDamageHitRule(
             RequireShootHit: true,
-            UseProximityHit: item?.Subtype is 6 or 13,
+            UseProximityHit: subtype is 6 or 13,
             HitRadius: hitRadius,
-            MaxRange: maxRange);
+            MaxRange: maxRange,
+            KnockbackDistance: knockbackDistance,
+            KnockbackLift: knockbackLift,
+            AllowServerHitWithoutClientTarget: allowServerHitWithoutClientTarget);
+    }
+
+    private static bool IsHeavyProjectileWeapon(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var subtype = NormalizeGameEquipmentSubtype(item.Subtype);
+        return subtype is 11 ||
+               item.Resource.StartsWith("rpg_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsArrowProjectileWeapon(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var subtype = NormalizeGameEquipmentSubtype(item.Subtype);
+        return subtype is 12 or 16 ||
+               item.Resource.StartsWith("bow_", StringComparison.OrdinalIgnoreCase) ||
+               item.Resource.StartsWith("crossbow_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static float ResolveWeaponDamageRadius(PlayerStore.PlayerState.GameLoadoutItem item, float fallback)
+    {
+        if (TryGetWeaponTipNumber(item.Resource, "damageRadius", out var damageRadius) && damageRadius > 0f)
+        {
+            return Math.Clamp(NormalizeWeaponDistance(damageRadius), 0.5f, DefaultShootMaxRange);
+        }
+
+        if (TryGetWeaponTipNumber(item.Resource, "damage_radius", out damageRadius) && damageRadius > 0f)
+        {
+            return Math.Clamp(NormalizeWeaponDistance(damageRadius), 0.5f, DefaultShootMaxRange);
+        }
+
+        if (TryGetWeaponTipNumber(item.Resource, "distance", out var distance) && distance > 0f)
+        {
+            return Math.Clamp(NormalizeWeaponDistance(distance), 0.5f, DefaultShootMaxRange);
+        }
+
+        return fallback;
     }
 
     private static float NormalizeWeaponDistance(float distance)
@@ -3910,8 +4059,8 @@ internal sealed class PracticeRoomChannelProtocol
             return (shoot.VectorX, shoot.VectorY, shoot.VectorZ);
         }
 
-        var yaw = shoot.Facing0Raw / FacingRawAngleScale;
-        var pitch = shoot.Facing1Raw / FacingRawAngleScale;
+        var yaw = RawAngleToRadians(shoot.Facing0Raw);
+        var pitch = RawAngleToRadians(shoot.Facing1Raw);
         var cosPitch = MathF.Cos(pitch);
         var x = MathF.Sin(yaw) * cosPitch * ShootFallbackVectorLength;
         var y = MathF.Sin(pitch) * ShootFallbackVectorLength;
@@ -3925,6 +4074,11 @@ internal sealed class PracticeRoomChannelProtocol
                (MathF.Abs(x) > ShootVectorEpsilon ||
                 MathF.Abs(y) > ShootVectorEpsilon ||
                 MathF.Abs(z) > ShootVectorEpsilon);
+    }
+
+    private static float RawAngleToRadians(short raw)
+    {
+        return (raw & AngleRawMask) / FacingRawAngleScale;
     }
 
     private static float ActionPoseRawToWorldCoordinate(short raw)
@@ -4016,6 +4170,101 @@ internal sealed class PracticeRoomChannelProtocol
         value = (short)(payload[offset] | (payload[offset + 1] << 8));
         offset += 2;
         return true;
+    }
+
+    private static string FormatProjectilePayloadShorts(byte[] payload)
+    {
+        if (payload.Length < 2)
+        {
+            return "-";
+        }
+
+        var values = new List<string>(payload.Length / 2);
+        var offset = 0;
+        while (TryReadInt16LittleEndian(payload, ref offset, out var value))
+        {
+            values.Add(value.ToString(CultureInfo.InvariantCulture));
+        }
+
+        return string.Join(",", values);
+    }
+
+    private static string FormatProjectilePayloadFloats(byte[] payload)
+    {
+        if (payload.Length < 4)
+        {
+            return "-";
+        }
+
+        var values = new List<string>(payload.Length / 4);
+        for (var offset = 0; payload.Length - offset >= 4; offset += 4)
+        {
+            var raw = payload[offset] |
+                      (payload[offset + 1] << 8) |
+                      (payload[offset + 2] << 16) |
+                      (payload[offset + 3] << 24);
+            var value = BitConverter.Int32BitsToSingle(raw);
+            values.Add(float.IsFinite(value)
+                ? value.ToString("0.###", CultureInfo.InvariantCulture)
+                : "-");
+        }
+
+        return string.Join(",", values);
+    }
+
+    private static bool TryReadProjectileNotifyHit(byte[] payload, out byte attackerUid, out byte slotOneBased)
+    {
+        attackerUid = 0;
+        slotOneBased = 0;
+        if (payload.Length < ProjectileNotifyMinHitPayloadBytes)
+        {
+            return false;
+        }
+
+        var rawAttackerUid = payload[0] |
+                             (payload[1] << 8) |
+                             (payload[2] << 16) |
+                             (payload[3] << 24);
+        if (rawAttackerUid is <= 0 or > byte.MaxValue)
+        {
+            return false;
+        }
+
+        attackerUid = (byte)rawAttackerUid;
+        slotOneBased = payload[4];
+        if (slotOneBased > ClientWeaponSlotCount)
+        {
+            slotOneBased = 0;
+        }
+
+        return true;
+    }
+
+    private bool IsDuplicateProjectileNotify(
+        int roomId,
+        byte attackerUid,
+        byte victimUid,
+        byte slotOneBased)
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var key in _recentProjectileNotifyByKey
+                     .Where(item => (now - item.Value).TotalSeconds > ProjectileNotifyDedupSeconds)
+                     .Select(item => item.Key)
+                     .ToArray())
+        {
+            _recentProjectileNotifyByKey.Remove(key);
+        }
+
+        var dedupKey = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{roomId}:{attackerUid}:{victimUid}:{slotOneBased}");
+        if (_recentProjectileNotifyByKey.ContainsKey(dedupKey))
+        {
+            return true;
+        }
+
+        _recentProjectileNotifyByKey[dedupKey] = now;
+        return false;
     }
 
     private static string FormatOptionalByte(byte? value)
