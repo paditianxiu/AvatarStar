@@ -1027,16 +1027,16 @@ internal sealed class PracticeRoomManager
                 return false;
             }
 
-            var clampedHealth = Math.Clamp(health, 1, 100000);
-            player.MaxHealth = clampedHealth;
+            var clampedHealth = Math.Clamp(health, 1, player.MaxHealth);
             player.CurrentHealth = clampedHealth;
             action = new GameDamageAction(
                 AttackerUid: uid,
                 VictimUid: uid,
                 Damage: 0,
                 VictimHealth: clampedHealth,
-                VictimMaxHealth: clampedHealth,
-                Killed: false);
+                VictimMaxHealth: player.MaxHealth,
+                Killed: false,
+                Knockback: null);
             return true;
         }
     }
@@ -1197,13 +1197,17 @@ internal sealed class PracticeRoomManager
     {
         PracticeRoomChannelProtocol[] targets;
         GameDamageAttempt damageAttempt;
-        GameMovementDelta? knockbackMovement;
 
         lock (_lock)
         {
             if (hitRule is { KnockbackDistance: > 0f })
             {
                 RememberRecentProjectileDamageNoLock(roomId, attackerUid, damage, hitRule.Value);
+            }
+
+            if (clientTargetUid == 0 && hitRule is { AllowServerHitWithoutClientTarget: true })
+            {
+                return CreateGameDamageNotAppliedResult(GameDamageAttempt.NotApplied("await-projectile-confirm"));
             }
 
             damageAttempt = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage, hitRule, clientTargetUid);
@@ -1213,10 +1217,6 @@ internal sealed class PracticeRoomManager
                 return CreateGameDamageNotAppliedResult(damageAttempt);
             }
 
-            knockbackMovement = TryApplyKnockbackNoLock(
-                roomId,
-                damageAttempt.Action.Value,
-                hitRule);
             targets = channels.Keys.ToArray();
         }
 
@@ -1226,17 +1226,12 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                if (knockbackMovement is { } movement)
-                {
-                    await target.SendPacket110GameMovementAsync(movement);
-                }
-
-                if (hitRule is { KnockbackDistance: > 0f })
-                {
-                    await target.SendPacket162RemoteHurtAsync(damageAttempt.Action.Value);
-                }
-
                 await target.SendPacket184RemoteDamageHitAsync(damageAttempt.Action.Value);
+                if (damageAttempt.Action.Value.Knockback is { } knockback)
+                {
+                    await target.SendPacket162RemoteKnockbackAsync(damageAttempt.Action.Value, knockback);
+                }
+
                 sent++;
                 if (damageAttempt.Action.Value.Killed)
                 {
@@ -1969,6 +1964,7 @@ internal sealed class PracticeRoomManager
         var appliedDamage = Math.Clamp(damage, 1, maxHealth);
         victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
         var killed = previousHealth > 0 && victim.CurrentHealth == 0;
+        var knockback = ResolveKnockback(attacker, victim, hitRule);
 
         return new GameDamageAttempt(
             new GameDamageAction(
@@ -1977,7 +1973,8 @@ internal sealed class PracticeRoomManager
                 Damage: appliedDamage,
                 VictimHealth: victim.CurrentHealth,
                 VictimMaxHealth: maxHealth,
-                Killed: killed),
+                Killed: killed,
+                Knockback: knockback),
             reason,
             candidates.Length,
             positionedCandidateCount,
@@ -2036,61 +2033,24 @@ internal sealed class PracticeRoomManager
         return hit;
     }
 
-    private GameMovementDelta? TryApplyKnockbackNoLock(
-        int roomId,
-        GameDamageAction action,
+    private static GameKnockbackAction? ResolveKnockback(
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime victim,
         GameDamageHitRule? hitRule)
     {
         if (hitRule is not { KnockbackDistance: > 0f } rule ||
-            !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
-            !playersByUid.TryGetValue(action.AttackerUid, out var attacker) ||
-            !playersByUid.TryGetValue(action.VictimUid, out var victim))
+            !TryResolveKnockbackDirection(attacker, victim, out var direction))
         {
             return null;
         }
 
-        if (!TryResolveKnockbackDirection(attacker, victim, out var direction) ||
-            !TryResolveProximityWorldPosition(victim, preferShoot: false, out var target))
-        {
-            return null;
-        }
-
-        var pushed = (
-            X: target.X + (direction.X * rule.KnockbackDistance),
-            Y: target.Y + MathF.Max(0f, rule.KnockbackLift),
-            Z: target.Z + (direction.Z * rule.KnockbackDistance));
-        if (!IsFinitePosition(pushed))
-        {
-            return null;
-        }
-
-        var now = DateTimeOffset.UtcNow;
-        var previous = victim.LastPosition;
-        var pushedPosition = new GamePosition(
-            WorldToRawCoordinate(pushed.X),
-            WorldToRawCoordinate(pushed.Y),
-            WorldToRawCoordinate(pushed.Z),
-            previous?.YawRaw,
-            previous?.Facing0Raw,
-            previous?.Facing1Raw,
-            now);
-
-        var movement = new GameMovementDelta(
-            victim.Uid,
-            ResolveNextKnockbackMovementTick(roomId, victim.Uid),
-            BuildKnockbackMovementFlags(pushedPosition),
-            BuildKnockbackMovementPayload(pushedPosition),
-            now);
-
-        victim.LastPosition = pushedPosition;
-        if (!_gameMovementByRoomId.TryGetValue(roomId, out var movementByUid))
-        {
-            movementByUid = new Dictionary<byte, GameMovementDelta>();
-            _gameMovementByRoomId[roomId] = movementByUid;
-        }
-
-        movementByUid[victim.Uid] = movement;
-        return movement;
+        var horizontalScale = MathF.Max(0.1f, rule.KnockbackDistance);
+        var lift = MathF.Max(0f, rule.KnockbackLift);
+        return new GameKnockbackAction(
+            BuffType: GameKnockbackAction.BlowUpBuffType,
+            X: direction.X * horizontalScale,
+            Y: lift,
+            Z: direction.Z * horizontalScale);
     }
 
     private static bool TryResolveKnockbackDirection(
@@ -2126,57 +2086,6 @@ internal sealed class PracticeRoomManager
 
         direction = default;
         return false;
-    }
-
-    private byte ResolveNextKnockbackMovementTick(int roomId, byte uid)
-    {
-        if (_gameMovementByRoomId.TryGetValue(roomId, out var movementByUid) &&
-            movementByUid.TryGetValue(uid, out var previousMovement))
-        {
-            unchecked
-            {
-                return (byte)(previousMovement.Tick + 1);
-            }
-        }
-
-        return 1;
-    }
-
-    private static byte BuildKnockbackMovementFlags(GamePosition position)
-    {
-        var flags = (byte)0x04;
-        if (position.YawRaw.HasValue)
-        {
-            flags |= 0x08;
-        }
-
-        if (position.Facing0Raw.HasValue && position.Facing1Raw.HasValue)
-        {
-            flags |= 0x02;
-        }
-
-        return flags;
-    }
-
-    private static byte[] BuildKnockbackMovementPayload(GamePosition position)
-    {
-        var payload = new List<byte>(12);
-        if (position.YawRaw.HasValue)
-        {
-            WriteInt16LittleEndian(payload, position.YawRaw.Value);
-        }
-
-        WriteInt16LittleEndian(payload, position.XRaw);
-        WriteInt16LittleEndian(payload, position.YRaw);
-        WriteInt16LittleEndian(payload, position.ZRaw);
-
-        if (position.Facing0Raw.HasValue && position.Facing1Raw.HasValue)
-        {
-            WriteInt16LittleEndian(payload, position.Facing0Raw.Value);
-            WriteInt16LittleEndian(payload, position.Facing1Raw.Value);
-        }
-
-        return payload.ToArray();
     }
 
     private static bool HasAnyGamePosition(GamePlayerRuntime player)
@@ -2459,20 +2368,6 @@ internal sealed class PracticeRoomManager
     private static float RawAngleToRadians(short raw)
     {
         return (raw & AngleRawMask) / FacingRawAngleScale;
-    }
-
-    private static short WorldToRawCoordinate(float coordinate)
-    {
-        var rounded = MathF.Round(coordinate * MovementRawCoordinateScale, MidpointRounding.AwayFromZero);
-        var clamped = Math.Clamp(rounded, short.MinValue, short.MaxValue);
-        return (short)clamped;
-    }
-
-    private static void WriteInt16LittleEndian(List<byte> payload, short value)
-    {
-        var raw = unchecked((ushort)value);
-        payload.Add((byte)raw);
-        payload.Add((byte)(raw >> 8));
     }
 
     private static bool IsFinitePosition((float X, float Y, float Z) position)
@@ -2762,7 +2657,17 @@ internal sealed class PracticeRoomManager
         int Damage,
         int VictimHealth,
         int VictimMaxHealth,
-        bool Killed);
+        bool Killed,
+        GameKnockbackAction? Knockback);
+
+    internal readonly record struct GameKnockbackAction(
+        short BuffType,
+        float X,
+        float Y,
+        float Z)
+    {
+        public const short BlowUpBuffType = 4;
+    }
 
     internal readonly record struct GameDamageBroadcastResult(
         bool Applied,

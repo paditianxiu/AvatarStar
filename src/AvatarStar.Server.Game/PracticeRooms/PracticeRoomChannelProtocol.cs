@@ -69,7 +69,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const short GameRemoteShootPacketId = 113;
-    private const short GameRemoteHurtPacketId = 162;
+    private const short GameRemoteBuffOpenPacketId = 162;
     private const short GameRemoteDamageHitPacketId = 184;
     private const int GameObjectDeltaActorUidFlag = 0x00000001;
     private const int GameObjectDeltaTargetUidFlag = 0x00000002;
@@ -77,7 +77,6 @@ internal sealed class PracticeRoomChannelProtocol
     private const int GameObjectDeltaActionFlag = 0x00000008;
     private const int GameObjectDeltaSkipTargetFlag = 0x00000020;
     private const int GameObjectDeltaIntValueFlag = 0x00004000;
-    private const int GameObjectDeltaFloatValueFlag = 0x00008000;
     private const int GameObjectDeltaSubtypeFlag = 0x01000000;
     private const int GameObjectDeltaOriginFlag = 0x00200000;
     private const int GameObjectDeltaVectorFlag = 0x00400000;
@@ -90,19 +89,17 @@ internal sealed class PracticeRoomChannelProtocol
         GameObjectDeltaOriginFlag |
         GameObjectDeltaVectorFlag |
         GameObjectDeltaFacingFlag;
-    private const int GameRemoteHurtObjectDeltaFlags =
-        GameObjectDeltaActorUidFlag |
-        GameObjectDeltaTargetUidFlag |
-        GameObjectDeltaIntValueFlag |
-        GameObjectDeltaFloatValueFlag |
-        GameObjectDeltaSubtypeFlag;
     private const int GameRemoteDamageHitObjectDeltaFlags =
         GameObjectDeltaActorUidFlag |
         GameObjectDeltaTargetUidFlag |
         GameObjectDeltaIntValueFlag;
+    private const int GameRemoteKnockbackObjectDeltaFlags =
+        GameObjectDeltaActorUidFlag |
+        GameObjectDeltaTargetUidFlag |
+        GameObjectDeltaSubtypeFlag |
+        GameObjectDeltaOriginFlag;
     private const byte GameRemoteShootActionByte = 1;
     private const byte GameRemoteShootSkipTargetMarker = 0xFE;
-    private const short GameRemoteHurtSubtype = 73;
     private const int DefaultGameHurtDamage = 100;
     private const int MaxGameHurtDamage = 100000;
     private const float DefaultShootHitRadius = 1.6f;
@@ -115,10 +112,10 @@ internal sealed class PracticeRoomChannelProtocol
     private const float ShotgunShootMaxRange = 15f;
     private const float MeleeShootMaxRange = 2.8f;
     private const float ShieldShootMaxRange = 3.2f;
-    private const float HeavyProjectileKnockbackDistance = 4.2f;
-    private const float ArrowProjectileKnockbackDistance = 2.4f;
-    private const float HeavyProjectileKnockbackLift = 0.35f;
-    private const float ArrowProjectileKnockbackLift = 0.2f;
+    private const float HeavyProjectileKnockbackDistance = 9.0f;
+    private const float ArrowProjectileKnockbackDistance = 5.0f;
+    private const float HeavyProjectileKnockbackLift = 5.0f;
+    private const float ArrowProjectileKnockbackLift = 2.6f;
     private const float ShootFallbackVectorLength = 12f;
     private const float ShootVectorEpsilon = 0.001f;
     private const float FacingRawAngleScale = 8192f;
@@ -859,7 +856,7 @@ internal sealed class PracticeRoomChannelProtocol
     private byte _lastGameMovementInputByte;
     private byte _lastGameMovementTick;
     private bool _hasLastGameMovementInputByte;
-    private int? _setHealthOverride;
+    private int? _setCurrentHealthOverride;
     private float? _setWalkSpeedOverride;
     private float? _setJumpHeightOverride;
     private readonly Dictionary<long, int> _setBulletAmmoOneClipOverridesByItemId = new();
@@ -1785,7 +1782,7 @@ internal sealed class PracticeRoomChannelProtocol
         _lastGameMovementInputByte = 0;
         _lastGameMovementTick = 0;
         _hasLastGameMovementInputByte = false;
-        _setHealthOverride = null;
+        _setCurrentHealthOverride = null;
         _setWalkSpeedOverride = null;
         _setJumpHeightOverride = null;
         _setBulletAmmoOneClipOverridesByItemId.Clear();
@@ -2072,7 +2069,7 @@ internal sealed class PracticeRoomChannelProtocol
             room.RoomId,
             _localGameUid,
             ResolveGameTeamId(localMember),
-            ResolveLocalGamePlayerHealth(localPlayerState?.Character));
+            ResolveLocalGamePlayerMaxHealth(localPlayerState?.Character));
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
@@ -2509,7 +2506,7 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        _setHealthOverride = health;
+        _setCurrentHealthOverride = health;
         if (!_practiceRoomManager.TrySetGamePlayerHealth(
                 _currentGameRoom.RoomId,
                 _localGameUid,
@@ -2841,7 +2838,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _currentGameRoom.RoomId,
                 _localGameUid,
                 ResolveGameTeamId(localMember),
-                ResolveLocalGamePlayerHealth(localPlayerState?.Character));
+                ResolveLocalGamePlayerMaxHealth(localPlayerState?.Character));
             UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet141");
         }
 
@@ -3016,7 +3013,7 @@ internal sealed class PracticeRoomChannelProtocol
         var localMember = GetLocalGameMember(_currentGameRoom);
         var localCharacterId = localMember?.CharacterId ?? _currentGameRoom.HostCharacterId;
         var localPlayerState = ResolvePlayerState(localCharacterId);
-        var maxHealth = ResolveLocalGamePlayerHealth(localPlayerState?.Character);
+        var maxHealth = ResolveLocalGamePlayerMaxHealth(localPlayerState?.Character);
         _practiceRoomManager.UpdateGamePlayerState(
             _currentGameRoom.RoomId,
             _localGameUid,
@@ -4816,30 +4813,6 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    internal Task SendPacket162RemoteHurtAsync(PracticeRoomManager.GameDamageAction damage)
-    {
-        using var writer = new PacketWriter();
-
-        writer.WriteShort(GameRemoteHurtPacketId);
-        WriteGameObjectDeltaFlags(writer, GameRemoteHurtObjectDeltaFlags);
-        writer.WriteByte(damage.VictimUid);
-        writer.WriteByte(damage.AttackerUid);
-        writer.WriteShort(GameRemoteHurtSubtype);
-        writer.WriteInt(damage.VictimHealth);
-        writer.WriteFloat(damage.Damage);
-
-        Log.Verbose(
-            "Channel packet162 -> {Remote}: hurt attackerUid={AttackerUid} victimUid={VictimUid} damage={Damage} health={Health}/{MaxHealth} subtype={Subtype}",
-            _remoteLabel,
-            damage.AttackerUid,
-            damage.VictimUid,
-            damage.Damage,
-            damage.VictimHealth,
-            damage.VictimMaxHealth,
-            GameRemoteHurtSubtype);
-        return SendPacketAsync(writer);
-    }
-
     internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
     {
         using var writer = new PacketWriter();
@@ -4873,6 +4846,29 @@ internal sealed class PracticeRoomChannelProtocol
                 damage.VictimMaxHealth);
         }
 
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket162RemoteKnockbackAsync(
+        PracticeRoomManager.GameDamageAction damage,
+        PracticeRoomManager.GameKnockbackAction knockback)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(GameRemoteBuffOpenPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteKnockbackObjectDeltaFlags);
+        writer.WriteByte(damage.AttackerUid);
+        writer.WriteByte(damage.VictimUid);
+        writer.WriteShort(knockback.BuffType);
+        WriteCompressedVector3(writer, knockback.X, knockback.Y, knockback.Z);
+
+        Log.Information(
+            "Channel packet162 -> {Remote}: knockback attackerUid={AttackerUid} victimUid={VictimUid} buffType={BuffType} vector={Vector}",
+            _remoteLabel,
+            damage.AttackerUid,
+            damage.VictimUid,
+            knockback.BuffType,
+            FormatGameVector3(knockback.X, knockback.Y, knockback.Z));
         return SendPacketAsync(writer);
     }
 
@@ -4926,7 +4922,7 @@ internal sealed class PracticeRoomChannelProtocol
         var loadoutSource = playerState?.GetGameLoadoutSource() ?? "empty";
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
         var loadoutGroups = BuildGameLoadoutGroups(loadoutItems);
-        var playerHealth = ResolveLocalGamePlayerHealth(character);
+        var playerHealth = ResolveLocalGamePlayerMaxHealth(character);
         var teamId = ResolveGameTeamId(member);
         var packet106HeaderByte = UseLegacyHotbarBootstrapSequence ? career : teamId;
         var gamePlayers = ResolveGamePlayersForPacket(room);
@@ -5243,9 +5239,9 @@ internal sealed class PracticeRoomChannelProtocol
         return Math.Max(character?.MaxHealth ?? 0, DefaultSpawnHealth);
     }
 
-    private int ResolveLocalGamePlayerHealth(CharacterInfo? character)
+    private static int ResolveLocalGamePlayerMaxHealth(CharacterInfo? character)
     {
-        return _setHealthOverride ?? ResolveGamePlayerHealth(character);
+        return ResolveGamePlayerHealth(character);
     }
 
     private int ResolveLocalRuntimeHealth(PracticeRoomManager.PracticeRoomSession room)
@@ -5259,7 +5255,7 @@ internal sealed class PracticeRoomChannelProtocol
             return Math.Max(1, currentHealth);
         }
 
-        return ResolveLocalGamePlayerHealth(GetLocalPlayerState(room)?.Character);
+        return _setCurrentHealthOverride ?? ResolveLocalGamePlayerMaxHealth(GetLocalPlayerState(room)?.Character);
     }
 
     private static byte ResolveGameTeamId(PracticeRoomManager.PracticeRoomMember? member)
@@ -5444,7 +5440,7 @@ internal sealed class PracticeRoomChannelProtocol
             level,
             rankType,
             rankLevel,
-            snapshot.Uid == _localGameUid ? ResolveLocalGamePlayerHealth(character) : ResolveGamePlayerHealth(character),
+            snapshot.Uid == _localGameUid ? ResolveLocalGamePlayerMaxHealth(character) : ResolveGamePlayerHealth(character),
             playerState,
             character,
             loadoutItems,
@@ -6973,13 +6969,13 @@ internal sealed class PracticeRoomChannelProtocol
 
         using var writer = new PacketWriter();
         var playerState = GetLocalPlayerState(_currentGameRoom);
-        var health = healthOverride ?? ResolveLocalGamePlayerHealth(playerState?.Character);
+        var maxHealth = ResolveLocalGamePlayerMaxHealth(playerState?.Character);
         const short actorState = InitialGamePlayerActionStateFlags;
         const float actorFloat = 0f;
 
         writer.WriteShort(111);
         writer.WriteByte(_localGameUid);
-        writer.WriteInt(health);
+        writer.WriteInt(maxHealth);
         writer.WriteShort(actorState);
         writer.WriteFloat(actorFloat);
         writer.WriteFloat(x);
@@ -6988,11 +6984,12 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(yaw);
 
         Log.Information(
-            "Channel packet111 -> {Remote}: local teleport source={Source} localUid={LocalUid} health={Health} actorState={ActorState} actorFloat={ActorFloat} position=({X}, {Y}, {Z}) yaw={Yaw}",
+            "Channel packet111 -> {Remote}: local teleport source={Source} localUid={LocalUid} maxHealth={MaxHealth} runtimeHealth={RuntimeHealth} actorState={ActorState} actorFloat={ActorFloat} position=({X}, {Y}, {Z}) yaw={Yaw}",
             _remoteLabel,
             source,
             _localGameUid,
-            health,
+            maxHealth,
+            healthOverride ?? ResolveLocalRuntimeHealth(_currentGameRoom),
             actorState,
             actorFloat,
             FormatProtocolFloat(x),
