@@ -8,6 +8,7 @@ using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Utilities;
 using System.Globalization;
 using Microsoft.Extensions.Options;
+using AvatarStar.Server.Persistence;
 using Serilog;
 
 namespace AvatarStar.Server.Game;
@@ -17,6 +18,7 @@ internal partial class GameClient : Client, IDisconnectAwareClient
     private readonly IOptionsMonitor<SysAvatarPayloadConfig> _sysAvatarPayloadMonitor;
     private readonly PlayerStore _playerStore;
     private readonly PracticeRoomManager _practiceRoomManager;
+    private readonly AccountRepository _accounts;
 
     private static readonly bool DumpPackets =
         (Environment.GetEnvironmentVariable("AS_GAME_DUMP_PACKETS") ?? "0").Equals("1", StringComparison.OrdinalIgnoreCase);
@@ -105,6 +107,7 @@ internal partial class GameClient : Client, IDisconnectAwareClient
     private readonly DesCfb64Codec _desOut = new(DesHandshakeKey);
 
     private long _activeRoleId;
+    private long _activeAccountId = 1;
     private string _activeRoleExtra = string.Empty;
     private bool _lobbyRoomListReady;
 
@@ -182,6 +185,31 @@ internal partial class GameClient : Client, IDisconnectAwareClient
 
     private static IReadOnlyList<LobbyLevelInfo> GetConfiguredLobbyLevelsOrDefault()
     {
+        try
+        {
+            using var db = new AvatarStarDbContext();
+            var dbLevels = db.LobbyLevels
+                .Where(x => x.Enabled == 1)
+                .OrderBy(x => x.Id)
+                .Select(x => new LobbyLevelInfo(
+                    x.Id,
+                    x.Name,
+                    (byte)Math.Clamp(x.GameType, 0, byte.MaxValue),
+                    x.ShowName,
+                    x.Description,
+                    x.Difficulty,
+                    x.Group))
+                .ToArray();
+            if (dbLevels.Length > 0)
+            {
+                return dbLevels;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load lobby levels from database. Using JSON/default levels.");
+        }
+
         var configPath = ResolveLobbyLevelInfoConfigPath();
         if (string.IsNullOrWhiteSpace(configPath))
         {
@@ -413,11 +441,13 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         Socket socket,
         IOptionsMonitor<SysAvatarPayloadConfig> sysAvatarPayloadMonitor,
         PlayerStore playerStore,
-        PracticeRoomManager practiceRoomManager) : base(clientHandler, socket)
+        PracticeRoomManager practiceRoomManager,
+        AccountRepository accounts) : base(clientHandler, socket)
     {
         _sysAvatarPayloadMonitor = sysAvatarPayloadMonitor;
         _playerStore = playerStore;
         _practiceRoomManager = practiceRoomManager;
+        _accounts = accounts;
         _state = ProtocolState.AwaitHandshake;
         _cryptoMode = CryptoMode.XorHandshake;
     }
@@ -602,10 +632,14 @@ internal partial class GameClient : Client, IDisconnectAwareClient
 
         if (token is not null)
         {
+            _activeAccountId = _accounts.ValidateToken(token);
+            _playerStore.SetCurrentAccount(_activeAccountId);
             Log.Information("Login: version={Version} flag={Flag} tokenLen={TokenLen}", version, flag, token.Length);
         }
         else
         {
+            _activeAccountId = 1;
+            _playerStore.SetCurrentAccount(_activeAccountId);
             Log.Information("Login: version={Version} flag={Flag} userLen={UserLen}", version, flag, username?.Length ?? 0);
         }
 

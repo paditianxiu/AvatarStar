@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Net.Sockets;
+using AvatarStar.Server.Persistence;
 using AvatarStar.Server.Utilities;
 using Serilog;
 
@@ -8,6 +9,7 @@ namespace AvatarStar.Server.Login;
 
 public class LoginClient : Client
 {
+    private readonly AccountRepository _accounts;
     private static readonly bool DumpPackets =
         (Environment.GetEnvironmentVariable("AS_LOGIN_DUMP_PACKETS") ?? "0").Equals("1", StringComparison.OrdinalIgnoreCase);
 
@@ -25,8 +27,9 @@ public class LoginClient : Client
             direction, remote, packetId, data.Length, HexDump.Dump(preview));
     }
 
-    public LoginClient(ClientHandler clientHandler, Socket socket) : base(clientHandler, socket)
+    public LoginClient(ClientHandler clientHandler, Socket socket, AccountRepository accounts) : base(clientHandler, socket)
     {
+        _accounts = accounts;
     }
 
     protected override async Task HandleAsync(PacketReader reader)
@@ -76,10 +79,10 @@ public class LoginClient : Client
                 {
                     authResult = ServerErrorCode.InvalidUserId;
                 }
-                else if (pUsername == "test" && pPassword == "test123")
+                else if (_accounts.LoginPassword(pUsername, pPassword) is { } token)
                 {
                     authResult = ServerErrorCode.Success;
-                    authToken = $"token_{pUsername}_{DateTime.UtcNow.Ticks}";
+                    authToken = token;
                 }
                 else
                 {
@@ -228,9 +231,10 @@ public class LoginClient : Client
 
         writer.WriteByte(4);
 
-        for (var i = 0; i < ServerManager.Servers.Length; i++)
+        var categories = ServerManager.GetServers();
+        for (var i = 0; i < categories.Length; i++)
         {
-            var category = ServerManager.Servers[i];
+            var category = categories[i];
 
             writer.WriteByte(category.Id);
             writer.WriteString(category.Name); // Max 64
@@ -250,7 +254,7 @@ public class LoginClient : Client
             }
 
             // True if there are more categories
-            writer.WriteBool(i + 1 < ServerManager.Servers.Length);
+            writer.WriteBool(i + 1 < categories.Length);
         }
 
         writer.WriteBool(false);

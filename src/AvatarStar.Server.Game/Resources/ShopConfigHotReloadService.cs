@@ -1,4 +1,5 @@
 using System.IO;
+using AvatarStar.Server.Persistence;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -144,7 +145,16 @@ internal sealed class ShopConfigHotReloadService : BackgroundService
         {
             token.ThrowIfCancellationRequested();
 
-            if (ShopItemDatabase.ReloadFromJsonConfig())
+            try
+            {
+                new DatabaseInitializer().Initialize();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to upsert shop config into database; trying runtime fallback");
+            }
+
+            if (ShopItemDatabase.ReloadFromDatabaseConfig() || ShopItemDatabase.ReloadFromJsonConfig())
             {
                 _logger.LogInformation(
                     "Reloaded shop config successfully (rev={ShopConfigRev})",

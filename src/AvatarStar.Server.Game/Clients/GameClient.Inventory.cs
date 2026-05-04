@@ -5,7 +5,41 @@ namespace AvatarStar.Server.Game;
 
 internal partial class GameClient
 {
+    private const int StorageDefaultPageCount = 100;
+
     private sealed record StorageListResult(object[] Items, int CurrentPage, int TotalPages);
+
+    private static int GetDefaultStoragePageSize(int storageType)
+    {
+        return storageType switch
+        {
+            5 => 10, // avatar cards use the card grid
+            _ => 24
+        };
+    }
+
+    private static int NormalizeStoragePageSize(int storageType, int pageSize)
+    {
+        return pageSize <= 0 ? GetDefaultStoragePageSize(storageType) : pageSize;
+    }
+
+    private static int GetDefaultStorageCapacity(int storageType, int pageSize)
+    {
+        return StorageDefaultPageCount * NormalizeStoragePageSize(storageType, pageSize);
+    }
+
+    private string BuildStorageListPayload(int storageType, int page, int pageSize, bool pageBySlot = true)
+    {
+        pageSize = NormalizeStoragePageSize(storageType, pageSize);
+        var result = GetStorageItems(storageType, page, pageSize, pageBySlot: pageBySlot);
+        return
+            "ok = 1\n" +
+            $"t = {storageType}\n" +
+            $"s = {pageSize}\n" +
+            $"page = {result.CurrentPage}\n" +
+            $"pages = {result.TotalPages}\n" +
+            "items = " + LuaSerializer.SerializeSequential(result.Items);
+    }
 
     private StorageListResult GetStorageItems(
         int storageType,
@@ -17,13 +51,19 @@ internal partial class GameClient
     {
         var player = GetActivePlayerStateOrDefault();
         player.EnsureStarterInventory();
+        pageSize = NormalizeStoragePageSize(storageType, pageSize);
+        var defaultCapacity = GetDefaultStorageCapacity(storageType, pageSize);
 
         if (!player.Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
         {
-            return new StorageListResult(Array.Empty<object>(), CurrentPage: 1, TotalPages: 1);
-        }
+            if (!pageBySlot)
+            {
+                return new StorageListResult(Array.Empty<object>(), CurrentPage: 1, TotalPages: 1);
+            }
 
-        pageSize = pageSize <= 0 ? 24 : pageSize;
+            var emptyPage = Math.Clamp(page <= 0 ? 1 : page, 1, StorageDefaultPageCount);
+            return new StorageListResult(Array.Empty<object>(), emptyPage, StorageDefaultPageCount);
+        }
 
         var query = slots
             .OrderBy(x => x.Key)
@@ -58,12 +98,8 @@ internal partial class GameClient
             // PersonalInfo UI treats `slot` as the on-page slot index (1..pageSize) and will
             // index UI controls by it (weapon_p_1..weapon_p_24, person_card_p_1..10, etc).
             // Therefore we must page by absolute storage slot ranges, not by item count.
-            var defaultCapacity = storageType switch
-            {
-                5 => 10, // avatar cards in PersonalInfo
-                _ => 36
-            };
-            var capacity = Math.Max(Math.Max(defaultCapacity, pageSize), filtered.Max(x => x.Slot));
+            var maxOccupiedSlot = filtered.Count == 0 ? 0 : filtered.Max(x => x.Slot);
+            var capacity = Math.Max(defaultCapacity, maxOccupiedSlot);
             totalPages = Math.Max(1, (int)Math.Ceiling(capacity / (double)pageSize));
             currentPage = Math.Clamp(page <= 0 ? 1 : page, 1, totalPages);
             pageSlotStart = (currentPage - 1) * pageSize + 1;
@@ -86,11 +122,20 @@ internal partial class GameClient
             {
                 var shopItem = ShopItemDatabase.GetShopItem(x.Sid);
                 var effectiveSubType = x.SubType > 0 ? x.SubType : x.Subtype;
+                var payloadSubtype = x.Subtype;
+                var payloadSubType = effectiveSubType;
+                var payloadCategory = x.Category;
+                if (TryResolveBoxInventoryIdentity(x, out var boxSubtype, out var boxCategory))
+                {
+                    payloadSubtype = boxSubtype;
+                    payloadSubType = boxSubtype;
+                    payloadCategory = boxCategory;
+                }
                 var clientResource = ShopItemDatabase.GetClientResource(
                     shopItem,
                     x.Resource,
                     x.Type,
-                    effectiveSubType);
+                    payloadSubType);
                 // In tooltip/storage Lua, occupation=0 means "all classes"; negative values are shop-only config syntax.
                 var occupation = shopItem?.Occupation ?? 0;
                 if (occupation < 0)
@@ -105,8 +150,8 @@ internal partial class GameClient
                     slot = pageBySlot ? (x.Slot - pageOffset) : x.Slot,
                     storageSlot = x.Slot,
                     resource = clientResource,
-                    subtype = x.Subtype,
-                    subType = effectiveSubType, // several client helpers read camel-case subType even for equipment
+                    subtype = payloadSubtype,
+                    subType = payloadSubType, // several client helpers read camel-case subType even for equipment
                     grade = x.Grade,
                     level = shopItem?.Level ?? 0,
                     occupation,
@@ -116,7 +161,7 @@ internal partial class GameClient
                     unit = x.Unit,
                     remain = x.Remain,
                     isRenew = x.IsRenew,
-                    category = x.Category,
+                    category = payloadCategory,
                     isBind = string.IsNullOrWhiteSpace(x.IsBind) ? "N" : x.IsBind,
                     isEquip = string.IsNullOrWhiteSpace(x.IsEquip) ? "N" : x.IsEquip,
                     // Keep storage item shape close to `tip_player_item` to avoid client nil-index crashes.

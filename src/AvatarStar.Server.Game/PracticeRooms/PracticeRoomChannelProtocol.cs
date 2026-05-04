@@ -4,6 +4,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using AvatarStar.Server.Game.Resources;
+using AvatarStar.Server.Persistence;
 using AvatarStar.Server.Utilities;
 using Serilog;
 
@@ -71,6 +72,21 @@ internal sealed class PracticeRoomChannelProtocol
     private const short GameRemoteShootPacketId = 113;
     private const short GameRemoteHurtPacketId = 162;
     private const short GameRemoteDamageHitPacketId = 184;
+    private const short GameUsePacketId = 160;
+    private const short GameBuffStartPacketId = GameRemoteHurtPacketId;
+    private const short GameThrowDropItemPacketId = 185;
+    private const int InfoPartByteData0 = 0x00000001;
+    private const int InfoPartByteData1 = 0x00000002;
+    private const int InfoPartByteData3 = 0x00000008;
+    private const int InfoPartFloatData1 = 0x00008000;
+    private const int InfoPartFloatData2 = 0x00010000;
+    private const int InfoPartFloatData3 = 0x00020000;
+    private const int InfoPartShortData6 = 0x01000000;
+    private const int GameSkillFeedbackFlags =
+        InfoPartByteData0 |
+        InfoPartByteData1 |
+        InfoPartByteData3 |
+        InfoPartShortData6;
     private const int GameObjectDeltaActorUidFlag = 0x00000001;
     private const int GameObjectDeltaTargetUidFlag = 0x00000002;
     private const int GameObjectDeltaWeaponSlotFlag = 0x00000004;
@@ -103,8 +119,77 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte GameRemoteShootActionByte = 1;
     private const byte GameRemoteShootSkipTargetMarker = 0xFE;
     private const short GameRemoteHurtSubtype = 73;
+    private const byte GameSkillTypeCure = 0;
+    private const byte GameSkillTypeShield = 1;
+    private const byte GameSkillTypeHidden = 2;
+    private const byte GameSkillTypeShock = 3;
+    private const byte GameSkillTypeGallop = 4;
+    private const byte GameSkillTypePiercing = 5;
+    private const byte GameSkillTypeVitals = 6;
+    private const byte GameSkillTypeTenacity = 7;
+    private const byte GameSkillTypePoison = 8;
+    private const byte GameSkillTypeRain = 9;
+    private const byte GameSkillTypeHeavy = 10;
+    private const byte GameSkillTypeSpurt = 11;
+    private const byte GameSkillTypeTransfer = 12;
+    private const byte GameSkillTypeSnare = 13;
+    private const byte GameSkillTypeEnergy = 14;
+    private const byte GameSkillTypeConduction = 38;
+    private const byte GameSkillTypeSuckBlood = 39;
+    private const byte GameSkillTypePlague = 40;
+    private const byte GameSkillTypeGasBomb = 41;
+    private const byte GameSkillTypeOverreaction = 42;
+    private const byte GameSkillTypeFeud = 76;
+    private const short GameBuffTypeCure = 0;
+    private const short GameBuffTypeEnergy = 1;
+    private const short GameBuffTypeRain = 3;
+    private const short GameBuffTypeShock = 4;
+    private const short GameBuffTypeVitals = 5;
+    private const short GameBuffTypeCelerity = 6;
+    private const short GameBuffTypePoison = 7;
+    private const short GameBuffTypeShield = 8;
+    private const short GameBuffTypeGallop = 9;
+    private const short GameBuffTypeHeavy = 11;
+    private const short GameBuffTypeLurk = 15;
+    private const short GameBuffTypePiercing = 16;
+    private const short GameBuffTypeSnare = 19;
+    private const short GameBuffTypeConductionSelf = 60;
+    private const short GameBuffTypeConductionTarget = 62;
+    private const short GameBuffTypePlague = 64;
+    private const short GameBuffTypePoisoned = 65;
+    private const short GameBuffTypeOverreactionSelf = 68;
+    private const short GameBuffTypeOverreaction = 73;
+    private const byte GameDropTypeSnare = 1;
+    private const byte GameDropTypeEnergy = 2;
+    private const byte GameSkillThrowDropMarker = 1;
+    private const int ThrowDropFallbackDelayMilliseconds = 200;
+    private const float SnareFallbackHeightOffset = 1f;
+    private const float SnareFallbackForwardDistance = 5f;
     private const int DefaultGameHurtDamage = 100;
     private const int MaxGameHurtDamage = 100000;
+    private const float DefaultGameSkillDuration = 3f;
+    private const float AreaBuffCooldownLock = 1f;
+    private const float GameSkillAreaRadius = 8f;
+    private const float ShockSkillAreaRadius = 6f;
+    private const float EnergySkillAreaRadius = 5f;
+    private const float SnareSkillAreaRadius = 8f;
+    private const float ConductionSkillAreaRadius = 8f;
+    private const float OverreactionSkillAreaRadius = 8f;
+    private static readonly int[] CureSkillHealValues = [600, 700, 800, 900, 1000, 2000];
+    private static readonly int[] ShieldSkillValueValues = [600, 700, 800, 1000, 1200, 2000];
+    private static readonly int[] ShockSkillDamageValues = [120, 130, 140, 160, 180, 250];
+    private static readonly int[] GallopSkillDurationValues = [3, 4, 5, 6, 7, 10];
+    private static readonly int[] RainSkillArrowCountValues = [2, 3, 4, 5, 6, 9];
+    private static readonly int[] HeavyFireRateBonusPercents = [10, 13, 16, 20, 25, 50];
+    private static readonly int[] HeavyAccuracyPenaltyPercents = [2, 3, 4, 5, 6, 10];
+    private static readonly int[] PoisonSkillDamagePerTickValues = [80, 110, 150, 200, 260, 390];
+    private static readonly int[] SpurtSkillDurationValues = [1, 2, 2, 3, 3, 5];
+    private static readonly int[] SnareSkillDamageValues = [450, 500, 560, 630, 700, 900];
+    private static readonly int[] EnergySkillTotalHealValues = [3000, 4000, 5000, 6000, 8000, 10000];
+    private static readonly int[] EnergySkillTickHealValues = [150, 200, 250, 300, 350, 500];
+    private static readonly int[] ConductionSkillDamageValues = [120, 160, 220, 280, 360, 500];
+    private static readonly int[] ConductionSkillHealValues = [120, 160, 220, 280, 360, 500];
+    private static readonly int[] OverreactionSkillDamageValues = [180, 240, 320, 420, 560, 800];
     private const float DefaultShootHitRadius = 1.6f;
     private const float ShotgunShootHitRadius = 3.0f;
     private const float MeleeShootHitRadius = 2.2f;
@@ -126,6 +211,9 @@ internal sealed class PracticeRoomChannelProtocol
     // Character movement tuning sent by packet103.
     // The first four fields are read right after maxHealth and copied into actor movement scalars.
     private const short GameCharacterInfoPacketId = 103;
+    private const byte GameSkillSlotEntryKind = 1;
+    private const byte GameActiveSkillInitiativeFlag = 1;
+    private const byte GamePassiveSkillInitiativeFlag = 0;
     private const float CharacterWalkSpeed = 5f;
     private const float CharacterRollSlideScale = 8f;
     private const float CharacterJumpAirSpeed = 8f;
@@ -168,8 +256,15 @@ internal sealed class PracticeRoomChannelProtocol
         CharacterInfo? Character,
         IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> LoadoutItems,
         IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> EquipmentItems,
+        IReadOnlyList<PlayerStore.PlayerState.GameSkillSlotItem> SkillItems,
         IReadOnlyList<PlayerStore.PlayerState.GameIndependentTrinketItem> IndependentTrinketItems,
         PracticeRoomManager.GamePosition? LastPosition);
+
+    private readonly record struct GameSlotInfoEntry(
+        byte Slot,
+        int Kind,
+        PlayerStore.PlayerState.GameSkillSlotItem? Skill,
+        PlayerStore.PlayerState.GameLoadoutItem? Equipment);
 
     private sealed record CharacterFlyMotionProfile(
         string Name,
@@ -402,6 +497,28 @@ internal sealed class PracticeRoomChannelProtocol
 
     private static CharacterWingFlightProfileRules LoadCharacterWingFlightProfileRules()
     {
+        try
+        {
+            var json = new ConfigRepository().GetConfigDocumentBySuffix("wing_flight_profiles.json");
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var config = JsonSerializer.Deserialize<CharacterWingFlightProfileConfig>(
+                    json,
+                    CharacterWingFlightProfileJsonOptions);
+                var rules = BuildCharacterWingFlightProfileRules(config, "database:config_documents/wing_flight_profiles.json");
+                Log.Information(
+                    "Wing flight profile config loaded from database: defaultMode={DefaultMode} profiles={ProfileCount} wings={WingCount}",
+                    rules.DefaultMode,
+                    rules.Profiles.Count,
+                    rules.WingModes.Count);
+                return rules;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load wing flight profile config from database; falling back to files.");
+        }
+
         foreach (var configPath in GetCharacterWingFlightProfileConfigCandidates().Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (!File.Exists(configPath))
@@ -792,7 +909,9 @@ internal sealed class PracticeRoomChannelProtocol
         float ExplodeParticleHasBuff,
         float ExtraProjectileValue0,
         float ExtraProjectileValue1,
-        float ExtraProjectileValue2);
+        float ExtraProjectileValue2,
+        float SightMouseSensitivity,
+        float SightMoveSpeedOffset);
 
     private static readonly string[] AvatarBlobKeys =
     {
@@ -834,6 +953,7 @@ internal sealed class PracticeRoomChannelProtocol
     private int _gameInitSpawnHandshakeStarted;
     private int _gameInitSpawnHandshakeGeneration;
     private int _activeClientGameInitRefreshSent;
+    private int _nextGameDropItemId;
     private long _candidateCharacterId;
     private long _currentCharacterId;
     private byte _localGameUid = LocalGameUid;
@@ -997,6 +1117,12 @@ internal sealed class PracticeRoomChannelProtocol
                 break;
             case ChannelState.InGame when packetId == 125:
                 HandlePacket125GamePickUpDropItem(reader);
+                break;
+            case ChannelState.InGame when packetId == 136:
+                await HandlePacket136GameUseAsync(reader);
+                break;
+            case ChannelState.InGame when packetId == 152:
+                await HandlePacket152ThrowDropItemAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 121:
                 await HandlePacket121LeaveGameAsync(reader);
@@ -2057,7 +2183,9 @@ internal sealed class PracticeRoomChannelProtocol
             room.RoomId,
             _localGameUid,
             ResolveGameTeamId(localMember),
-            ResolveLocalGamePlayerHealth(localPlayerState?.Character));
+            ResolveLocalGamePlayerHealth(localPlayerState?.Character),
+            localCharacterId,
+            BuildPlayerSkillRuntime(localPlayerState));
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
@@ -2340,7 +2468,7 @@ internal sealed class PracticeRoomChannelProtocol
         return true;
     }
 
-    // …‰ÀŸ÷µ‘Ω–°‘ΩøÏ£¨œﬁ÷∆‘⁄∫œ¿Ì∑∂Œß
+    // Â∞ÑÈÄüÂÄºË∂äÂ∞èË∂äÂø´ÔºåÈôêÂà∂Âú®ÂêàÁêÜËåÉÂõ¥
     fireTime = Math.Clamp(fireTime, 0.01f, 10f);
     await SetLocalWeaponFireTimeAsync(fireTime, packetId);
     return true;
@@ -2413,20 +2541,20 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        // ±£¥Ê…‰ÀŸ∏≤∏«÷µ
+        // ‰øùÂ≠òÂ∞ÑÈÄüË¶ÜÁõñÂÄº
         _setWeaponFireTimeOverridesByItemId[item.ItemId] = fireTime;
 
-        //  π”√¥¯Œª÷√±£¥ÊµƒÀ¢–¬¿¥”¶”√–¬ Ù–‘
+        // ‰ΩøÁî®Â∏¶‰ΩçÁΩÆ‰øùÂ≠òÁöÑÂà∑Êñ∞Êù•Â∫îÁî®Êñ∞Â±ûÊÄß
         await RefreshLocalCharacterCreateWithPositionSaveAsync($"set-rof-{fireTime}");
 
-        // ∂ÓÕ‚∑¢ÀÕ weapon stats ∏¸–¬∞¸£®»Áπ˚øÕªß∂À÷ß≥÷£©
+        // È¢ùÂ§ñÂèëÈÄÅ weapon stats Êõ¥Êñ∞ÂåÖÔºàÂ¶ÇÊûúÂÆ¢Êà∑Á´ØÊîØÊåÅÔºâ
         await SendPacket143GameLoadoutItemPropertyRefreshAsync(
             item,
-            "fire_time",  // …‰ÀŸ Ù–‘√˚
-            (int)(fireTime * 1000), // ◊™ªªŒ™∫¡√ÎªÚ±£≥÷∫œ  ∏Ò Ω
+            "fire_time",  // Â∞ÑÈÄüÂ±ûÊÄßÂêç
+            (int)(fireTime * 1000), // ËΩ¨Êç¢‰∏∫ÊØ´ÁßíÊàñ‰øùÊåÅÂêàÈÄÇÊ†ºÂºè
             "set-rof");
 
-        // À¢–¬ HUD œ‘ æ
+        // Âà∑Êñ∞ HUD ÊòæÁ§∫
         await SendPacket143GameLoadoutItemPropertyRefreshAsync(
             item,
             GameLoadoutHudRefreshPropertyName,
@@ -2464,10 +2592,10 @@ internal sealed class PracticeRoomChannelProtocol
         var ammoOneClip = bulletCount;
         _setBulletAmmoOneClipOverridesByItemId[item.ItemId] = ammoOneClip;
 
-        //  π”√¥¯Œª÷√±£¥ÊµƒÀ¢–¬£¨∂¯≤ª «÷±Ω”À¢–¬
+        // ‰ΩøÁî®Â∏¶‰ΩçÁΩÆ‰øùÂ≠òÁöÑÂà∑Êñ∞ÔºåËÄå‰∏çÊòØÁõ¥Êé•Âà∑Êñ∞
         await RefreshLocalCharacterCreateWithPositionSaveAsync("set-bullet");
 
-        // À¢–¬ÕÍ≥…∫Û£¨‘Ÿ∑¢ÀÕ∂ÓÕ‚µƒ reload »∑»œ∞¸
+        // Âà∑Êñ∞ÂÆåÊàêÂêéÔºåÂÜçÂèëÈÄÅÈ¢ùÂ§ñÁöÑ reload Á°ÆËÆ§ÂåÖ
         await SendPacket175GameReloadReadyAsync(slotOneBased, "set-bullet");
         await SendPacket143GameLoadoutItemPropertyRefreshAsync(
             item,
@@ -2592,18 +2720,18 @@ internal sealed class PracticeRoomChannelProtocol
     {
         if (_currentGameRoom is null) return;
 
-        // ±£¥Êµ±«∞Œª÷√
+        // ‰øùÂ≠òÂΩìÂâç‰ΩçÁΩÆ
         var hasPosition = TryGetLocalGamePosition(out var savedPosition);
 
-        // À¢–¬Ω«…´
+        // Âà∑Êñ∞ËßíËâ≤
         await RefreshLocalCharacterCreateAsync(trigger);
 
-        // ª÷∏¥Œª÷√
+        // ÊÅ¢Â§ç‰ΩçÁΩÆ
         if (hasPosition)
         {
-            await Task.Delay(50); // µ»¥˝øÕªß∂À¥¶¿Ì
+            await Task.Delay(50); // Á≠âÂæÖÂÆ¢Êà∑Á´ØÂ§ÑÁêÜ
 
-            // ∑¢ÀÕŒª÷√æ¿’˝∞¸
+            // ÂèëÈÄÅ‰ΩçÁΩÆÁ∫†Ê≠£ÂåÖ
             await SendPacket111GameTeleportAsync(
                 RawToWorldCoordinate(savedPosition.XRaw),
                 RawToWorldCoordinate(savedPosition.YRaw),
@@ -2690,13 +2818,13 @@ internal sealed class PracticeRoomChannelProtocol
         string trigger,
         bool preferKnownPosition)
     {
-        // œ»∑¢ÀÕ≥ı ºªØ∞¸
+        // ÂÖàÂèëÈÄÅÂàùÂßãÂåñÂåÖ
         await SendPacket106GameInitAsync(room);
 
-        // ÃÌº”∂Ã‘›—”≥Ÿ
+        // Ê∑ªÂä†Áü≠ÊöÇÂª∂Ëøü
         await Task.Delay(50);
 
-        // ‘Ÿ∑¢ÀÕ…˙≥…Œª÷√∞¸
+        // ÂÜçÂèëÈÄÅÁîüÊàê‰ΩçÁΩÆÂåÖ
         if (preferKnownPosition && TryGetLocalGamePosition(out var position))
         {
             await SendPacket111GameTeleportAsync(
@@ -2826,7 +2954,9 @@ internal sealed class PracticeRoomChannelProtocol
                 _currentGameRoom.RoomId,
                 _localGameUid,
                 ResolveGameTeamId(localMember),
-                ResolveLocalGamePlayerHealth(localPlayerState?.Character));
+                ResolveLocalGamePlayerHealth(localPlayerState?.Character),
+                localCharacterId,
+                BuildPlayerSkillRuntime(localPlayerState));
             UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet141");
         }
 
@@ -2932,7 +3062,9 @@ internal sealed class PracticeRoomChannelProtocol
             _currentGameRoom.RoomId,
             _localGameUid,
             ResolveGameTeamId(localMember),
-            maxHealth);
+            maxHealth,
+            localCharacterId,
+            BuildPlayerSkillRuntime(localPlayerState));
         UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet162");
 
         await SendPacket111GameSpawnAsync(_currentGameRoom);
@@ -3113,6 +3245,18 @@ internal sealed class PracticeRoomChannelProtocol
         await SendActiveClientGameInitRefreshOnceAsync("packet105-active-client");
         await SendPendingPlayerEnteringClearAsync("packet105");
         await SendPendingSilentLoadoutHudRefreshAsync("packet105");
+        var periodicResult = await _practiceRoomManager.ProcessGamePeriodicEffectsAsync(_currentGameRoom.RoomId);
+        var snareResult = await _practiceRoomManager.TriggerSnareDropItemsNearEnemiesAsync(_currentGameRoom.RoomId);
+        if (periodicResult.Applied || snareResult.Applied)
+        {
+            Log.Verbose(
+                "Channel packet105 effects <- {Remote}: periodic={PeriodicApplied}/{PeriodicTargets}, snare={SnareApplied}/{SnareTargets}",
+                _remoteLabel,
+                periodicResult.Applied,
+                periodicResult.TargetCount,
+                snareResult.Applied,
+                snareResult.TargetCount);
+        }
     }
 
     private async Task HandlePacket106GameActionPoseAsync(PacketReader reader)
@@ -3192,6 +3336,7 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         var slotOneBased = ResolveShootSlotOneBased(poseState);
+        var weaponItem = ResolveLocalLoadoutItem(slotOneBased);
         UpdateLocalGamePositionFromActionPose(originX, originY, originZ, facing0Raw, facing1Raw);
         var shoot = new PracticeRoomManager.GameShootAction(
             _localGameUid,
@@ -3205,12 +3350,13 @@ internal sealed class PracticeRoomChannelProtocol
             vectorX,
             vectorY,
             vectorZ,
+            weaponItem?.Subtype ?? 0,
+            weaponItem?.Resource ?? string.Empty,
             DateTimeOffset.UtcNow);
         var broadcastCount = await _practiceRoomManager.BroadcastGameShootAsync(
             _currentGameRoom.RoomId,
             this,
             shoot);
-        var weaponItem = ResolveLocalLoadoutItem(slotOneBased);
         var weaponDamage = ResolveGameWeaponDamage(weaponItem);
         var hitRule = ResolveGameWeaponHitRule(weaponItem);
         var clientTargetUid = ResolveClientShootTargetUid(optionalTag, optionalValue);
@@ -3399,6 +3545,1020 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             payload.Length,
             Convert.ToHexString(payload));
+    }
+
+    private async Task HandlePacket136GameUseAsync(PacketReader reader)
+    {
+        var isRealMan = (byte)1;
+        var robotUid = 0;
+        byte slot;
+
+        if (reader.Remaining == 1)
+        {
+            if (!reader.TryReadByte(out slot))
+            {
+                Log.Warning("Channel packet136 use parse failed from {Remote}: missing slot", _remoteLabel);
+                return;
+            }
+        }
+        else if (reader.Remaining >= 6)
+        {
+            if (!reader.TryReadByte(out isRealMan) ||
+                !reader.TryReadInt(out robotUid) ||
+                !reader.TryReadByte(out slot))
+            {
+                Log.Warning("Channel packet136 use parse failed from {Remote}: remaining={Remaining}", _remoteLabel, reader.Remaining);
+                return;
+            }
+        }
+        else
+        {
+            Log.Warning(
+                "Channel packet136 use parse failed from {Remote}: unexpected remaining={Remaining}",
+                _remoteLabel,
+                reader.Remaining);
+            if (reader.Remaining > 0)
+            {
+                reader.TryReadFixedBytes(reader.Remaining, out _);
+            }
+
+            return;
+        }
+
+        if (reader.Remaining > 0)
+        {
+            var trailingBytes = reader.Remaining;
+            reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
+            Log.Verbose(
+                "Channel packet136 <- {Remote}: use trailingBytes={TrailingBytes} hex={PayloadHex}",
+                _remoteLabel,
+                trailingBytes,
+                Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
+        }
+
+        var actorUid = ResolveGameUseActorUid(isRealMan, robotUid);
+        var skill = ResolveLocalSkillUseItem(slot);
+        const byte success = 1;
+        const byte usedNum = 1;
+        await SendPacket160GameUseAsync(actorUid, slot, success, usedNum);
+
+        if (skill is not null && _currentGameRoom is not null && BreaksStealthOnUse(skill))
+        {
+            _practiceRoomManager.ClearGameBuff(_currentGameRoom.RoomId, actorUid, GameBuffTypeLurk);
+        }
+
+        var broadcastCount = _currentGameRoom is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameUseAsync(
+                _currentGameRoom.RoomId,
+                this,
+                actorUid,
+                slot,
+                success,
+                usedNum);
+
+        var effectBroadcastCount = await SendGameSkillUseEffectAsync(actorUid, slot, skill);
+
+        Log.Information(
+            "Channel packet136 <- {Remote}: use isRealMan={IsRealMan} robotUid={RobotUid} actorUid={ActorUid} useCode={UseCode} resolvedSkillSlot={ResolvedSkillSlot} skillType={SkillType} skillResource={SkillResource} success={Success} usedNum={UsedNum} broadcastCount={BroadcastCount} effectBroadcastCount={EffectBroadcastCount}",
+            _remoteLabel,
+            isRealMan,
+            robotUid,
+            actorUid,
+            slot,
+            skill?.Slot,
+            skill?.SkillType,
+            skill?.Resource ?? "-",
+            success,
+            usedNum,
+            broadcastCount,
+            effectBroadcastCount);
+    }
+
+    private async Task HandlePacket152ThrowDropItemAsync(PacketReader reader)
+    {
+        var payload = reader.RemainingSpan.ToArray();
+        if (!reader.TryReadByte(out var isRealMan) ||
+            !reader.TryReadInt(out var robotUid))
+        {
+            Log.Warning(
+                "Channel packet152 <- {Remote}: throw-drop-item parse failed remaining={Remaining} hex={PayloadHex}",
+                _remoteLabel,
+                reader.Remaining,
+                Convert.ToHexString(payload));
+            return;
+        }
+
+        var isSkill = GameSkillThrowDropMarker;
+        byte slot;
+        if (reader.Remaining >= 14)
+        {
+            if (!reader.TryReadByte(out isSkill) ||
+                !reader.TryReadByte(out slot))
+            {
+                Log.Warning(
+                    "Channel packet152 <- {Remote}: throw-drop-item parse failed after actor remaining={Remaining} hex={PayloadHex}",
+                    _remoteLabel,
+                    reader.Remaining,
+                    Convert.ToHexString(payload));
+                return;
+            }
+        }
+        else if (reader.Remaining >= 13)
+        {
+            if (!reader.TryReadByte(out slot))
+            {
+                Log.Warning(
+                    "Channel packet152 <- {Remote}: throw-drop-item legacy parse failed remaining={Remaining} hex={PayloadHex}",
+                    _remoteLabel,
+                    reader.Remaining,
+                    Convert.ToHexString(payload));
+                return;
+            }
+        }
+        else
+        {
+            Log.Warning(
+                "Channel packet152 <- {Remote}: throw-drop-item parse failed short payload remaining={Remaining} hex={PayloadHex}",
+                _remoteLabel,
+                reader.Remaining,
+                Convert.ToHexString(payload));
+            return;
+        }
+
+        if (!TryReadCompressedVector3Raw(reader, out var position) ||
+            !TryReadCompressedVector3Raw(reader, out var direction))
+        {
+            Log.Warning(
+                "Channel packet152 <- {Remote}: throw-drop-item missing vectors slot={Slot} remaining={Remaining} hex={PayloadHex}",
+                _remoteLabel,
+                slot,
+                reader.Remaining,
+                Convert.ToHexString(payload));
+            return;
+        }
+
+        if (reader.Remaining > 0)
+        {
+            var trailingBytes = reader.Remaining;
+            reader.TryReadFixedBytes(trailingBytes, out var trailingPayload);
+            Log.Verbose(
+                "Channel packet152 <- {Remote}: throw-drop-item trailingBytes={TrailingBytes} hex={PayloadHex}",
+                _remoteLabel,
+                trailingBytes,
+                Convert.ToHexString(trailingPayload ?? Array.Empty<byte>()));
+        }
+
+        var actorUid = ResolveGameUseActorUid(isRealMan, robotUid);
+        var skill = ResolveLocalSkillUseItem(slot);
+        if (!TryResolveThrowDropSkill(skill, out var dropType, out var primaryValue, out var secondaryValue, out var effectName))
+        {
+            Log.Warning(
+                "Channel packet152 <- {Remote}: throw-drop-item ignored actorUid={ActorUid} slot={Slot} isSkill={IsSkill} skillType={SkillType} skillResource={SkillResource}",
+                _remoteLabel,
+                actorUid,
+                slot,
+                isSkill,
+                skill?.SkillType,
+                skill?.Resource ?? "-");
+            return;
+        }
+
+        var dropId = AllocateGameDropItemId();
+        var skillLevel = skill is null ? 1 : ResolveLocalSkillLevel(skill);
+        if (dropType == GameDropTypeSnare)
+        {
+            primaryValue = ResolveSkillLevelValue(SnareSkillDamageValues, skillLevel);
+            secondaryValue = 0;
+        }
+        else if (dropType == GameDropTypeEnergy)
+        {
+            primaryValue = ResolveSkillLevelValue(EnergySkillTotalHealValues, skillLevel);
+            secondaryValue = ResolveSkillLevelValue(EnergySkillTickHealValues, skillLevel);
+        }
+
+        var packetValue = ClampDropItemValue(primaryValue);
+        _practiceRoomManager.RegisterGameDropItem(
+            _currentGameRoom?.RoomId ?? 0,
+            dropId,
+            actorUid,
+            dropType,
+            slot,
+            position.X,
+            position.Y,
+            position.Z,
+            primaryValue,
+            secondaryValue);
+
+        await SendPacket185ThrowDropItemAsync(
+            actorUid,
+            dropType,
+            dropId,
+            slot,
+            position.X,
+            position.Y,
+            position.Z,
+            direction.X,
+            direction.Y,
+            direction.Z,
+            packetValue);
+
+        var broadcastCount = _currentGameRoom is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameThrowDropItemAsync(
+                _currentGameRoom.RoomId,
+                this,
+                actorUid,
+                dropType,
+                dropId,
+                slot,
+                position.X,
+                position.Y,
+                position.Z,
+                direction.X,
+                direction.Y,
+                direction.Z,
+                packetValue);
+
+        Log.Information(
+            "Channel packet152 <- {Remote}: throw-drop-item actorUid={ActorUid} slot={Slot} isSkill={IsSkill} effect={Effect} dropType={DropType} dropId={DropId} value={Value} secondaryValue={SecondaryValue} posRaw=({X},{Y},{Z}) dirRaw=({DirX},{DirY},{DirZ}) broadcastCount={BroadcastCount}",
+            _remoteLabel,
+            actorUid,
+            slot,
+            isSkill,
+            effectName,
+            dropType,
+            dropId,
+            primaryValue,
+            secondaryValue,
+            position.X,
+            position.Y,
+            position.Z,
+            direction.X,
+            direction.Y,
+            direction.Z,
+            broadcastCount);
+    }
+
+    private byte ResolveGameUseActorUid(byte isRealMan, int robotUid)
+    {
+        if (isRealMan == 0 && robotUid > 0 && robotUid <= byte.MaxValue)
+        {
+            return (byte)robotUid;
+        }
+
+        return _localGameUid;
+    }
+
+    private PlayerStore.PlayerState.GameSkillSlotItem? ResolveLocalSkillUseItem(byte useCode)
+    {
+        if (_currentGameRoom is null)
+        {
+            return null;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        var skillItems = playerState?.GetGameSkillSlotItems();
+        if (skillItems is null || skillItems.Count == 0)
+        {
+            return null;
+        }
+
+        var slotMatch = skillItems.FirstOrDefault(item => item.Slot == useCode);
+        if (slotMatch is not null && IsImplementedActiveSkill(slotMatch))
+        {
+            return slotMatch;
+        }
+
+        var activeTypeMatch = skillItems.FirstOrDefault(item =>
+            item.SkillType == useCode &&
+            item.Initiative);
+        if (activeTypeMatch is not null)
+        {
+            return activeTypeMatch;
+        }
+
+        var typeMatch = skillItems.FirstOrDefault(item => item.SkillType == useCode);
+        if (typeMatch is not null && slotMatch is null)
+        {
+            return typeMatch;
+        }
+
+        return slotMatch;
+    }
+
+    private async Task<int> SendGameSkillUseEffectAsync(
+        byte actorUid,
+        byte slot,
+        PlayerStore.PlayerState.GameSkillSlotItem? skill)
+    {
+        if (skill is null)
+        {
+            return 0;
+        }
+
+        var skillLevel = ResolveLocalSkillLevel(skill);
+        var skillCode = ResolveGameSkillFeedbackCode(slot, skill);
+        var broadcastCount = await SendAndBroadcastGameSkillFeedbackAsync(actorUid, actorUid, skillCode, skill);
+
+        var resource = skill.Resource ?? string.Empty;
+        switch (skill.SkillType)
+        {
+            case GameSkillTypeCure:
+                broadcastCount += await SendAreaBuffStartAsync(
+                    actorUid,
+                    _practiceRoomManager.ListGameAreaAllyUids(_currentGameRoom?.RoomId ?? 0, actorUid, GameSkillAreaRadius, includeSelf: true),
+                    GameBuffTypeCure,
+                    DefaultGameSkillDuration,
+                    AreaBuffCooldownLock,
+                    ResolveSkillLevelValue(CureSkillHealValues, skillLevel),
+                    0f,
+                    skill);
+                broadcastCount += (await BroadcastAreaHealAsync(actorUid, ResolveSkillLevelValue(CureSkillHealValues, skillLevel), GameSkillAreaRadius, includeSelf: true)).BroadcastCount;
+                return broadcastCount;
+
+            case GameSkillTypeShield:
+                broadcastCount += await SendAreaBuffStartAsync(
+                    actorUid,
+                    _practiceRoomManager.ListGameAreaAllyUids(_currentGameRoom?.RoomId ?? 0, actorUid, GameSkillAreaRadius, includeSelf: true),
+                    GameBuffTypeShield,
+                    10f,
+                    AreaBuffCooldownLock,
+                    ResolveSkillLevelValue(ShieldSkillValueValues, skillLevel),
+                    0f,
+                    skill);
+                return broadcastCount;
+
+            case GameSkillTypeHidden:
+                broadcastCount += await SendAndBroadcastGameBuffStartAsync(
+                    actorUid,
+                    actorUid,
+                    GameBuffTypeLurk,
+                    20f,
+                    (byte)AreaBuffCooldownLock,
+                    0f,
+                    ResolveStealthDetectDistance(skillLevel),
+                    skill);
+                return broadcastCount;
+
+            case GameSkillTypeShock:
+                broadcastCount += await SendAreaBuffStartAsync(
+                    actorUid,
+                    _practiceRoomManager.ListGameAreaEnemyUids(_currentGameRoom?.RoomId ?? 0, actorUid, ShockSkillAreaRadius),
+                    GameBuffTypeShock,
+                    DefaultGameSkillDuration,
+                    AreaBuffCooldownLock,
+                    ResolveSkillLevelValue(ShockSkillDamageValues, skillLevel),
+                    0f,
+                    skill);
+                broadcastCount += (await BroadcastAreaDamageAsync(actorUid, ResolveSkillLevelValue(ShockSkillDamageValues, skillLevel), ShockSkillAreaRadius)).BroadcastCount;
+                return broadcastCount;
+
+            case GameSkillTypeGallop:
+                broadcastCount += await SendAreaBuffStartAsync(
+                    actorUid,
+                    _practiceRoomManager.ListGameAreaAllyUids(_currentGameRoom?.RoomId ?? 0, actorUid, GameSkillAreaRadius, includeSelf: true),
+                    GameBuffTypeGallop,
+                    ResolveSkillLevelValue(GallopSkillDurationValues, skillLevel),
+                    AreaBuffCooldownLock,
+                    5f,
+                    0f,
+                    skill);
+                return broadcastCount;
+
+            case GameSkillTypeRain:
+                broadcastCount += await SendAndBroadcastGameBuffStartAsync(
+                    actorUid,
+                    actorUid,
+                    GameBuffTypeRain,
+                    DefaultGameSkillDuration,
+                    (byte)AreaBuffCooldownLock,
+                    ResolveSkillLevelValue(RainSkillArrowCountValues, skillLevel),
+                    0f,
+                    skill);
+                broadcastCount += (await BroadcastAreaDamageAsync(
+                    actorUid,
+                    Math.Max(DefaultGameHurtDamage, ResolveCurrentWeaponDamage()) * ResolveSkillLevelValue(RainSkillArrowCountValues, skillLevel),
+                    GameSkillAreaRadius)).BroadcastCount;
+                return broadcastCount;
+
+            case GameSkillTypeSpurt:
+                broadcastCount += await SendAndBroadcastGameBuffStartAsync(
+                    actorUid,
+                    actorUid,
+                    GameBuffTypeCelerity,
+                    ResolveSkillLevelValue(SpurtSkillDurationValues, skillLevel),
+                    (byte)AreaBuffCooldownLock,
+                    0f,
+                    0f,
+                    skill);
+                broadcastCount += (await _practiceRoomManager.BroadcastGameSpurtDamageAsync(
+                    _currentGameRoom?.RoomId ?? 0,
+                    actorUid,
+                    Math.Max(DefaultGameHurtDamage, ResolveCurrentWeaponDamage()))).BroadcastCount;
+                return broadcastCount;
+
+            case GameSkillTypeSnare:
+                _ = SendFallbackThrowDropItemIfNeededAsync(actorUid, slot, skill);
+                broadcastCount += await SendAndBroadcastGameBuffStartAsync(
+                    actorUid,
+                    actorUid,
+                    GameBuffTypeSnare,
+                    25f,
+                    (byte)AreaBuffCooldownLock,
+                    ResolveSkillLevelValue(SnareSkillDamageValues, skillLevel),
+                    SnareSkillAreaRadius,
+                    skill);
+                return broadcastCount;
+
+            case GameSkillTypeEnergy:
+                _ = SendFallbackThrowDropItemIfNeededAsync(actorUid, slot, skill);
+                return broadcastCount;
+
+            case GameSkillTypeConduction when IsSkillResource(skill, "conduction"):
+                broadcastCount += await SendConductionEffectAsync(actorUid, skillLevel, skill);
+                return broadcastCount;
+
+            case GameSkillTypeOverreaction when IsSkillResource(skill, "overreaction"):
+                broadcastCount += await SendOverreactionEffectAsync(actorUid, skillLevel, skill);
+                return broadcastCount;
+
+            default:
+                if (string.Equals(resource, "conduction", StringComparison.OrdinalIgnoreCase))
+                {
+                    broadcastCount += await SendConductionEffectAsync(actorUid, skillLevel, skill);
+                    return broadcastCount;
+                }
+
+                if (string.Equals(resource, "overreaction", StringComparison.OrdinalIgnoreCase))
+                {
+                    broadcastCount += await SendOverreactionEffectAsync(actorUid, skillLevel, skill);
+                    return broadcastCount;
+                }
+
+                Log.Verbose(
+                    "Channel packet136 skill effect only sent feedback for {Remote}: actorUid={ActorUid} slot={Slot} skillType={SkillType} resource={Resource}",
+                    _remoteLabel,
+                    actorUid,
+                    slot,
+                    skill.SkillType,
+                    skill.Resource);
+                return broadcastCount;
+        }
+    }
+
+    private static byte ResolveGameSkillFeedbackCode(byte useCode, PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        return skill.SkillType != 0 ? skill.SkillType : useCode;
+    }
+
+    private static bool IsSkillResource(PlayerStore.PlayerState.GameSkillSlotItem skill, string resource)
+    {
+        return string.Equals(skill.Resource, resource, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<int> SendAndBroadcastGameSkillFeedbackAsync(
+        byte fromUid,
+        byte targetUid,
+        byte skillCode,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        await SendPacket162GameSkillFeedbackAsync(fromUid, targetUid, skillCode);
+
+        var broadcastCount = _currentGameRoom is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameSkillFeedbackAsync(
+                _currentGameRoom.RoomId,
+                this,
+                fromUid,
+                targetUid,
+                skillCode);
+
+        Log.Information(
+            "Channel skill effect -> {Remote}: feedback skill={SkillResource} skillType={SkillType} fromUid={FromUid} targetUid={TargetUid} skillCode={SkillCode} flags=0x{Flags:X8} broadcastCount={BroadcastCount}",
+            _remoteLabel,
+            skill.Resource,
+            skill.SkillType,
+            fromUid,
+            targetUid,
+            skillCode,
+            GameSkillFeedbackFlags,
+            broadcastCount);
+        return broadcastCount;
+    }
+
+    private async Task<int> SendAndBroadcastGameBuffStartAsync(
+        byte fromUid,
+        byte targetUid,
+        short buffType,
+        float duration,
+        byte cooldownLock,
+        float value1,
+        float value2,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        await SendPacket162BuffStartAsync(
+            fromUid,
+            targetUid,
+            buffType,
+            duration,
+            cooldownLock,
+            value1,
+            value2);
+
+        var broadcastCount = _currentGameRoom is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameBuffStartAsync(
+                _currentGameRoom.RoomId,
+                this,
+                fromUid,
+                targetUid,
+                buffType,
+                duration,
+                cooldownLock,
+                value1,
+                value2);
+
+        Log.Information(
+            "Channel skill effect -> {Remote}: buff-start skill={SkillResource} skillType={SkillType} fromUid={FromUid} targetUid={TargetUid} buffType={BuffType} duration={Duration} cooldownLock={CooldownLock} value1={Value1} value2={Value2} broadcastCount={BroadcastCount}",
+            _remoteLabel,
+            skill.Resource,
+            skill.SkillType,
+            fromUid,
+            targetUid,
+            buffType,
+            FormatProtocolFloat(duration),
+            cooldownLock,
+            FormatProtocolFloat(value1),
+            FormatProtocolFloat(value2),
+            broadcastCount);
+        return broadcastCount;
+    }
+
+    private async Task<int> SendAreaBuffStartAsync(
+        byte fromUid,
+        IReadOnlyList<byte> targetUids,
+        short buffType,
+        float duration,
+        float cooldownLock,
+        float value1,
+        float value2,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        var sent = 0;
+        foreach (var targetUid in targetUids.Distinct().OrderBy(uid => uid))
+        {
+            sent += await SendAndBroadcastGameBuffStartAsync(
+                fromUid,
+                targetUid,
+                buffType,
+                duration,
+                (byte)Math.Clamp((int)MathF.Round(cooldownLock), 0, byte.MaxValue),
+                value1,
+                value2,
+                skill);
+        }
+
+        return sent;
+    }
+
+    private Task<PracticeRoomManager.GameAreaEffectBroadcastResult> BroadcastAreaHealAsync(
+        byte actorUid,
+        int heal,
+        float radius,
+        bool includeSelf)
+    {
+        return _currentGameRoom is null
+            ? Task.FromResult(new PracticeRoomManager.GameAreaEffectBroadcastResult(false, 0, 0, 0, "no-room"))
+            : _practiceRoomManager.BroadcastGameAreaHealAsync(
+                _currentGameRoom.RoomId,
+                actorUid,
+                heal,
+                radius,
+                includeSelf);
+    }
+
+    private Task<PracticeRoomManager.GameAreaEffectBroadcastResult> BroadcastAreaDamageAsync(
+        byte actorUid,
+        int damage,
+        float radius)
+    {
+        return _currentGameRoom is null
+            ? Task.FromResult(new PracticeRoomManager.GameAreaEffectBroadcastResult(false, 0, 0, 0, "no-room"))
+            : _practiceRoomManager.BroadcastGameAreaDamageAsync(
+                _currentGameRoom.RoomId,
+                actorUid,
+                damage,
+                radius);
+    }
+
+    private async Task<int> SendConductionEffectAsync(
+        byte actorUid,
+        int skillLevel,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        var broadcastCount = await SendAndBroadcastGameBuffStartAsync(
+            actorUid,
+            actorUid,
+            GameBuffTypeConductionSelf,
+            DefaultGameSkillDuration,
+            (byte)AreaBuffCooldownLock,
+            ResolveSkillLevelValue(ConductionSkillHealValues, skillLevel),
+            0f,
+            skill);
+        broadcastCount += await SendAreaBuffStartAsync(
+            actorUid,
+            _practiceRoomManager.ListGameAreaEnemyUids(_currentGameRoom?.RoomId ?? 0, actorUid, ConductionSkillAreaRadius),
+            GameBuffTypeConductionTarget,
+            DefaultGameSkillDuration,
+            0f,
+            ResolveSkillLevelValue(ConductionSkillDamageValues, skillLevel),
+            0f,
+            skill);
+        broadcastCount += (await BroadcastAreaDamageAsync(actorUid, ResolveSkillLevelValue(ConductionSkillDamageValues, skillLevel), ConductionSkillAreaRadius)).BroadcastCount;
+        broadcastCount += (await BroadcastAreaHealAsync(actorUid, ResolveSkillLevelValue(ConductionSkillHealValues, skillLevel), ConductionSkillAreaRadius, includeSelf: true)).BroadcastCount;
+        return broadcastCount;
+    }
+
+    private async Task<int> SendOverreactionEffectAsync(
+        byte actorUid,
+        int skillLevel,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        var broadcastCount = await SendAndBroadcastGameBuffStartAsync(
+            actorUid,
+            actorUid,
+            GameBuffTypeOverreactionSelf,
+            DefaultGameSkillDuration,
+            (byte)AreaBuffCooldownLock,
+            ResolveSkillLevelValue(OverreactionSkillDamageValues, skillLevel),
+            0f,
+            skill);
+        broadcastCount += await SendAndBroadcastGameBuffStartAsync(
+            actorUid,
+            actorUid,
+            GameBuffTypeOverreaction,
+            DefaultGameSkillDuration,
+            0,
+            ResolveSkillLevelValue(OverreactionSkillDamageValues, skillLevel),
+            0f,
+            skill);
+        broadcastCount += (await BroadcastAreaDamageAsync(actorUid, ResolveSkillLevelValue(OverreactionSkillDamageValues, skillLevel), OverreactionSkillAreaRadius)).BroadcastCount;
+        return broadcastCount;
+    }
+
+    private async Task SendFallbackThrowDropItemIfNeededAsync(
+        byte actorUid,
+        byte slot,
+        PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        try
+        {
+            await Task.Delay(ThrowDropFallbackDelayMilliseconds);
+            if (_currentGameRoom is null ||
+                _practiceRoomManager.HasRecentGameDropItem(
+                    _currentGameRoom.RoomId,
+                    actorUid,
+                    slot,
+                    TimeSpan.FromMilliseconds(ThrowDropFallbackDelayMilliseconds * 3)))
+            {
+                return;
+            }
+
+            var position = TryGetLocalGamePosition(out var localPosition)
+                ? localPosition
+                : new PracticeRoomManager.GamePosition(0, 0, 0, null, null, null, DateTimeOffset.UtcNow);
+            var dropId = AllocateGameDropItemId();
+            var (dirX, dirY, dirZ) = ResolveForwardDirectionRaw(position);
+            var posX = position.XRaw;
+            var posY = AddCompressedRaw(position.YRaw, SnareFallbackHeightOffset);
+            var posZ = position.ZRaw;
+            if (!TryResolveThrowDropSkill(skill, out var dropType, out var primaryValue, out var secondaryValue, out var effectName))
+            {
+                return;
+            }
+
+            var skillLevel = ResolveLocalSkillLevel(skill);
+            if (dropType == GameDropTypeSnare)
+            {
+                primaryValue = ResolveSkillLevelValue(SnareSkillDamageValues, skillLevel);
+                secondaryValue = 0;
+            }
+            else if (dropType == GameDropTypeEnergy)
+            {
+                primaryValue = ResolveSkillLevelValue(EnergySkillTotalHealValues, skillLevel);
+                secondaryValue = ResolveSkillLevelValue(EnergySkillTickHealValues, skillLevel);
+            }
+
+            var packetValue = ClampDropItemValue(primaryValue);
+
+            _practiceRoomManager.RegisterGameDropItem(
+                _currentGameRoom.RoomId,
+                dropId,
+                actorUid,
+                dropType,
+                slot,
+                posX,
+                posY,
+                posZ,
+                primaryValue,
+                secondaryValue);
+
+            await SendPacket185ThrowDropItemAsync(
+                actorUid,
+                dropType,
+                dropId,
+                slot,
+                posX,
+                posY,
+                posZ,
+                dirX,
+                dirY,
+                dirZ,
+                packetValue);
+
+            var broadcastCount = await _practiceRoomManager.BroadcastGameThrowDropItemAsync(
+                _currentGameRoom.RoomId,
+                this,
+                actorUid,
+                dropType,
+                dropId,
+                slot,
+                posX,
+                posY,
+                posZ,
+                dirX,
+                dirY,
+                dirZ,
+                packetValue);
+
+            Log.Information(
+                "Channel skill fallback -> {Remote}: {Effect} throw-drop-item skill={SkillResource} actorUid={ActorUid} slot={Slot} dropType={DropType} dropId={DropId} value={Value} secondaryValue={SecondaryValue} posRaw=({X},{Y},{Z}) dirRaw=({DirX},{DirY},{DirZ}) broadcastCount={BroadcastCount}",
+                _remoteLabel,
+                effectName,
+                skill.Resource,
+                actorUid,
+                slot,
+                dropType,
+                dropId,
+                primaryValue,
+                secondaryValue,
+                posX,
+                posY,
+                posZ,
+                dirX,
+                dirY,
+                dirZ,
+                broadcastCount);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(
+                ex,
+                "Channel skill fallback failed for {Remote}: actorUid={ActorUid} slot={Slot}",
+                _remoteLabel,
+                actorUid,
+                slot);
+        }
+    }
+
+    private byte AllocateGameDropItemId()
+    {
+        var next = (byte)(Interlocked.Increment(ref _nextGameDropItemId) & 0xFF);
+        return next == 0 ? (byte)1 : next;
+    }
+
+    private static short ClampDropItemValue(int value)
+    {
+        return (short)Math.Clamp(value, short.MinValue, short.MaxValue);
+    }
+
+    private static bool IsSnareSkill(PlayerStore.PlayerState.GameSkillSlotItem? skill)
+    {
+        return skill is not null &&
+            (skill.SkillType == GameSkillTypeSnare ||
+             string.Equals(skill.Resource, "snare", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsEnergySkill(PlayerStore.PlayerState.GameSkillSlotItem? skill)
+    {
+        return skill is not null &&
+            (skill.SkillType == GameSkillTypeEnergy ||
+             string.Equals(skill.Resource, "energy", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool TryResolveThrowDropSkill(
+        PlayerStore.PlayerState.GameSkillSlotItem? skill,
+        out byte dropType,
+        out int primaryValue,
+        out int secondaryValue,
+        out string effectName)
+    {
+        if (IsSnareSkill(skill))
+        {
+            dropType = GameDropTypeSnare;
+            primaryValue = 0;
+            secondaryValue = 0;
+            effectName = "snare";
+            return true;
+        }
+
+        if (IsEnergySkill(skill))
+        {
+            dropType = GameDropTypeEnergy;
+            primaryValue = 0;
+            secondaryValue = 0;
+            effectName = "energy";
+            return true;
+        }
+
+        dropType = 0;
+        primaryValue = 0;
+        secondaryValue = 0;
+        effectName = string.Empty;
+        return false;
+    }
+
+    private static bool IsMachineGunLoadoutItem(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        return item.Subtype == 3 ||
+            item.Resource.Contains("machinegun", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool BreaksStealthOnUse(PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        return skill.SkillType != GameSkillTypeHidden &&
+            !string.Equals(skill.Resource, "latent", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsImplementedActiveSkill(PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        return skill.Initiative &&
+            (skill.SkillType is
+                GameSkillTypeCure or
+                GameSkillTypeShield or
+                GameSkillTypeHidden or
+                GameSkillTypeShock or
+                GameSkillTypeGallop or
+                GameSkillTypeRain or
+                GameSkillTypeSpurt or
+                GameSkillTypeSnare or
+                GameSkillTypeEnergy or
+                GameSkillTypeConduction or
+                GameSkillTypeOverreaction ||
+             IsKnownActiveSkillResource(skill.Resource));
+    }
+
+    private static bool IsKnownActiveSkillResource(string resource)
+    {
+        return string.Equals(resource, "cure", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "shield", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "latent", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "shock", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "gallop", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "rain", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "spurt", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "snare", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "energy", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "conduction", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(resource, "overreaction", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private int ResolveLocalSkillLevel(PlayerStore.PlayerState.GameSkillSlotItem skill)
+    {
+        return ResolveLocalSkillLevel(skill.SkillType, skill.Resource);
+    }
+
+    private int ResolveLocalSkillLevel(byte skillType, string? resource = null)
+    {
+        if (_currentGameRoom is null)
+        {
+            return 1;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        if (playerState is null)
+        {
+            return 1;
+        }
+
+        var level = playerState.GetSkillLevel(skillType);
+        if (level <= 0 && !string.IsNullOrWhiteSpace(resource))
+        {
+            var skill = playerState.GetGameSkillSlotItems()
+                .FirstOrDefault(skill => string.Equals(skill.Resource, resource, StringComparison.OrdinalIgnoreCase));
+            if (skill is not null)
+            {
+                level = playerState.GetSkillLevel(skill.SkillType);
+            }
+        }
+
+        return Math.Clamp(level, 1, 6);
+    }
+
+    private int ResolveLocalSkillLevelByResource(string resource)
+    {
+        if (_currentGameRoom is null)
+        {
+            return 1;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        if (playerState is null)
+        {
+            return 1;
+        }
+
+        var skill = playerState.GetGameSkillSlotItems()
+            .FirstOrDefault(skill => string.Equals(skill.Resource, resource, StringComparison.OrdinalIgnoreCase));
+        return skill is null ? 1 : Math.Clamp(playerState.GetSkillLevel(skill.SkillType), 1, 6);
+    }
+
+    private bool HasLocalSkill(byte skillType)
+    {
+        if (_currentGameRoom is null)
+        {
+            return false;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        return playerState?.GetGameSkillSlotItems().Any(skill => skill.SkillType == skillType) == true;
+    }
+
+    private bool HasLocalSkillResource(string resource)
+    {
+        if (_currentGameRoom is null)
+        {
+            return false;
+        }
+
+        var playerState = GetLocalPlayerState(_currentGameRoom);
+        return playerState?.GetGameSkillSlotItems().Any(skill =>
+            string.Equals(skill.Resource, resource, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static int ResolveSkillLevelValue(IReadOnlyList<int> values, int level)
+    {
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
+        return values[Math.Clamp(level, 1, values.Count) - 1];
+    }
+
+    private static int ResolveGameSkillDisplayLevel(string? display)
+    {
+        if (string.IsNullOrWhiteSpace(display))
+        {
+            return 0;
+        }
+
+        var index = display.LastIndexOf('_');
+        return index >= 0 &&
+               index + 1 < display.Length &&
+               int.TryParse(display[(index + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out var level)
+            ? Math.Clamp(level, 1, 6)
+            : 0;
+    }
+
+    private static float ResolveStealthDetectDistance(int level)
+    {
+        return ResolveSkillLevelValue([11, 10, 9, 8, 6, 3], level);
+    }
+
+    private int ResolveCurrentWeaponDamage()
+    {
+        return ResolveGameWeaponDamage(ResolveLocalLoadoutItem(ResolveCurrentReloadReadySlot()));
+    }
+
+    private PracticeRoomManager.PlayerSkillRuntime BuildPlayerSkillRuntime(PlayerStore.PlayerState? playerState)
+    {
+        if (playerState is null)
+        {
+            return PracticeRoomManager.PlayerSkillRuntime.Empty;
+        }
+
+        var skillItems = playerState.GetGameSkillSlotItems();
+        var levels = skillItems
+            .GroupBy(skill => skill.SkillType)
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var level = playerState.GetSkillLevel(group.Key);
+                    if (level <= 0)
+                    {
+                        level = group.Max(skill => ResolveGameSkillDisplayLevel(skill.DisplayName));
+                    }
+
+                    return Math.Clamp(level, 1, 6);
+                });
+        var resources = skillItems
+            .Where(skill => !string.IsNullOrWhiteSpace(skill.Resource))
+            .Select(skill => skill.Resource)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new PracticeRoomManager.PlayerSkillRuntime(levels, resources);
     }
 
     private async Task HandlePacket142GameReloadReadyAsync(PacketReader reader)
@@ -3881,6 +5041,22 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteShort(z);
     }
 
+    private static bool TryReadCompressedVector3Raw(
+        PacketReader reader,
+        out (short X, short Y, short Z) value)
+    {
+        value = default;
+        if (!reader.TryReadShort(out var x) ||
+            !reader.TryReadShort(out var y) ||
+            !reader.TryReadShort(out var z))
+        {
+            return false;
+        }
+
+        value = (x, y, z);
+        return true;
+    }
+
     private static void WriteCompressedVector3(PacketWriter writer, float x, float y, float z)
     {
         writer.WriteShort(ToCompressedVectorRaw(x));
@@ -3899,6 +5075,25 @@ internal sealed class PracticeRoomChannelProtocol
             (int)MathF.Round(value * ActionPoseRawCoordinateScale),
             short.MinValue + 1,
             short.MaxValue);
+    }
+
+    private static short AddCompressedRaw(short raw, float worldOffset)
+    {
+        var rawOffset = (int)MathF.Round(worldOffset * ActionPoseRawCoordinateScale);
+        return (short)Math.Clamp(raw + rawOffset, short.MinValue + 1, short.MaxValue);
+    }
+
+    private static (short X, short Y, short Z) ResolveForwardDirectionRaw(PracticeRoomManager.GamePosition position)
+    {
+        if (position.Facing0Raw is not { } facing0Raw)
+        {
+            return (0, 0, ToCompressedVectorRaw(-SnareFallbackForwardDistance));
+        }
+
+        var yaw = facing0Raw / FacingRawAngleScale;
+        var x = MathF.Sin(yaw) * SnareFallbackForwardDistance;
+        var z = -MathF.Cos(yaw) * SnareFallbackForwardDistance;
+        return (ToCompressedVectorRaw(x), 0, ToCompressedVectorRaw(z));
     }
 
     private static (float X, float Y, float Z) ResolveRemoteShootVector(PracticeRoomManager.GameShootAction shoot)
@@ -4461,6 +5656,17 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    private Task SendPacket112GameLoadingZeroStateAsync()
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(112);
+        writer.WriteByte(0x40);
+        writer.WriteRaw(new byte[177]);
+
+        Log.Information("Channel packet112 -> {Remote}: game-loading zero state", _remoteLabel);
+        return SendPacketAsync(writer);
+    }
+
     private Task SendPacket109GamePingBackAsync()
     {
         using var writer = new PacketWriter();
@@ -4565,6 +5771,114 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    internal Task SendPacket160GameUseAsync(byte actorUid, byte slot, byte success, byte usedNum)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameUsePacketId);
+        writer.WriteByte(actorUid);
+        writer.WriteByte(slot);
+        writer.WriteByte(success);
+        writer.WriteByte(usedNum);
+
+        Log.Verbose(
+            "Channel packet160 -> {Remote}: use uid={Uid} slot={Slot} success={Success} usedNum={UsedNum}",
+            _remoteLabel,
+            actorUid,
+            slot,
+            success,
+            usedNum);
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket162GameSkillFeedbackAsync(
+        byte fromUid,
+        byte targetUid,
+        byte skillCode)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameBuffStartPacketId);
+        WriteGameObjectDeltaFlags(writer, GameSkillFeedbackFlags);
+        writer.WriteByte(fromUid);
+        writer.WriteByte(targetUid);
+        writer.WriteByte(skillCode);
+        writer.WriteShort(skillCode);
+
+        Log.Verbose(
+            "Channel packet162 -> {Remote}: skill-feedback fromUid={FromUid} targetUid={TargetUid} skillCode={SkillCode} flags=0x{Flags:X8}",
+            _remoteLabel,
+            fromUid,
+            targetUid,
+            skillCode,
+            GameSkillFeedbackFlags);
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket162BuffStartAsync(
+        byte fromUid,
+        byte targetUid,
+        short buffType,
+        float duration,
+        byte cooldownLock,
+        float value1,
+        float value2)
+    {
+        using var writer = new PacketWriter();
+        var flags =
+            InfoPartByteData0 |
+            InfoPartByteData1 |
+            InfoPartFloatData1 |
+            InfoPartShortData6;
+
+        if (cooldownLock > 0)
+        {
+            flags |= InfoPartByteData3;
+        }
+
+        if (MathF.Abs(value1) > float.Epsilon)
+        {
+            flags |= InfoPartFloatData2;
+        }
+
+        if (MathF.Abs(value2) > float.Epsilon)
+        {
+            flags |= InfoPartFloatData3;
+        }
+
+        writer.WriteShort(GameBuffStartPacketId);
+        WriteGameObjectDeltaFlags(writer, flags);
+        writer.WriteByte(fromUid);
+        writer.WriteByte(targetUid);
+        if ((flags & InfoPartByteData3) != 0)
+        {
+            writer.WriteByte(cooldownLock);
+        }
+
+        writer.WriteShort(buffType);
+        writer.WriteFloat(duration);
+        if ((flags & InfoPartFloatData2) != 0)
+        {
+            writer.WriteFloat(value1);
+        }
+
+        if ((flags & InfoPartFloatData3) != 0)
+        {
+            writer.WriteFloat(value2);
+        }
+
+        Log.Verbose(
+            "Channel packet162 -> {Remote}: buff-start fromUid={FromUid} targetUid={TargetUid} buffType={BuffType} duration={Duration} cooldownLock={CooldownLock} value1={Value1} value2={Value2} flags=0x{Flags:X8}",
+            _remoteLabel,
+            fromUid,
+            targetUid,
+            buffType,
+            FormatProtocolFloat(duration),
+            cooldownLock,
+            FormatProtocolFloat(value1),
+            FormatProtocolFloat(value2),
+            flags);
+        return SendPacketAsync(writer);
+    }
+
     internal Task SendPacket162RemoteHurtAsync(PracticeRoomManager.GameDamageAction damage)
     {
         using var writer = new PacketWriter();
@@ -4622,6 +5936,46 @@ internal sealed class PracticeRoomChannelProtocol
                 damage.VictimMaxHealth);
         }
 
+        return SendPacketAsync(writer);
+    }
+
+    internal Task SendPacket185ThrowDropItemAsync(
+        byte actorUid,
+        byte dropType,
+        byte dropId,
+        byte slot,
+        short positionXRaw,
+        short positionYRaw,
+        short positionZRaw,
+        short directionXRaw,
+        short directionYRaw,
+        short directionZRaw,
+        short value)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameThrowDropItemPacketId);
+        writer.WriteByte(actorUid);
+        writer.WriteByte(dropType);
+        writer.WriteByte(dropId);
+        writer.WriteByte(slot);
+        WriteCompressedVector3Raw(writer, positionXRaw, positionYRaw, positionZRaw);
+        WriteCompressedVector3Raw(writer, directionXRaw, directionYRaw, directionZRaw);
+        writer.WriteShort(value);
+
+        Log.Verbose(
+            "Channel packet185 -> {Remote}: throw-drop-item actorUid={ActorUid} dropType={DropType} dropId={DropId} slot={Slot} posRaw=({X},{Y},{Z}) dirRaw=({DirX},{DirY},{DirZ}) value={Value}",
+            _remoteLabel,
+            actorUid,
+            dropType,
+            dropId,
+            slot,
+            positionXRaw,
+            positionYRaw,
+            positionZRaw,
+            directionXRaw,
+            directionYRaw,
+            directionZRaw,
+            value);
         return SendPacketAsync(writer);
     }
 
@@ -4714,7 +6068,7 @@ internal sealed class PracticeRoomChannelProtocol
         WriteGameLoadoutGroups(writer, loadoutGroups);
 
         Log.Information(
-            "Channel packet106 -> {Remote}: localUid={LocalUid} teamId={TeamId} career={Career} headerByte={HeaderByte} gameType={GameType} playerEntries={PlayerEntries} playerHealthField={PlayerHealthField} playerTail={PlayerTail} equipmentBlockCount={EquipmentBlockCount} loadoutCount={LoadoutCount} loadoutGroups={LoadoutGroups} loadoutSource={LoadoutSource} backpackStats=True loadout={Loadout}",
+            "Channel packet106 -> {Remote}: localUid={LocalUid} teamId={TeamId} career={Career} headerByte={HeaderByte} gameType={GameType} playerEntries={PlayerEntries} playerHealthField={PlayerHealthField} playerTail={PlayerTail} equipmentBlockCount={EquipmentBlockCount} loadoutCount={LoadoutCount} loadoutGroups={LoadoutGroups} loadoutSource={LoadoutSource} backpackStats=True skills={Skills} loadout={Loadout}",
             _remoteLabel,
             _localGameUid,
             teamId,
@@ -4728,6 +6082,7 @@ internal sealed class PracticeRoomChannelProtocol
             loadoutItems.Count,
             FormatGameLoadoutGroupCounts(loadoutGroups),
             loadoutSource,
+            FormatGameSkillSlotSummary(playerState?.GetGameSkillSlotItems() ?? Array.Empty<PlayerStore.PlayerState.GameSkillSlotItem>()),
             FormatGameLoadoutSummary(loadoutItems));
 
         return SendPacketAsync(writer);
@@ -4977,9 +6332,21 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(GamePlayerListTerminator);
     }
 
+    private static int CountGamePlayerSlotInfoEntries(IReadOnlyList<GamePacketPlayer> gamePlayers)
+    {
+        return gamePlayers.Sum(player => CountGameSlotInfoEntries(player.EquipmentItems, player.SkillItems));
+    }
+
     private static int CountGamePlayerEquipmentEntries(IReadOnlyList<GamePacketPlayer> gamePlayers)
     {
         return gamePlayers.Sum(player => player.EquipmentItems.Count);
+    }
+
+    private static int CountGameSlotInfoEntries(
+        IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> equipmentItems,
+        IReadOnlyList<PlayerStore.PlayerState.GameSkillSlotItem> skillItems)
+    {
+        return equipmentItems.Count + skillItems.Count;
     }
 
     private static string FormatGamePlayerTailSummary()
@@ -5181,6 +6548,7 @@ internal sealed class PracticeRoomChannelProtocol
         var rankLevel = member?.RankLevel is > 0 ? member.RankLevel : 1;
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
         var equipmentItems = GetSupportedGameEquipmentItems(loadoutItems);
+        var skillItems = playerState?.GetGameSkillSlotItems() ?? Array.Empty<PlayerStore.PlayerState.GameSkillSlotItem>();
         var independentTrinketItems = playerState?.GetGameIndependentTrinketItems() ??
             Array.Empty<PlayerStore.PlayerState.GameIndependentTrinketItem>();
 
@@ -5198,6 +6566,7 @@ internal sealed class PracticeRoomChannelProtocol
             character,
             loadoutItems,
             equipmentItems,
+            skillItems,
             independentTrinketItems,
             snapshot.LastPosition);
     }
@@ -5319,6 +6688,19 @@ internal sealed class PracticeRoomChannelProtocol
         return string.Join("/", loadoutGroups.Select(group => group.Length));
     }
 
+    private static string FormatGameSkillSlotSummary(IReadOnlyList<PlayerStore.PlayerState.GameSkillSlotItem> skillItems)
+    {
+        if (skillItems.Count == 0)
+        {
+            return "(empty)";
+        }
+
+        return string.Join(
+            "; ",
+            skillItems.Select(item =>
+                $"slot={item.Slot},type=1,sub={item.SkillType},res={item.Resource},display={item.DisplayName},cd={FormatProtocolFloat(item.CoolDown)},range={FormatProtocolFloat(item.Range)},initiative={(item.Initiative ? 1 : 0)}"));
+    }
+
     private static bool IsSupportedGameEquipmentItem(PlayerStore.PlayerState.GameLoadoutItem item)
     {
         if (item.ItemType != 2 || string.IsNullOrWhiteSpace(item.Resource))
@@ -5390,6 +6772,62 @@ internal sealed class PracticeRoomChannelProtocol
         }
     }
 
+    private void WriteGameSlotInfoBlock(
+        PacketWriter writer,
+        IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> equipmentItems,
+        IReadOnlyList<PlayerStore.PlayerState.GameSkillSlotItem> skillItems)
+    {
+        var activeSkills = skillItems
+            .Where(item => item.Initiative)
+            .OrderBy(item => item.Slot)
+            .ToArray();
+        var passiveSkills = skillItems
+            .Where(item => !item.Initiative)
+            .OrderBy(item => item.SkillType)
+            .ToArray();
+
+        writer.WriteInt(equipmentItems.Count + activeSkills.Length + passiveSkills.Length);
+
+        foreach (var item in equipmentItems)
+        {
+            WriteGameEquipmentEntry(writer, item);
+        }
+
+        foreach (var item in activeSkills)
+        {
+            WriteGameActiveSkillEntry(writer, item);
+        }
+
+        foreach (var item in passiveSkills)
+        {
+            WriteGamePassiveSkillEntry(writer, item);
+        }
+    }
+
+    private void WriteGameActiveSkillEntry(PacketWriter writer, PlayerStore.PlayerState.GameSkillSlotItem item)
+    {
+        writer.WriteByte(item.Slot);
+        writer.WriteByte(GameSkillSlotEntryKind);
+        writer.WriteByte(item.SkillType);
+        writer.WriteString(TrimProtocolString(item.Resource, 63));
+        writer.WriteString(TrimProtocolString(item.DisplayName, 255));
+        writer.WriteFloat(Math.Max(0f, item.CoolDown));
+        writer.WriteFloat(Math.Max(0f, item.Range));
+        writer.WriteByte(GameActiveSkillInitiativeFlag);
+    }
+
+    private void WriteGamePassiveSkillEntry(PacketWriter writer, PlayerStore.PlayerState.GameSkillSlotItem item)
+    {
+        writer.WriteByte(item.Slot);
+        writer.WriteByte(GameSkillSlotEntryKind);
+        writer.WriteByte(item.SkillType);
+        writer.WriteString(TrimProtocolString(item.Resource, 63));
+        writer.WriteString(TrimProtocolString(item.DisplayName, 255));
+        writer.WriteFloat(Math.Max(0f, item.CoolDown));
+        writer.WriteFloat(Math.Max(0f, item.Range));
+        writer.WriteByte(GamePassiveSkillInitiativeFlag);
+    }
+
     private static bool IsSupportedGameEquipmentSubtype(byte subtype)
     {
         return subtype is 1 or 2 or 3 or 4 or 5 or 6 or 10 or 11 or 12 or 13 or 14 or 15 or 16;
@@ -5414,8 +6852,7 @@ internal sealed class PracticeRoomChannelProtocol
         switch (subtype)
         {
             case 2:
-                WriteBasicWeaponEquipmentPayload(writer, item);
-                WriteZeroInts(writer, 2);
+                WriteSniperWeaponEquipmentPayload(writer, item);
                 break;
             case 4:
                 WriteBasicWeaponEquipmentPayload(writer, item);
@@ -5467,12 +6904,22 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(stats.FireTime);
         writer.WriteInt(stats.AmmoOneClip);
         writer.WriteFloat(stats.ShotSpread);
-        writer.WriteByte(0);
+        writer.WriteByte(1);
         writer.WriteInt(0);
         writer.WriteInt(0);
-        writer.WriteFloat(0f);
-        writer.WriteByte(0);
-        writer.WriteByte(0);
+        writer.WriteInt(0);
+        writer.WriteByte(1);
+    }
+
+    private void WriteSniperWeaponEquipmentPayload(
+        PacketWriter writer,
+        PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var stats = ResolveGameWeaponRuntimeStatsForClient(item);
+
+        WriteBasicWeaponEquipmentPayload(writer, item);
+        writer.WriteFloat(stats.SightMouseSensitivity);
+        writer.WriteFloat(stats.SightMoveSpeedOffset);
     }
 
     private void WriteExplosiveProjectileEquipmentPayload(
@@ -5578,6 +7025,8 @@ internal sealed class PracticeRoomChannelProtocol
         var extraProjectileValue0 = 0f;
         var extraProjectileValue1 = 0f;
         var extraProjectileValue2 = 0f;
+        var sightMouseSensitivity = 1f;
+        var sightMoveSpeedOffset = 0f;
 
         if (ShopItemDatabase.TryGetShopItemByResource(item.Resource, out var shopItem))
         {
@@ -5687,6 +7136,26 @@ internal sealed class PracticeRoomChannelProtocol
             {
                 explodeParticleHasBuff = ClampFiniteFloat(configuredParticleBuff, explodeParticleHasBuff);
             }
+
+            if (TryGetTipFirstNumberAny(
+                    shopItem.Tip,
+                    out var configuredSightMouseSensitivity,
+                    "xMouseSensitivity",
+                    "mouse_sensitivity",
+                    "mouseSensitivity"))
+            {
+                sightMouseSensitivity = ClampPositiveFloat(configuredSightMouseSensitivity, sightMouseSensitivity);
+            }
+
+            if (TryGetTipFirstNumberAny(
+                    shopItem.Tip,
+                    out var configuredSightMoveSpeedOffset,
+                    "xMoveSpeedOffset",
+                    "move_speed_offset",
+                    "moveSpeedOffset"))
+            {
+                sightMoveSpeedOffset = ClampFiniteFloat(configuredSightMoveSpeedOffset, sightMoveSpeedOffset);
+            }
         }
 
         fireTime = ResolveTunedWeaponFireTime(fireTime);
@@ -5710,7 +7179,9 @@ internal sealed class PracticeRoomChannelProtocol
             ExplodeParticleHasBuff: explodeParticleHasBuff,
             ExtraProjectileValue0: extraProjectileValue0,
             ExtraProjectileValue1: extraProjectileValue1,
-            ExtraProjectileValue2: extraProjectileValue2);
+            ExtraProjectileValue2: extraProjectileValue2,
+            SightMouseSensitivity: sightMouseSensitivity,
+            SightMoveSpeedOffset: sightMoveSpeedOffset);
     }
 
     private void WriteGameLoadoutItem(PacketWriter writer, PlayerStore.PlayerState.GameLoadoutItem item)
@@ -5806,8 +7277,9 @@ internal sealed class PracticeRoomChannelProtocol
     {
         var stats = ResolveGameWeaponRuntimeStats(item);
         var ammoOneClip = ResolveAmmoOneClipForClient(item);
+        stats = ApplyPassiveSkillWeaponStats(item, stats);
 
-        // ”¶”√…‰ÀŸ∏≤∏«
+        // Â∫îÁî®Â∞ÑÈÄüË¶ÜÁõñ
         if (_setWeaponFireTimeOverridesByItemId.TryGetValue(item.ItemId, out var overriddenFireTime))
         {
             stats = stats with { FireTime = overriddenFireTime };
@@ -5825,6 +7297,28 @@ internal sealed class PracticeRoomChannelProtocol
         return _setBulletAmmoOneClipOverridesByItemId.TryGetValue(item.ItemId, out var overrideValue)
             ? overrideValue
             : ammoOneClip;
+    }
+
+    private GameWeaponRuntimeStats ApplyPassiveSkillWeaponStats(
+        PlayerStore.PlayerState.GameLoadoutItem item,
+        GameWeaponRuntimeStats stats)
+    {
+        if (!IsMachineGunLoadoutItem(item) || !HasLocalSkill(GameSkillTypeHeavy))
+        {
+            return stats;
+        }
+
+        var level = ResolveLocalSkillLevel(GameSkillTypeHeavy, "heavy");
+        var fireRateBonusPercent = ResolveSkillLevelValue(HeavyFireRateBonusPercents, level);
+        var accuracyPenaltyPercent = ResolveSkillLevelValue(HeavyAccuracyPenaltyPercents, level);
+        var fireTime = stats.FireTime * 100f / (100f + fireRateBonusPercent);
+        var shotSpread = stats.ShotSpread * (100f + accuracyPenaltyPercent) / 100f;
+
+        return stats with
+        {
+            FireTime = Math.Max(WeaponFireTimeMinimum, fireTime),
+            ShotSpread = Math.Max(0.01f, shotSpread)
+        };
     }
 
     private static int ResolveAmmoOneClip(PlayerStore.PlayerState.GameLoadoutItem item)
@@ -6299,6 +7793,7 @@ internal sealed class PracticeRoomChannelProtocol
         var loadoutSource = playerState?.GetGameLoadoutSource() ?? "empty";
         var loadoutItems = player.LoadoutItems;
         var equipmentItems = player.EquipmentItems;
+        var skillItems = player.SkillItems;
         var teamId = player.TeamId;
 
         writer.WriteShort(packetId);
@@ -6346,7 +7841,7 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteInt(0);
 
         Log.Information(
-            "Channel packet{PacketId} -> {Remote}: uid={Uid} teamId={TeamId} characterId={CharacterId} level={Level} rankType={RankType} rankLevel={RankLevel} career={Career} maxHealth={MaxHealth} movementScalars=({WalkSpeed},{RollSlide},{JumpAir},{Gravity}) movementTuning={MovementTuning} equipmentBlockCount={EquipmentBlockCount} avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} moveInfoCount={MoveInfoCount} modelReady={ModelReady} modelReadyResource={ModelReadyResource} modelReadyLevel={ModelReadyLevel} loadoutSource={LoadoutSource} backpackStats=True independentTrinkets={IndependentTrinkets} loadout={Loadout}",
+            "Channel packet{PacketId} -> {Remote}: uid={Uid} teamId={TeamId} characterId={CharacterId} level={Level} rankType={RankType} rankLevel={RankLevel} career={Career} maxHealth={MaxHealth} movementScalars=({WalkSpeed},{RollSlide},{JumpAir},{Gravity}) movementTuning={MovementTuning} equipmentBlockCount={EquipmentBlockCount} avatarBlobCount={AvatarBlobCount} independentTrinketCount={IndependentTrinketCount} moveInfoCount={MoveInfoCount} modelReady={ModelReady} modelReadyResource={ModelReadyResource} modelReadyLevel={ModelReadyLevel} loadoutSource={LoadoutSource} backpackStats=True independentTrinkets={IndependentTrinkets} skillsSkippedInPacket103={SkillsSkippedInPacket103} loadout={Loadout}",
             packetId,
             _remoteLabel,
             player.Uid,
@@ -6371,6 +7866,7 @@ internal sealed class PracticeRoomChannelProtocol
             DefaultModelReadyLevel,
             loadoutSource,
             FormatIndependentTrinketResourceSummary(independentTrinketResources),
+            FormatGameSkillSlotSummary(skillItems),
             FormatGameLoadoutSummary(loadoutItems));
 
         return SendPacketAsync(writer);

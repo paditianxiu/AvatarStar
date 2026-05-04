@@ -1,9 +1,17 @@
+using AvatarStar.Server.Persistence;
+
 namespace AvatarStar.Server.Game.Config;
 
 internal static class SysAvatarPayloadLoader
 {
     public static int Load(SysAvatarPayloadConfig config, string configDirectory)
     {
+        var dbLoaded = LoadFromDatabase(config);
+        if (dbLoaded > 0)
+        {
+            return dbLoaded;
+        }
+
         if (string.IsNullOrWhiteSpace(configDirectory))
         {
             return 0;
@@ -41,6 +49,48 @@ internal static class SysAvatarPayloadLoader
         }
 
         return loaded;
+    }
+
+    private static int LoadFromDatabase(SysAvatarPayloadConfig config)
+    {
+        try
+        {
+            using var db = new AvatarStarDbContext();
+            var payloads = db.ConfigDocuments
+                .Where(x => x.Category == "sysavatar_payload" || x.Key.Contains("SysAvatarPayloads"))
+                .OrderBy(x => x.Key)
+                .ToArray();
+            var loaded = 0;
+            foreach (var payloadDoc in payloads)
+            {
+                if (!TryReadJobId(payloadDoc.Key, out var jobId))
+                {
+                    continue;
+                }
+
+                var payload = payloadDoc.JsonContent.Trim();
+                if (string.IsNullOrWhiteSpace(payload) ||
+                    !payload.Contains("sysAvatar", StringComparison.Ordinal) ||
+                    !payload.Contains("weapons", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                config.SysAvatarListPayloads[jobId] = payload;
+                loaded++;
+            }
+
+            if (loaded > 0)
+            {
+                config.OfficialCatalog = BuildOfficialCatalog(config.SysAvatarListPayloads);
+            }
+
+            return loaded;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static bool TryReadJobId(string file, out int jobId)

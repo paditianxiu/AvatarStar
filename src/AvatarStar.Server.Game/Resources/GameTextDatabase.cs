@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using AvatarStar.Server.Persistence;
 
 namespace AvatarStar.Server.Game.Resources;
 
@@ -89,6 +90,11 @@ public static class GameTextDatabase
     {
         try
         {
+            if (TryLoadFromDatabaseLocked())
+            {
+                return true;
+            }
+
             var overridePath =
                 Environment.GetEnvironmentVariable("AVATARSTAR_GAME_TEXT_JSON")
                 ?? Environment.GetEnvironmentVariable("AS_GAME_TEXT_JSON")
@@ -141,6 +147,27 @@ public static class GameTextDatabase
         {
             _map = new(StringComparer.Ordinal);
             _activePath = null;
+            return false;
+        }
+    }
+
+    private static bool TryLoadFromDatabaseLocked()
+    {
+        try
+        {
+            using var db = new AvatarStarDbContext();
+            var rows = db.GameTexts.ToArray();
+            if (rows.Length == 0)
+            {
+                return false;
+            }
+
+            _map = rows.ToDictionary(x => x.TextId, x => x.Text, StringComparer.Ordinal);
+            _activePath = "database:game_texts";
+            return true;
+        }
+        catch
+        {
             return false;
         }
     }

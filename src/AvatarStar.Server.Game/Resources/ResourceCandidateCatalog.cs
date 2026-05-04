@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using AvatarStar.Server.Game.Config;
+using AvatarStar.Server.Persistence;
 
 namespace AvatarStar.Server.Game.Resources;
 
@@ -172,6 +173,23 @@ internal static class ResourceCandidateCatalog
 
     private static IEnumerable<ItemCandidateItem> LoadRawCandidates()
     {
+        try
+        {
+            var json = new ConfigRepository().GetConfigDocumentBySuffix("item_candidates.json");
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var dbRoot = JsonSerializer.Deserialize<ItemCandidateRoot>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                return dbRoot?.Items ?? Enumerable.Empty<ItemCandidateItem>();
+            }
+        }
+        catch
+        {
+            // File fallback below keeps development workflow tolerant.
+        }
+
         var path = FindCandidatePath();
         if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
         {

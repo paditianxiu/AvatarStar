@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using AvatarStar.Server.Persistence;
 using Serilog;
 
 namespace AvatarStar.Server.Game;
@@ -12,11 +13,67 @@ internal sealed class PracticeRoomManager
     private const byte GameTeamSpectator = 2;
     private const int DefaultGamePlayerHealth = 1000;
     private const int GameAutoRespawnDelayMilliseconds = 3000;
+    private const short GameBuffTypeEnergy = 1;
+    private const short GameBuffTypeVitals = 5;
+    private const short GameBuffTypePoison = 7;
+    private const short GameBuffTypeShield = 8;
+    private const short GameBuffTypeTransfer = 10;
+    private const short GameBuffTypeHeavy = 11;
+    private const short GameBuffTypeTenacity = 12;
+    private const short GameBuffTypeLurk = 15;
+    private const short GameBuffTypePiercing = 16;
+    private const short GameBuffTypeSnare = 19;
+    private const short GameBuffTypePlague = 64;
+    private const short GameBuffTypePoisoned = 65;
+    private const short GameBuffTypeGasBomb = 70;
+    private const short GameBuffTypePlaguePassive = 71;
+    private const short GameBuffTypeSuckBlood = 72;
+    private const short GameBuffTypeFeudMark = 127;
+    private const short GameBuffTypeFeudAnger = 128;
+    private const byte GameDropTypeSnare = 1;
+    private const byte GameDropTypeEnergy = 2;
+    private const byte GameSkillTypePiercing = 5;
+    private const byte GameSkillTypeVitals = 6;
+    private const byte GameSkillTypeTenacity = 7;
+    private const byte GameSkillTypePoison = 8;
+    private const byte GameSkillTypeHeavy = 10;
+    private const byte GameSkillTypeTransfer = 12;
+    private const byte GameSkillTypeSuckBlood = 39;
+    private const byte GameSkillTypePlague = 40;
+    private const byte GameSkillTypeGasBomb = 41;
+    private const byte GameSkillTypeFeud = 76;
     private const float ActionPoseRawCoordinateScale = 256f;
     private const float MovementRawCoordinateScale = ActionPoseRawCoordinateScale;
     private const float FacingRawAngleScale = 8192f;
     private const float ShootVectorEpsilon = 0.001f;
+    private const float SnareTriggerRadius = 3f;
+    private const float SnareDamageRadius = 8f;
+    private const float EnergyHealRadius = 5f;
+    private const float TransferTriggerRadius = 3f;
+    private const float TransferDamageRadius = 8f;
+    private const float SpurtSkillRange = 8f;
+    private const float SpurtSkillHitRadius = 2.2f;
+    private const int VitalsDamageTakenBonusPercent = 20;
+    private const int SuckBloodDefaultHealPercent = 10;
     private const string LobbyLevelInfoConfigFileName = "lobby_levelinfo.json";
+    private static readonly int[] TenacityDamageReductionPercents = [3, 4, 5, 7, 9, 17];
+    private static readonly int[] TenacityHealPerTickValues = [40, 60, 80, 100, 120, 200];
+    private static readonly int[] TransferChargePercents = [3, 3, 4, 4, 5, 10];
+    private static readonly int[] TransferReleaseDamageValues = [350, 420, 500, 590, 700, 1000];
+    private static readonly int[] VitalsChancePercents = [8, 10, 12, 15, 20, 30];
+    private static readonly int[] PiercingCriticalChancePercents = [3, 5, 8, 11, 15, 20];
+    private static readonly int[] PiercingCriticalDamageBonusPercents = [20, 26, 32, 40, 50, 100];
+    private static readonly int[] PoisonChancePercents = [10, 15, 20, 25, 30, 100];
+    private static readonly int[] PoisonDamagePerTickValues = [80, 110, 150, 200, 260, 390];
+    private static readonly int[] PoisonResistPercents = [10, 15, 20, 25, 30, 100];
+    private static readonly int[] SuckBloodHealPercents = [10, 12, 14, 16, 20, 30];
+    private static readonly int[] PlagueChancePercents = [10, 12, 15, 18, 22, 30];
+    private static readonly int[] PlagueDamagePerTickValues = [60, 80, 100, 130, 170, 240];
+    private static readonly int[] GasBombChancePercents = [20, 25, 30, 35, 45, 100];
+    private static readonly int[] GasBombDamagePerTickValues = [50, 70, 90, 120, 160, 220];
+    private static readonly int[] FeudDamageBonusPercents = [10, 15, 20, 25, 30, 50];
+    private static readonly TimeSpan TransferStoredDamageBuffDuration = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan PeriodicBuffTickInterval = TimeSpan.FromSeconds(2);
 
     private static readonly Lazy<IReadOnlyList<BattleLevelChoice>> RandomBattleLevelChoices = new(LoadRandomBattleLevelChoices);
     private static readonly BattleLevelChoice[] FallbackRandomBattleLevels =
@@ -43,7 +100,11 @@ internal sealed class PracticeRoomManager
     private readonly Dictionary<int, Dictionary<PracticeRoomChannelProtocol, byte>> _gameChannelsByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GamePlayerRuntime>> _gamePlayersByRoomId = new();
     private readonly Dictionary<int, Dictionary<byte, GameMovementDelta>> _gameMovementByRoomId = new();
+    private readonly Dictionary<int, Dictionary<byte, GameDropItemRuntime>> _gameDropItemsByRoomId = new();
     private readonly Dictionary<int, HashSet<byte>> _retiredGameUidsByRoomId = new();
+    private readonly Dictionary<int, Dictionary<long, PlayerSkillRuntime>> _gameSkillRuntimeByRoomId = new();
+    private readonly Dictionary<int, Dictionary<byte, Dictionary<short, GameBuffRuntime>>> _gameBuffsByRoomId = new();
+    private readonly Dictionary<int, List<GameBuffStartAction>> _pendingBuffStartActionsByRoomId = new();
     private readonly Dictionary<PendingChannelJoinKey, Queue<PendingChannelJoin>> _pendingChannelJoins = new();
     private readonly Dictionary<long, GameClient> _gameClientsByCharacterId = new();
     private readonly Dictionary<long, GameClientRpcActivity> _gameClientRpcActivityByCharacterId = new();
@@ -983,7 +1044,13 @@ internal sealed class PracticeRoomManager
         }
     }
 
-    public void UpdateGamePlayerState(int roomId, byte uid, byte teamId, int maxHealth)
+    public void UpdateGamePlayerState(
+        int roomId,
+        byte uid,
+        byte teamId,
+        int maxHealth,
+        long characterId = 0,
+        PlayerSkillRuntime? skills = null)
     {
         lock (_lock)
         {
@@ -1000,10 +1067,30 @@ internal sealed class PracticeRoomManager
             }
 
             player.TeamId = teamId;
+            if (characterId > 0)
+            {
+                player.CharacterId = characterId;
+            }
+
             player.MaxHealth = Math.Max(1, maxHealth);
             if (player.CurrentHealth <= 0 || player.CurrentHealth > player.MaxHealth)
             {
                 player.CurrentHealth = player.MaxHealth;
+            }
+
+            if (skills is not null)
+            {
+                if (!_gameSkillRuntimeByRoomId.TryGetValue(roomId, out var skillsByCharacterId))
+                {
+                    skillsByCharacterId = new Dictionary<long, PlayerSkillRuntime>();
+                    _gameSkillRuntimeByRoomId[roomId] = skillsByCharacterId;
+                }
+
+                var runtimeCharacterId = characterId > 0 ? characterId : player.CharacterId;
+                if (runtimeCharacterId > 0)
+                {
+                    skillsByCharacterId[runtimeCharacterId] = skills.Value;
+                }
             }
         }
     }
@@ -1159,6 +1246,7 @@ internal sealed class PracticeRoomManager
                 playersByUid.TryGetValue(shoot.Uid, out var player))
             {
                 player.LastShoot = shoot;
+                ClearBreakableStealthNoLock(roomId, shoot.Uid);
             }
 
             targets = channels.Keys
@@ -1183,6 +1271,812 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
+    public async Task<int> BroadcastGameUseAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte slot,
+        byte success,
+        byte usedNum)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket160GameUseAsync(actorUid, slot, success, usedNum);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameBuffStartAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte fromUid,
+        byte targetUid,
+        short buffType,
+        float duration,
+        byte cooldownLock,
+        float value1,
+        float value2)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket162BuffStartAsync(
+                    fromUid,
+                    targetUid,
+                    buffType,
+                    duration,
+                    cooldownLock,
+                    value1,
+                    value2);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        lock (_lock)
+        {
+            RegisterGameBuffNoLock(roomId, targetUid, fromUid, buffType, duration, value1, value2);
+        }
+
+        return sent;
+    }
+
+    public void ClearGameBuff(int roomId, byte targetUid, short buffType)
+    {
+        lock (_lock)
+        {
+            if (_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid) &&
+                buffsByUid.TryGetValue(targetUid, out var buffs))
+            {
+                buffs.Remove(buffType);
+                if (buffs.Count == 0)
+                {
+                    buffsByUid.Remove(targetUid);
+                }
+            }
+        }
+    }
+
+    public async Task<int> BroadcastGameSkillFeedbackAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte fromUid,
+        byte targetUid,
+        byte skillCode)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket162GameSkillFeedbackAsync(
+                    fromUid,
+                    targetUid,
+                    skillCode);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameBuffStartsAsync(
+        int roomId,
+        IReadOnlyList<GameBuffStartAction> actions)
+    {
+        if (actions.Count == 0)
+        {
+            return 0;
+        }
+
+        PracticeRoomChannelProtocol[] targets;
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys.ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                foreach (var action in actions)
+                {
+                    await target.SendPacket162BuffStartAsync(
+                        action.FromUid,
+                        action.TargetUid,
+                        action.BuffType,
+                        action.Duration,
+                        action.CooldownLock,
+                        action.Value1,
+                        action.Value2);
+                    sent++;
+                }
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public async Task<int> BroadcastGameThrowDropItemAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte dropType,
+        byte dropId,
+        byte slot,
+        short positionXRaw,
+        short positionYRaw,
+        short positionZRaw,
+        short directionXRaw,
+        short directionYRaw,
+        short directionZRaw,
+        short value)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket185ThrowDropItemAsync(
+                    actorUid,
+                    dropType,
+                    dropId,
+                    slot,
+                    positionXRaw,
+                    positionYRaw,
+                    positionZRaw,
+                    directionXRaw,
+                    directionYRaw,
+                    directionZRaw,
+                    value);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    public void RegisterGameDropItem(
+        int roomId,
+        byte dropId,
+        byte ownerUid,
+        byte dropType,
+        byte slot,
+        short positionXRaw = 0,
+        short positionYRaw = 0,
+        short positionZRaw = 0,
+        int value = 0,
+        int secondaryValue = 0)
+    {
+        if (roomId <= 0 || dropId == 0)
+        {
+            return;
+        }
+
+        lock (_lock)
+        {
+            if (!_roomsById.ContainsKey(roomId))
+            {
+                return;
+            }
+
+            if (!_gameDropItemsByRoomId.TryGetValue(roomId, out var dropItemsById))
+            {
+                dropItemsById = new Dictionary<byte, GameDropItemRuntime>();
+                _gameDropItemsByRoomId[roomId] = dropItemsById;
+            }
+
+            dropItemsById[dropId] = new GameDropItemRuntime(
+                dropId,
+                ownerUid,
+                dropType,
+                slot,
+                new GamePosition(
+                    positionXRaw,
+                    positionYRaw,
+                positionZRaw,
+                null,
+                null,
+                null,
+                DateTimeOffset.UtcNow),
+                value,
+                secondaryValue,
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow,
+                false);
+        }
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> TriggerSnareDropItemsNearEnemiesAsync(int roomId)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = TriggerSnareDropItemsNearEnemiesNoLock(roomId);
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
+
+        if (!hasChannels)
+        {
+            return new GameAreaEffectBroadcastResult(
+                false,
+                0,
+                0,
+                0,
+                "no-channels");
+        }
+
+        if (actions.Length == 0)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : "no-targets");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        var killed = actions.Count(action => action.Killed);
+        foreach (var action in actions.Where(action => action.Killed))
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                action.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-snare");
+        }
+
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, killed, "snare");
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> ProcessGamePeriodicEffectsAsync(int roomId)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (actions.Length == 0 || !hasChannels)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : actions.Length == 0 ? "no-effects" : "no-channels");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        var killed = actions.Count(action => action.Killed);
+        foreach (var action in actions.Where(action => action.Killed))
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                action.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-periodic-effect");
+        }
+
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, killed, "periodic");
+    }
+
+    private GameDamageAction[] ProcessGamePeriodicEffectsNoLock(int roomId)
+    {
+        if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        {
+            return [];
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var actions = new List<GameDamageAction>();
+        actions.AddRange(ProcessEnergyDropItemsNoLock(roomId, playersByUid, now));
+        if (!_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid))
+        {
+            return actions.ToArray();
+        }
+
+        foreach (var (targetUid, buffs) in buffsByUid.ToArray())
+        {
+            if (!playersByUid.TryGetValue(targetUid, out var target))
+            {
+                buffsByUid.Remove(targetUid);
+                continue;
+            }
+
+            foreach (var (buffType, buff) in buffs.ToArray())
+            {
+                if (buff.ExpiresAt <= now)
+                {
+                    buffs.Remove(buffType);
+                    continue;
+                }
+
+                if (now - buff.LastTickAt < PeriodicBuffTickInterval)
+                {
+                    continue;
+                }
+
+                switch (buffType)
+                {
+                    case GameBuffTypePoison:
+                    case GameBuffTypePoisoned:
+                    case GameBuffTypePlague:
+                    case GameBuffTypeGasBomb:
+                        if (target.CurrentHealth > 0)
+                        {
+                            var damage = Math.Max(1, (int)MathF.Round(buff.Value1));
+                            if ((buffType == GameBuffTypePoison || buffType == GameBuffTypePoisoned) &&
+                                TryResolvePoisonResistPercentNoLock(roomId, target, out var poisonResistPercent))
+                            {
+                                damage = Math.Max(1, (int)MathF.Round(damage * (100 - poisonResistPercent) / 100f));
+                            }
+
+                            var action = ApplyPeriodicDamageNoLock(target, buff.SourceUid, damage);
+                            actions.Add(action);
+                            var extraActions = new List<GameDamageAction>();
+                            ChargeTransferNoLock(roomId, target, buff.SourceUid, action.Damage, extraActions);
+                            if (action.Killed &&
+                                playersByUid.TryGetValue(action.AttackerUid, out var attacker) &&
+                                attacker.Uid != target.Uid)
+                            {
+                                ApplyKillSkillEffectsNoLock(roomId, attacker, target, extraActions);
+                            }
+
+                            actions.AddRange(extraActions);
+                        }
+
+                        buffs[buffType] = buff with { LastTickAt = now };
+                        break;
+
+                    case GameBuffTypeEnergy:
+                        if (target.CurrentHealth > 0)
+                        {
+                            var tickHeal = Math.Max(1, (int)MathF.Round(buff.Value1));
+                            var totalRemaining = buff.Value2 <= 0f ? tickHeal : Math.Max(0, (int)MathF.Round(buff.Value2));
+                            var heal = Math.Min(tickHeal, totalRemaining);
+                            if (heal > 0)
+                            {
+                                ApplySelfHealNoLock(target, heal, actions);
+                                var nextRemaining = totalRemaining - heal;
+                                if (nextRemaining <= 0)
+                                {
+                                    buffs.Remove(buffType);
+                                }
+                                else
+                                {
+                                    buffs[buffType] = buff with { LastTickAt = now, Value2 = nextRemaining };
+                                }
+                            }
+                        }
+
+                        break;
+
+                    case GameBuffTypeTenacity:
+                        ApplyTenacityPeriodicHealNoLock(roomId, target, actions);
+                        buffs[buffType] = buff with { LastTickAt = now };
+                        break;
+                }
+            }
+
+            if (buffs.Count == 0)
+            {
+                buffsByUid.Remove(targetUid);
+            }
+        }
+
+        return actions.ToArray();
+    }
+
+    private GameDamageAction[] ProcessEnergyDropItemsNoLock(
+        int roomId,
+        Dictionary<byte, GamePlayerRuntime> playersByUid,
+        DateTimeOffset now)
+    {
+        if (!_roomsById.TryGetValue(roomId, out var room) ||
+            !_gameDropItemsByRoomId.TryGetValue(roomId, out var dropItemsById))
+        {
+            return [];
+        }
+
+        var actions = new List<GameDamageAction>();
+        foreach (var currentDropItem in dropItemsById.Values.OrderBy(item => item.DropId).ToArray())
+        {
+            var dropItem = currentDropItem;
+            if (dropItem.Triggered ||
+                dropItem.DropType != GameDropTypeEnergy ||
+                !playersByUid.TryGetValue(dropItem.OwnerUid, out var owner))
+            {
+                continue;
+            }
+
+            var ownerTeamId = ResolveGamePlayerTeamId(room, owner);
+            if (ownerTeamId == GameTeamSpectator)
+            {
+                continue;
+            }
+
+            if (dropItem.LastTickAt == dropItem.CreatedAt)
+            {
+                QueueEnergyDropAreaBuffStartsNoLock(roomId, room, playersByUid, dropItemsById, dropItem, ownerTeamId, now);
+                dropItem = dropItemsById[dropItem.DropId];
+            }
+
+            var totalRemaining = dropItem.Value <= 0 ? dropItem.SecondaryValue : dropItem.Value;
+            var tickHeal = Math.Max(1, dropItem.SecondaryValue);
+            var heal = Math.Min(tickHeal, totalRemaining);
+            if (heal <= 0)
+            {
+                dropItemsById.Remove(dropItem.DropId);
+                continue;
+            }
+
+            var dropPosition = MovementPositionToWorld(dropItem.Position);
+            actions.AddRange(ApplyAreaHealAtNoLock(
+                room,
+                playersByUid,
+                dropItem.OwnerUid,
+                ownerTeamId,
+                dropPosition,
+                heal,
+                EnergyHealRadius));
+
+            var nextRemaining = totalRemaining - heal;
+            if (nextRemaining <= 0)
+            {
+                dropItemsById.Remove(dropItem.DropId);
+            }
+            else
+            {
+                dropItemsById[dropItem.DropId] = dropItem with
+                {
+                    Value = nextRemaining,
+                    LastTickAt = now
+                };
+            }
+        }
+
+        if (dropItemsById.Count == 0)
+        {
+            _gameDropItemsByRoomId.Remove(roomId);
+        }
+
+        return actions.ToArray();
+    }
+
+    private void QueueEnergyDropAreaBuffStartsNoLock(
+        int roomId,
+        PracticeRoomSession room,
+        Dictionary<byte, GamePlayerRuntime> playersByUid,
+        Dictionary<byte, GameDropItemRuntime> dropItemsById,
+        GameDropItemRuntime dropItem,
+        byte ownerTeamId,
+        DateTimeOffset now)
+    {
+        var duration = Math.Max(
+            (float)PeriodicBuffTickInterval.TotalSeconds,
+            dropItem.Value / (float)Math.Max(1, dropItem.SecondaryValue) * (float)PeriodicBuffTickInterval.TotalSeconds);
+        var dropPosition = MovementPositionToWorld(dropItem.Position);
+        var radiusSquared = EnergyHealRadius * EnergyHealRadius;
+        foreach (var player in playersByUid.Values.OrderBy(player => player.Uid))
+        {
+            if (player.CurrentHealth <= 0 ||
+                ResolveGamePlayerTeamId(room, player) != ownerTeamId ||
+                !TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) ||
+                DistanceSquared(dropPosition.X, dropPosition.Y, dropPosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) > radiusSquared)
+            {
+                continue;
+            }
+
+            QueueBuffStartActionNoLock(
+                roomId,
+                dropItem.OwnerUid,
+                player.Uid,
+                GameBuffTypeEnergy,
+                duration,
+                0,
+                Math.Max(1, dropItem.SecondaryValue),
+                Math.Max(1, dropItem.Value));
+        }
+
+        dropItemsById[dropItem.DropId] = dropItem with { LastTickAt = now };
+    }
+
+    private GameDamageAction ApplyPeriodicDamageNoLock(GamePlayerRuntime target, byte sourceUid, int damage)
+    {
+        var maxHealth = Math.Max(1, target.MaxHealth);
+        var appliedDamage = Math.Clamp(damage, 1, maxHealth);
+        var previousHealth = target.CurrentHealth;
+        target.CurrentHealth = Math.Max(0, target.CurrentHealth - appliedDamage);
+        return new GameDamageAction(
+            AttackerUid: sourceUid == 0 ? target.Uid : sourceUid,
+            VictimUid: target.Uid,
+            Damage: appliedDamage,
+            VictimHealth: target.CurrentHealth,
+            VictimMaxHealth: maxHealth,
+            Killed: previousHealth > 0 && target.CurrentHealth == 0);
+    }
+
+    private void ApplyTenacityPeriodicHealNoLock(int roomId, GamePlayerRuntime target, List<GameDamageAction> actions)
+    {
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, target);
+        if (!runtime.HasSkill(GameSkillTypeTenacity) ||
+            !TrySkillLevel(runtime, GameSkillTypeTenacity, out var level) ||
+            target.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        var maxHealth = Math.Max(1, target.MaxHealth);
+        if (target.CurrentHealth >= maxHealth / 2)
+        {
+            return;
+        }
+
+        var heal = GetLevelValue(TenacityHealPerTickValues, level);
+        ApplySelfHealNoLock(target, heal, actions);
+        QueueBuffStartActionNoLock(roomId, target.Uid, target.Uid, GameBuffTypeTenacity, 2f, 0, heal, 0f);
+    }
+
+    private GameDamageAction[] TriggerSnareDropItemsNearEnemiesNoLock(int roomId)
+    {
+        if (!_roomsById.TryGetValue(roomId, out var room) ||
+            !_gameDropItemsByRoomId.TryGetValue(roomId, out var dropItemsById) ||
+            !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
+        {
+            return [];
+        }
+
+        var actions = new List<GameDamageAction>();
+        foreach (var dropItem in dropItemsById.Values.OrderBy(item => item.DropId).ToArray())
+        {
+            if (dropItem.Triggered ||
+                dropItem.DropType != GameDropTypeSnare ||
+                !playersByUid.TryGetValue(dropItem.OwnerUid, out var owner))
+            {
+                continue;
+            }
+
+            var ownerTeamId = ResolveGamePlayerTeamId(room, owner);
+            if (ownerTeamId == GameTeamSpectator)
+            {
+                continue;
+            }
+
+            var dropPosition = MovementPositionToWorld(dropItem.Position);
+            var triggerRadiusSquared = SnareTriggerRadius * SnareTriggerRadius;
+            var hasEnemyInTrigger = playersByUid.Values.Any(player =>
+                player.Uid != dropItem.OwnerUid &&
+                player.CurrentHealth > 0 &&
+                IsEnemyTeam(ownerTeamId, ResolveGamePlayerTeamId(room, player)) &&
+                TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) &&
+                DistanceSquared(dropPosition.X, dropPosition.Y, dropPosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) <= triggerRadiusSquared);
+
+            if (!hasEnemyInTrigger)
+            {
+                continue;
+            }
+
+            dropItemsById[dropItem.DropId] = dropItem with { Triggered = true };
+            actions.AddRange(ApplyAreaDamageAtNoLock(
+                roomId,
+                dropItem.OwnerUid,
+                dropPosition,
+                Math.Max(1, dropItem.Value),
+                SnareDamageRadius));
+        }
+
+        return actions.ToArray();
+    }
+
+    public bool HasRecentGameDropItem(
+        int roomId,
+        byte ownerUid,
+        byte slot,
+        TimeSpan maxAge)
+    {
+        lock (_lock)
+        {
+            if (!_gameDropItemsByRoomId.TryGetValue(roomId, out var dropItemsById))
+            {
+                return false;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            return dropItemsById.Values.Any(dropItem =>
+                dropItem.OwnerUid == ownerUid &&
+                dropItem.Slot == slot &&
+                now - dropItem.CreatedAt <= maxAge);
+        }
+    }
+
+    public byte[] ListGameAreaAllyUids(
+        int roomId,
+        byte sourceUid,
+        float radius,
+        bool includeSelf)
+    {
+        lock (_lock)
+        {
+            if (!TryGetRoomPlayerContextNoLock(roomId, sourceUid, out var room, out var playersByUid, out var source))
+            {
+                return [];
+            }
+
+            var sourceTeamId = ResolveGamePlayerTeamId(room, source);
+            if (sourceTeamId == GameTeamSpectator ||
+                !TryResolveProximityWorldPosition(source, preferShoot: false, out var sourcePosition))
+            {
+                return [];
+            }
+
+            var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+            return playersByUid.Values
+                .Where(player =>
+                    (includeSelf || player.Uid != sourceUid) &&
+                    player.CurrentHealth > 0 &&
+                    ResolveGamePlayerTeamId(room, player) == sourceTeamId &&
+                    TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) &&
+                    DistanceSquared(sourcePosition.X, sourcePosition.Y, sourcePosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) <= radiusSquared)
+                .OrderBy(player => player.Uid)
+                .Select(player => player.Uid)
+                .ToArray();
+        }
+    }
+
+    public byte[] ListGameAreaEnemyUids(
+        int roomId,
+        byte sourceUid,
+        float radius)
+    {
+        lock (_lock)
+        {
+            if (!TryGetRoomPlayerContextNoLock(roomId, sourceUid, out var room, out var playersByUid, out var source))
+            {
+                return [];
+            }
+
+            var sourceTeamId = ResolveGamePlayerTeamId(room, source);
+            if (sourceTeamId == GameTeamSpectator ||
+                !TryResolveProximityWorldPosition(source, preferShoot: false, out var sourcePosition))
+            {
+                return [];
+            }
+
+            var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+            return playersByUid.Values
+                .Where(player =>
+                    player.Uid != sourceUid &&
+                    player.CurrentHealth > 0 &&
+                    IsEnemyTeam(sourceTeamId, ResolveGamePlayerTeamId(room, player)) &&
+                    TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) &&
+                    DistanceSquared(sourcePosition.X, sourcePosition.Y, sourcePosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) <= radiusSquared)
+                .OrderBy(player => player.Uid)
+                .Select(player => player.Uid)
+                .ToArray();
+        }
+    }
+
     public async Task<GameDamageBroadcastResult> BroadcastGameDamageAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
@@ -1193,6 +2087,8 @@ internal sealed class PracticeRoomManager
     {
         PracticeRoomChannelProtocol[] targets;
         GameDamageAttempt damageAttempt;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
 
         lock (_lock)
         {
@@ -1203,20 +2099,32 @@ internal sealed class PracticeRoomManager
                 return CreateGameDamageNotAppliedResult(damageAttempt);
             }
 
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
             targets = channels.Keys.ToArray();
         }
 
+        var actions = damageAttempt.ExtraActions.Count == 0
+            ? [damageAttempt.Action.Value]
+            : damageAttempt.ExtraActions.Prepend(damageAttempt.Action.Value).ToArray();
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
         var sent = 0;
         var deathSent = 0;
         foreach (var target in targets)
         {
             try
             {
-                await target.SendPacket184RemoteDamageHitAsync(damageAttempt.Action.Value);
-                sent++;
-                if (damageAttempt.Action.Value.Killed)
+                foreach (var action in actions)
                 {
-                    deathSent++;
+                    await target.SendPacket184RemoteDamageHitAsync(action);
+                    sent++;
+                    if (action.Killed)
+                    {
+                        deathSent++;
+                    }
                 }
             }
             catch
@@ -1224,12 +2132,13 @@ internal sealed class PracticeRoomManager
                 UnregisterGameChannel(roomId, target, out _);
             }
         }
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
 
-        if (damageAttempt.Action.Value.Killed)
+        foreach (var action in actions.Where(action => action.Killed))
         {
             _ = RespawnGamePlayerAfterDelayAsync(
                 roomId,
-                damageAttempt.Action.Value.VictimUid,
+                action.VictimUid,
                 GameAutoRespawnDelayMilliseconds,
                 "auto-respawn-after-kill");
         }
@@ -1248,6 +2157,241 @@ internal sealed class PracticeRoomManager
             PositionedCandidateCount: damageAttempt.PositionedCandidateCount,
             AttackerTeamId: damageAttempt.AttackerTeamId,
             BestHitScore: damageAttempt.BestHitScore);
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> BroadcastGameAreaHealAsync(
+        int roomId,
+        byte healerUid,
+        int heal,
+        float radius,
+        bool includeSelf)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = ApplyAreaHealNoLock(roomId, healerUid, heal, radius, includeSelf);
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
+
+        if (actions.Length == 0 || !hasChannels)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : actions.Length == 0 ? "no-targets" : "no-channels");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, 0, "heal");
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> BroadcastGameAreaDamageAsync(
+        int roomId,
+        byte attackerUid,
+        int damage,
+        float radius)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = ApplyAreaDamageNoLock(roomId, attackerUid, damage, radius);
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
+
+        if (actions.Length == 0 || !hasChannels)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : actions.Length == 0 ? "no-targets" : "no-channels");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        var killed = actions.Count(action => action.Killed);
+        foreach (var action in actions.Where(action => action.Killed))
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                action.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-area-skill");
+        }
+
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, killed, "damage");
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> BroadcastGameSpurtDamageAsync(
+        int roomId,
+        byte attackerUid,
+        int damage)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = ApplySpurtDamageNoLock(roomId, attackerUid, damage, SpurtSkillRange, SpurtSkillHitRadius);
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
+
+        if (actions.Length == 0 || !hasChannels)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : actions.Length == 0 ? "no-targets" : "no-channels");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        var killed = actions.Count(action => action.Killed);
+        foreach (var action in actions.Where(action => action.Killed))
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                action.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-spurt");
+        }
+
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, killed, "spurt");
+    }
+
+    public async Task<GameAreaEffectBroadcastResult> BroadcastGameSkillTriggeredAreaDamageAsync(
+        int roomId,
+        byte attackerUid,
+        int damage,
+        float radius)
+    {
+        PracticeRoomChannelProtocol[] targets = [];
+        GameDamageAction[] actions;
+        GameDamageAction[] periodicActions;
+        GameBuffStartAction[] buffStartActions;
+        var hasChannels = false;
+
+        lock (_lock)
+        {
+            actions = ApplyAreaDamageNoLock(roomId, attackerUid, damage, radius, applySkillModifiers: false);
+            periodicActions = ProcessGamePeriodicEffectsNoLock(roomId);
+            buffStartActions = DrainPendingBuffStartActionsNoLock(roomId);
+            if (_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                hasChannels = true;
+                targets = channels.Keys.ToArray();
+            }
+        }
+
+        if (periodicActions.Length > 0)
+        {
+            actions = actions.Concat(periodicActions).ToArray();
+        }
+
+        if (actions.Length == 0 || !hasChannels)
+        {
+            var buffSent = await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+            return new GameAreaEffectBroadcastResult(
+                buffSent > 0,
+                buffSent,
+                0,
+                0,
+                buffSent > 0 ? "buff-start" : actions.Length == 0 ? "no-targets" : "no-channels");
+        }
+
+        var sent = await BroadcastDamageActionsToTargetsAsync(roomId, targets, actions);
+        sent += await BroadcastGameBuffStartsAsync(roomId, buffStartActions);
+        var killed = actions.Count(action => action.Killed);
+        foreach (var action in actions.Where(action => action.Killed))
+        {
+            _ = RespawnGamePlayerAfterDelayAsync(
+                roomId,
+                action.VictimUid,
+                GameAutoRespawnDelayMilliseconds,
+                "auto-respawn-after-triggered-area-skill");
+        }
+
+        return new GameAreaEffectBroadcastResult(true, sent, actions.Length, killed, "damage");
+    }
+
+    private async Task<int> BroadcastDamageActionsToTargetsAsync(
+        int roomId,
+        IReadOnlyList<PracticeRoomChannelProtocol> targets,
+        IReadOnlyList<GameDamageAction> actions)
+    {
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                foreach (var action in actions)
+                {
+                    await target.SendPacket184RemoteDamageHitAsync(action);
+                    sent++;
+                }
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
     }
 
     public async Task<int> BroadcastGamePlayerLeftAsync(
@@ -1645,6 +2789,10 @@ internal sealed class PracticeRoomManager
         _roomCharacterByChannelByRoomId.Remove(roomId);
         _gamePlayersByRoomId.Remove(roomId);
         _gameMovementByRoomId.Remove(roomId);
+        _gameDropItemsByRoomId.Remove(roomId);
+        _gameSkillRuntimeByRoomId.Remove(roomId);
+        _gameBuffsByRoomId.Remove(roomId);
+        _pendingBuffStartActionsByRoomId.Remove(roomId);
         _retiredGameUidsByRoomId.Remove(roomId);
         foreach (var key in _pendingChannelJoins.Keys
                      .Where(key => key.ChannelToken == room.ChannelToken)
@@ -1695,10 +2843,49 @@ internal sealed class PracticeRoomManager
 
         if (_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
         {
+            var characterId = playersByUid.TryGetValue(removedUid, out var removedPlayer)
+                ? removedPlayer.CharacterId
+                : 0;
             playersByUid.Remove(removedUid);
             if (playersByUid.Count == 0)
             {
                 _gamePlayersByRoomId.Remove(roomId);
+            }
+
+            if (characterId > 0 &&
+                _gameSkillRuntimeByRoomId.TryGetValue(roomId, out var skillsByCharacterId))
+            {
+                skillsByCharacterId.Remove(characterId);
+                if (skillsByCharacterId.Count == 0)
+                {
+                    _gameSkillRuntimeByRoomId.Remove(roomId);
+                }
+            }
+        }
+
+        if (_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid))
+        {
+            buffsByUid.Remove(removedUid);
+            if (buffsByUid.Count == 0)
+            {
+                _gameBuffsByRoomId.Remove(roomId);
+            }
+        }
+
+        if (_gameDropItemsByRoomId.TryGetValue(roomId, out var dropItemsById))
+        {
+            var uidToRemove = removedUid;
+            foreach (var dropId in dropItemsById
+                         .Where(pair => pair.Value.OwnerUid == uidToRemove)
+                         .Select(pair => pair.Key)
+                         .ToArray())
+            {
+                dropItemsById.Remove(dropId);
+            }
+
+            if (dropItemsById.Count == 0)
+            {
+                _gameDropItemsByRoomId.Remove(roomId);
             }
         }
 
@@ -1714,6 +2901,9 @@ internal sealed class PracticeRoomManager
         if (channels.Count == 0)
         {
             _gameChannelsByRoomId.Remove(roomId);
+            _gameSkillRuntimeByRoomId.Remove(roomId);
+            _gameBuffsByRoomId.Remove(roomId);
+            _pendingBuffStartActionsByRoomId.Remove(roomId);
             _retiredGameUidsByRoomId.Remove(roomId);
         }
 
@@ -1862,11 +3052,33 @@ internal sealed class PracticeRoomManager
                 bestHitScore);
         }
 
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, victim);
+        damage = ApplyDamageModifiersNoLock(roomId, attacker, victim, damage);
+        damage = ApplyShieldAbsorbNoLock(roomId, victim.Uid, damage, out var absorbedDamage);
         var previousHealth = victim.CurrentHealth;
         var maxHealth = Math.Max(1, victim.MaxHealth);
-        var appliedDamage = Math.Clamp(damage, 1, maxHealth);
+        var appliedDamage = damage <= 0 ? 0 : Math.Clamp(damage, 1, maxHealth);
         victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
         var killed = previousHealth > 0 && victim.CurrentHealth == 0;
+        var extraActions = new List<GameDamageAction>();
+        ApplyPostDamageSkillEffectsNoLock(roomId, attacker, victim, appliedDamage, extraActions);
+
+        if (!killed && runtime.HasSkill(GameSkillTypeTenacity) &&
+            TrySkillLevel(runtime, GameSkillTypeTenacity, out var healLevel) &&
+            victim.CurrentHealth > 0 &&
+            victim.CurrentHealth < (maxHealth / 2))
+        {
+            var heal = GetLevelValue(TenacityHealPerTickValues, healLevel);
+            victim.CurrentHealth = Math.Min(maxHealth, victim.CurrentHealth + heal);
+            RegisterGameBuffNoLock(roomId, victim.Uid, victim.Uid, GameBuffTypeTenacity, 2f, heal, 0f);
+            QueueBuffStartActionNoLock(roomId, victim.Uid, victim.Uid, GameBuffTypeTenacity, 2f, 0, heal, 0f);
+        }
+
+        ChargeTransferNoLock(roomId, victim, attackerUid, appliedDamage + absorbedDamage, extraActions);
+        if (killed)
+        {
+            ApplyKillSkillEffectsNoLock(roomId, attacker, victim, extraActions);
+        }
 
         return new GameDamageAttempt(
             new GameDamageAction(
@@ -1880,7 +3092,8 @@ internal sealed class PracticeRoomManager
             candidates.Length,
             positionedCandidateCount,
             attackerTeamId,
-            bestHitScore);
+            bestHitScore,
+            extraActions);
     }
 
     private static GamePlayerRuntime? SelectProximityHitVictim(
@@ -1904,6 +3117,342 @@ internal sealed class PracticeRoomManager
             .ThenBy(candidate => candidate.Player.Uid)
             .Select(candidate => candidate.Player)
             .FirstOrDefault();
+    }
+
+    private GameDamageAction[] ApplyAreaHealNoLock(
+        int roomId,
+        byte healerUid,
+        int heal,
+        float radius,
+        bool includeSelf)
+    {
+        if (heal <= 0 ||
+            !TryGetRoomPlayerContextNoLock(roomId, healerUid, out var room, out var playersByUid, out var healer))
+        {
+            return [];
+        }
+
+        var healerTeamId = ResolveGamePlayerTeamId(room, healer);
+        if (healerTeamId == GameTeamSpectator ||
+            !TryResolveProximityWorldPosition(healer, preferShoot: false, out var healerPosition))
+        {
+            return [];
+        }
+
+        var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+        var actions = new List<GameDamageAction>();
+        foreach (var player in playersByUid.Values.OrderBy(player => player.Uid))
+        {
+            if ((!includeSelf && player.Uid == healerUid) ||
+                player.CurrentHealth <= 0 ||
+                ResolveGamePlayerTeamId(room, player) != healerTeamId ||
+                !TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) ||
+                DistanceSquared(healerPosition.X, healerPosition.Y, healerPosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) > radiusSquared)
+            {
+                continue;
+            }
+
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var previousHealth = player.CurrentHealth;
+            player.CurrentHealth = Math.Min(maxHealth, player.CurrentHealth + heal);
+            if (player.CurrentHealth == previousHealth)
+            {
+                continue;
+            }
+
+            actions.Add(new GameDamageAction(
+                AttackerUid: healerUid,
+                VictimUid: player.Uid,
+                Damage: 0,
+                VictimHealth: player.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: false));
+        }
+
+        return actions.ToArray();
+    }
+
+    private static GameDamageAction[] ApplyAreaHealAtNoLock(
+        PracticeRoomSession room,
+        Dictionary<byte, GamePlayerRuntime> playersByUid,
+        byte healerUid,
+        byte healerTeamId,
+        (float X, float Y, float Z) sourcePosition,
+        int heal,
+        float radius)
+    {
+        if (heal <= 0 || healerTeamId == GameTeamSpectator)
+        {
+            return [];
+        }
+
+        var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+        var actions = new List<GameDamageAction>();
+        foreach (var player in playersByUid.Values.OrderBy(player => player.Uid))
+        {
+            if (player.CurrentHealth <= 0 ||
+                ResolveGamePlayerTeamId(room, player) != healerTeamId ||
+                !TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) ||
+                DistanceSquared(sourcePosition.X, sourcePosition.Y, sourcePosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) > radiusSquared)
+            {
+                continue;
+            }
+
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var previousHealth = player.CurrentHealth;
+            player.CurrentHealth = Math.Min(maxHealth, player.CurrentHealth + heal);
+            if (player.CurrentHealth == previousHealth)
+            {
+                continue;
+            }
+
+            actions.Add(new GameDamageAction(
+                AttackerUid: healerUid,
+                VictimUid: player.Uid,
+                Damage: 0,
+                VictimHealth: player.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: false));
+        }
+
+        return actions.ToArray();
+    }
+
+    private GameDamageAction[] ApplyAreaDamageNoLock(
+        int roomId,
+        byte attackerUid,
+        int damage,
+        float radius,
+        bool applySkillModifiers = false)
+    {
+        if (damage <= 0 ||
+            !TryGetRoomPlayerContextNoLock(roomId, attackerUid, out var room, out var playersByUid, out var attacker))
+        {
+            return [];
+        }
+
+        var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
+        if (attackerTeamId == GameTeamSpectator ||
+            !TryResolveProximityWorldPosition(attacker, preferShoot: false, out var attackerPosition))
+        {
+            return [];
+        }
+
+        var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+        var actions = new List<GameDamageAction>();
+        foreach (var player in playersByUid.Values.OrderBy(player => player.Uid))
+        {
+            if (player.Uid == attackerUid ||
+                player.CurrentHealth <= 0 ||
+                !IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)) ||
+                !TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) ||
+                DistanceSquared(attackerPosition.X, attackerPosition.Y, attackerPosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) > radiusSquared)
+            {
+                continue;
+            }
+
+            var effectiveDamage = applySkillModifiers
+                ? ApplyDamageModifiersNoLock(roomId, attacker, player, damage)
+                : ApplyIncomingDamageModifiersNoLock(roomId, player, damage);
+            var mitigatedDamage = ApplyShieldAbsorbNoLock(roomId, player.Uid, effectiveDamage, out var absorbedDamage);
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var appliedDamage = mitigatedDamage <= 0 ? 0 : Math.Clamp(mitigatedDamage, 1, maxHealth);
+            var previousHealth = player.CurrentHealth;
+            player.CurrentHealth = Math.Max(0, player.CurrentHealth - appliedDamage);
+            var killed = previousHealth > 0 && player.CurrentHealth == 0;
+            var extraActions = new List<GameDamageAction>();
+            if (applySkillModifiers)
+            {
+                ApplyPostDamageSkillEffectsNoLock(roomId, attacker, player, appliedDamage, extraActions);
+            }
+
+            ChargeTransferNoLock(roomId, player, attackerUid, appliedDamage + absorbedDamage, extraActions);
+            if (killed)
+            {
+                ApplyKillSkillEffectsNoLock(roomId, attacker, player, extraActions);
+            }
+
+            actions.Add(new GameDamageAction(
+                AttackerUid: attackerUid,
+                VictimUid: player.Uid,
+                Damage: appliedDamage,
+                VictimHealth: player.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: killed));
+            actions.AddRange(extraActions);
+        }
+
+        return actions.ToArray();
+    }
+
+    private GameDamageAction[] ApplySpurtDamageNoLock(
+        int roomId,
+        byte attackerUid,
+        int damage,
+        float maxRange,
+        float hitRadius)
+    {
+        if (damage <= 0 ||
+            !TryGetRoomPlayerContextNoLock(roomId, attackerUid, out var room, out var playersByUid, out var attacker))
+        {
+            return [];
+        }
+
+        var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
+        if (attackerTeamId == GameTeamSpectator ||
+            !TryResolveMovementWorldPosition(attacker, out var attackerPosition))
+        {
+            return [];
+        }
+
+        var direction = ResolveSpurtDirection(attacker);
+        if (direction.LengthSquared <= 0f)
+        {
+            return [];
+        }
+
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, attacker);
+        var poisonLevel = 0;
+        var hasPoisonSkill = runtime.HasSkill(GameSkillTypePoison) &&
+            TrySkillLevel(runtime, GameSkillTypePoison, out poisonLevel);
+        var poisonDamage = hasPoisonSkill ? GetLevelValue(PoisonDamagePerTickValues, poisonLevel) : 0;
+        var actions = new List<GameDamageAction>();
+
+        var scoredTargets = new List<(GamePlayerRuntime Player, float Score)>();
+        foreach (var player in playersByUid.Values)
+        {
+            if (player.Uid == attackerUid ||
+                player.CurrentHealth <= 0 ||
+                !IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)) ||
+                !TryResolveMovementWorldPosition(player, out var targetPosition) ||
+                !TryComputeSpurtHitScore(attackerPosition, direction, targetPosition, maxRange, hitRadius, out var score))
+            {
+                continue;
+            }
+
+            scoredTargets.Add((player, score));
+        }
+
+        foreach (var candidate in scoredTargets
+            .OrderBy(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Player.Uid))
+        {
+            var player = candidate.Player;
+            if (player.CurrentHealth <= 0 ||
+                !TryResolveMovementWorldPosition(player, out _))
+            {
+                continue;
+            }
+
+            var effectiveDamage = ApplyIncomingDamageModifiersNoLock(roomId, player, damage);
+            var mitigatedDamage = ApplyShieldAbsorbNoLock(roomId, player.Uid, effectiveDamage, out var absorbedDamage);
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var appliedDamage = mitigatedDamage <= 0 ? 0 : Math.Clamp(mitigatedDamage, 1, maxHealth);
+            var previousHealth = player.CurrentHealth;
+            player.CurrentHealth = Math.Max(0, player.CurrentHealth - appliedDamage);
+            var killed = previousHealth > 0 && player.CurrentHealth == 0;
+            var extraActions = new List<GameDamageAction>();
+
+            if (appliedDamage > 0 &&
+                player.CurrentHealth > 0 &&
+                hasPoisonSkill &&
+                poisonDamage > 0)
+            {
+                RegisterGameBuffNoLock(
+                    roomId,
+                    player.Uid,
+                    attackerUid,
+                    GameBuffTypePoison,
+                    12f,
+                    poisonDamage,
+                    0f);
+                QueueBuffStartActionNoLock(roomId, attackerUid, player.Uid, GameBuffTypePoison, 12f, 0, poisonDamage, 0f);
+            }
+
+            ChargeTransferNoLock(roomId, player, attackerUid, appliedDamage + absorbedDamage, extraActions);
+            if (killed)
+            {
+                ApplyKillSkillEffectsNoLock(roomId, attacker, player, extraActions);
+            }
+
+            actions.Add(new GameDamageAction(
+                AttackerUid: attackerUid,
+                VictimUid: player.Uid,
+                Damage: appliedDamage,
+                VictimHealth: player.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: killed));
+            actions.AddRange(extraActions);
+        }
+
+        return actions.ToArray();
+    }
+
+    private GameDamageAction[] ApplyAreaDamageAtNoLock(
+        int roomId,
+        byte attackerUid,
+        (float X, float Y, float Z) sourcePosition,
+        int damage,
+        float radius,
+        bool applySkillModifiers = false)
+    {
+        if (damage <= 0 ||
+            !TryGetRoomPlayerContextNoLock(roomId, attackerUid, out var room, out var playersByUid, out var attacker))
+        {
+            return [];
+        }
+
+        var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
+        if (attackerTeamId == GameTeamSpectator)
+        {
+            return [];
+        }
+
+        var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+        var actions = new List<GameDamageAction>();
+        foreach (var player in playersByUid.Values.OrderBy(player => player.Uid))
+        {
+            if (player.Uid == attackerUid ||
+                player.CurrentHealth <= 0 ||
+                !IsEnemyTeam(attackerTeamId, ResolveGamePlayerTeamId(room, player)) ||
+                !TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) ||
+                DistanceSquared(sourcePosition.X, sourcePosition.Y, sourcePosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) > radiusSquared)
+            {
+                continue;
+            }
+
+            var effectiveDamage = applySkillModifiers
+                ? ApplyDamageModifiersNoLock(roomId, attacker, player, damage)
+                : ApplyIncomingDamageModifiersNoLock(roomId, player, damage);
+            var mitigatedDamage = ApplyShieldAbsorbNoLock(roomId, player.Uid, effectiveDamage, out var absorbedDamage);
+            var maxHealth = Math.Max(1, player.MaxHealth);
+            var appliedDamage = mitigatedDamage <= 0 ? 0 : Math.Clamp(mitigatedDamage, 1, maxHealth);
+            var previousHealth = player.CurrentHealth;
+            player.CurrentHealth = Math.Max(0, player.CurrentHealth - appliedDamage);
+            var killed = previousHealth > 0 && player.CurrentHealth == 0;
+            var extraActions = new List<GameDamageAction>();
+            if (applySkillModifiers)
+            {
+                ApplyPostDamageSkillEffectsNoLock(roomId, attacker, player, appliedDamage, extraActions);
+            }
+
+            ChargeTransferNoLock(roomId, player, attackerUid, appliedDamage + absorbedDamage, extraActions);
+            if (killed)
+            {
+                ApplyKillSkillEffectsNoLock(roomId, attacker, player, extraActions);
+            }
+
+            actions.Add(new GameDamageAction(
+                AttackerUid: attackerUid,
+                VictimUid: player.Uid,
+                Damage: appliedDamage,
+                VictimHealth: player.CurrentHealth,
+                VictimMaxHealth: maxHealth,
+                Killed: killed));
+            actions.AddRange(extraActions);
+        }
+
+        return actions.ToArray();
     }
 
     private static bool TryComputeProximityHitScore(
@@ -1934,6 +3483,609 @@ internal sealed class PracticeRoomManager
         return hit;
     }
 
+    private bool TryGetRoomPlayerContextNoLock(
+        int roomId,
+        byte uid,
+        out PracticeRoomSession room,
+        out Dictionary<byte, GamePlayerRuntime> playersByUid,
+        out GamePlayerRuntime player)
+    {
+        if (_roomsById.TryGetValue(roomId, out room!) &&
+            _gamePlayersByRoomId.TryGetValue(roomId, out playersByUid!) &&
+            playersByUid.TryGetValue(uid, out player!))
+        {
+            return true;
+        }
+
+        room = null!;
+        playersByUid = null!;
+        player = null!;
+        return false;
+    }
+
+    private PlayerSkillRuntime ResolvePlayerSkillRuntimeNoLock(int roomId, GamePlayerRuntime player)
+    {
+        var runtime = player.CharacterId > 0 &&
+               _gameSkillRuntimeByRoomId.TryGetValue(roomId, out var skillsByCharacterId) &&
+               skillsByCharacterId.TryGetValue(player.CharacterId, out var foundRuntime)
+            ? foundRuntime
+            : PlayerSkillRuntime.Empty;
+        if (runtime.SkillResources.Count == 0 && runtime.SkillLevels.Count == 0)
+        {
+            return runtime;
+        }
+
+        var normalized = new Dictionary<byte, int>(runtime.SkillLevels);
+        AddSkillAlias(runtime, normalized, "vitals", GameSkillTypeVitals);
+        AddSkillAlias(runtime, normalized, "tenacity", GameSkillTypeTenacity);
+        AddSkillAlias(runtime, normalized, "transfer", GameSkillTypeTransfer);
+        AddSkillAlias(runtime, normalized, "piercing", GameSkillTypePiercing);
+        AddSkillAlias(runtime, normalized, "poison", GameSkillTypePoison);
+        AddSkillAlias(runtime, normalized, "heavy", GameSkillTypeHeavy);
+        AddSkillAlias(runtime, normalized, "suckblood", GameSkillTypeSuckBlood);
+        AddSkillAlias(runtime, normalized, "plague", GameSkillTypePlague);
+        AddSkillAlias(runtime, normalized, "gasbomb", GameSkillTypeGasBomb);
+        AddSkillAlias(runtime, normalized, "feud", GameSkillTypeFeud);
+        return new PlayerSkillRuntime(normalized, runtime.SkillResources);
+    }
+
+    private static void AddSkillAlias(
+        PlayerSkillRuntime runtime,
+        IDictionary<byte, int> skillLevels,
+        string resource,
+        byte skillType)
+    {
+        if (!skillLevels.ContainsKey(skillType) &&
+            runtime.HasSkillResource(resource))
+        {
+            skillLevels[skillType] = 1;
+        }
+    }
+
+    private static bool TrySkillLevel(PlayerSkillRuntime runtime, byte skillType, out int level)
+    {
+        if (runtime.SkillLevels.TryGetValue(skillType, out level))
+        {
+            level = Math.Clamp(level, 1, 6);
+            return true;
+        }
+
+        level = 0;
+        return false;
+    }
+
+    private bool TryResolvePoisonResistPercentNoLock(int roomId, GamePlayerRuntime player, out int resistPercent)
+    {
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, player);
+        if (runtime.HasSkill(GameSkillTypePoison) &&
+            TrySkillLevel(runtime, GameSkillTypePoison, out var level))
+        {
+            resistPercent = GetLevelValue(PoisonResistPercents, level);
+            return resistPercent > 0;
+        }
+
+        resistPercent = 0;
+        return false;
+    }
+
+    private static int GetLevelValue(IReadOnlyList<int> values, int level)
+    {
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
+        return values[Math.Clamp(level, 1, values.Count) - 1];
+    }
+
+    private static bool ShouldTriggerSkillChance(byte sourceUid, byte targetUid, int chancePercent)
+    {
+        if (chancePercent >= 100)
+        {
+            return true;
+        }
+
+        if (chancePercent <= 0)
+        {
+            return false;
+        }
+
+        var seed = HashCode.Combine(sourceUid, targetUid, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 250);
+        var roll = Math.Abs(seed % 100);
+        return roll < chancePercent;
+    }
+
+    private int ApplyDamageModifiersNoLock(
+        int roomId,
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime victim,
+        int damage)
+    {
+        if (damage <= 0)
+        {
+            return 0;
+        }
+
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, attacker);
+        if (runtime.HasSkill(GameSkillTypeVitals) &&
+            TrySkillLevel(runtime, GameSkillTypeVitals, out var vitalsLevel) &&
+            IsRifleAttack(attacker.LastShoot) &&
+            ShouldTriggerSkillChance(attacker.Uid, victim.Uid, GetLevelValue(VitalsChancePercents, vitalsLevel)))
+        {
+            RegisterGameBuffNoLock(roomId, victim.Uid, attacker.Uid, GameBuffTypeVitals, 3f, 0f, 0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, victim.Uid, GameBuffTypeVitals, 3f, 0, 0f, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypePiercing) &&
+            TrySkillLevel(runtime, GameSkillTypePiercing, out var piercingLevel) &&
+            IsSniperAttack(attacker.LastShoot) &&
+            ShouldTriggerSkillChance(attacker.Uid, victim.Uid, GetLevelValue(PiercingCriticalChancePercents, piercingLevel)))
+        {
+            damage = ApplyPercentBonus(damage, GetLevelValue(PiercingCriticalDamageBonusPercents, piercingLevel));
+            RegisterGameBuffNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypePiercing, 1f, damage, 0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypePiercing, 1f, 0, damage, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypeHeavy) &&
+            TrySkillLevel(runtime, GameSkillTypeHeavy, out var heavyLevel) &&
+            IsMachineGunAttack(attacker.LastShoot))
+        {
+            RegisterGameBuffNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeHeavy, 1f, heavyLevel, 0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeHeavy, 1f, 0, heavyLevel, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypeFeud) &&
+            TrySkillLevel(runtime, GameSkillTypeFeud, out var feudLevel) &&
+            victim.LastKillerUid == attacker.Uid)
+        {
+            damage = ApplyPercentBonus(damage, GetLevelValue(FeudDamageBonusPercents, feudLevel));
+            RegisterGameBuffNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeFeudAnger, 3f, GetLevelValue(FeudDamageBonusPercents, feudLevel), 0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeFeudAnger, 3f, 0, GetLevelValue(FeudDamageBonusPercents, feudLevel), 0f);
+        }
+
+        return ApplyIncomingDamageModifiersNoLock(roomId, victim, damage);
+    }
+
+    private int ApplyIncomingDamageModifiersNoLock(int roomId, GamePlayerRuntime victim, int damage)
+    {
+        if (damage <= 0)
+        {
+            return 0;
+        }
+
+        if (_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid) &&
+            buffsByUid.TryGetValue(victim.Uid, out var buffs))
+        {
+            var now = DateTimeOffset.UtcNow;
+            if (buffs.TryGetValue(GameBuffTypeVitals, out var vitals) && vitals.ExpiresAt > now)
+            {
+                damage = ApplyPercentBonus(damage, VitalsDamageTakenBonusPercent);
+            }
+
+        }
+
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, victim);
+        if (runtime.HasSkill(GameSkillTypeTenacity) &&
+            TrySkillLevel(runtime, GameSkillTypeTenacity, out var tenacityLevel))
+        {
+            var reductionPercent = GetLevelValue(TenacityDamageReductionPercents, tenacityLevel);
+            damage = Math.Max(1, (int)MathF.Round(damage * (100 - reductionPercent) / 100f));
+        }
+
+        return Math.Max(0, damage);
+    }
+
+    private void ApplyPostDamageSkillEffectsNoLock(
+        int roomId,
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime victim,
+        int appliedDamage,
+        List<GameDamageAction> extraActions)
+    {
+        if (appliedDamage <= 0 || victim.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, attacker);
+        if (runtime.HasSkill(GameSkillTypePoison) &&
+            TrySkillLevel(runtime, GameSkillTypePoison, out var poisonLevel) &&
+            IsKnifeAttack(attacker.LastShoot) &&
+            ShouldTriggerSkillChance(attacker.Uid, victim.Uid, GetLevelValue(PoisonChancePercents, poisonLevel)))
+        {
+            var poisonDamage = GetLevelValue(PoisonDamagePerTickValues, poisonLevel);
+            RegisterGameBuffNoLock(
+                roomId,
+                victim.Uid,
+                attacker.Uid,
+                GameBuffTypePoison,
+                12f,
+                poisonDamage,
+                0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, victim.Uid, GameBuffTypePoison, 12f, 0, poisonDamage, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypePlague) &&
+            TrySkillLevel(runtime, GameSkillTypePlague, out var plagueLevel) &&
+            ShouldTriggerSkillChance(attacker.Uid, victim.Uid, GetLevelValue(PlagueChancePercents, plagueLevel)))
+        {
+            var plagueDamage = GetLevelValue(PlagueDamagePerTickValues, plagueLevel);
+            RegisterGameBuffNoLock(
+                roomId,
+                victim.Uid,
+                attacker.Uid,
+                GameBuffTypePlague,
+                12f,
+                plagueDamage,
+                0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, victim.Uid, GameBuffTypePlague, 12f, 0, plagueDamage, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypeGasBomb) &&
+            TrySkillLevel(runtime, GameSkillTypeGasBomb, out var gasBombLevel) &&
+            ShouldTriggerSkillChance(attacker.Uid, victim.Uid, GetLevelValue(GasBombChancePercents, gasBombLevel)))
+        {
+            var gasBombDamage = GetLevelValue(GasBombDamagePerTickValues, gasBombLevel);
+            RegisterGameBuffNoLock(
+                roomId,
+                victim.Uid,
+                attacker.Uid,
+                GameBuffTypeGasBomb,
+                8f,
+                gasBombDamage,
+                0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, victim.Uid, GameBuffTypeGasBomb, 8f, 0, gasBombDamage, 0f);
+        }
+
+        if (runtime.HasSkill(GameSkillTypeSuckBlood) &&
+            TrySkillLevel(runtime, GameSkillTypeSuckBlood, out var suckBloodLevel))
+        {
+            var heal = Math.Max(1, (int)MathF.Round(appliedDamage * GetLevelValue(SuckBloodHealPercents, suckBloodLevel) / 100f));
+            ApplySelfHealNoLock(attacker, heal, extraActions);
+            RegisterGameBuffNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeSuckBlood, 1f, heal, 0f);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, attacker.Uid, GameBuffTypeSuckBlood, 1f, 0, heal, 0f);
+        }
+    }
+
+    private void ApplyKillSkillEffectsNoLock(
+        int roomId,
+        GamePlayerRuntime attacker,
+        GamePlayerRuntime victim,
+        List<GameDamageAction> extraActions)
+    {
+        victim.LastKillerUid = attacker.Uid;
+
+        var victimRuntime = ResolvePlayerSkillRuntimeNoLock(roomId, victim);
+        if (victimRuntime.HasSkill(GameSkillTypeFeud) &&
+            TrySkillLevel(victimRuntime, GameSkillTypeFeud, out var victimFeudLevel))
+        {
+            var feudBonus = GetLevelValue(FeudDamageBonusPercents, victimFeudLevel);
+            RegisterGameBuffNoLock(
+                roomId,
+                victim.Uid,
+                attacker.Uid,
+                GameBuffTypeFeudMark,
+                60f,
+                attacker.Uid,
+                feudBonus);
+            QueueBuffStartActionNoLock(roomId, attacker.Uid, victim.Uid, GameBuffTypeFeudMark, 60f, 0, attacker.Uid, feudBonus);
+        }
+
+        if (attacker.LastKillerUid != victim.Uid)
+        {
+            return;
+        }
+
+        attacker.LastKillerUid = 0;
+        var attackerRuntime = ResolvePlayerSkillRuntimeNoLock(roomId, attacker);
+        if (!attackerRuntime.HasSkill(GameSkillTypeFeud) ||
+            !TrySkillLevel(attackerRuntime, GameSkillTypeFeud, out var attackerFeudLevel))
+        {
+            return;
+        }
+
+        var heal = Math.Max(1, GetLevelValue(FeudDamageBonusPercents, attackerFeudLevel) * 10);
+        ApplySelfHealNoLock(attacker, heal, extraActions);
+        RegisterGameBuffNoLock(
+            roomId,
+            attacker.Uid,
+            attacker.Uid,
+            GameBuffTypeFeudAnger,
+            5f,
+            GetLevelValue(FeudDamageBonusPercents, attackerFeudLevel),
+            heal);
+        QueueBuffStartActionNoLock(
+            roomId,
+            attacker.Uid,
+            attacker.Uid,
+            GameBuffTypeFeudAnger,
+            5f,
+            0,
+            GetLevelValue(FeudDamageBonusPercents, attackerFeudLevel),
+            heal);
+    }
+
+    private void ChargeTransferNoLock(
+        int roomId,
+        GamePlayerRuntime victim,
+        byte sourceUid,
+        int chargedDamage,
+        List<GameDamageAction> extraActions)
+    {
+        if (chargedDamage <= 0 || victim.TransferReleasing)
+        {
+            return;
+        }
+
+        var runtime = ResolvePlayerSkillRuntimeNoLock(roomId, victim);
+        if (!runtime.HasSkill(GameSkillTypeTransfer) ||
+            !TrySkillLevel(runtime, GameSkillTypeTransfer, out var transferLevel))
+        {
+            return;
+        }
+
+        victim.TransferChargePercent += GetLevelValue(TransferChargePercents, transferLevel);
+        RegisterGameBuffNoLock(
+            roomId,
+            victim.Uid,
+            sourceUid,
+            GameBuffTypeTransfer,
+            (float)TransferStoredDamageBuffDuration.TotalSeconds,
+            chargedDamage,
+            victim.TransferChargePercent);
+        QueueBuffStartActionNoLock(
+            roomId,
+            sourceUid == 0 ? victim.Uid : sourceUid,
+            victim.Uid,
+            GameBuffTypeTransfer,
+            (float)TransferStoredDamageBuffDuration.TotalSeconds,
+            0,
+            chargedDamage,
+            victim.TransferChargePercent);
+        if (victim.TransferChargePercent < 100 ||
+            !HasEnemyInRadiusNoLock(roomId, victim.Uid, TransferTriggerRadius))
+        {
+            return;
+        }
+
+        victim.TransferChargePercent = 0;
+        victim.TransferReleasing = true;
+        try
+        {
+            extraActions.AddRange(ApplyAreaDamageNoLock(
+                roomId,
+                victim.Uid,
+                GetLevelValue(TransferReleaseDamageValues, transferLevel),
+                TransferDamageRadius));
+        }
+        finally
+        {
+            victim.TransferReleasing = false;
+        }
+    }
+
+    private void ApplySelfHealNoLock(GamePlayerRuntime player, int heal, List<GameDamageAction> actions)
+    {
+        if (heal <= 0 || player.CurrentHealth <= 0)
+        {
+            return;
+        }
+
+        var maxHealth = Math.Max(1, player.MaxHealth);
+        var previousHealth = player.CurrentHealth;
+        player.CurrentHealth = Math.Min(maxHealth, player.CurrentHealth + heal);
+        if (player.CurrentHealth == previousHealth)
+        {
+            return;
+        }
+
+        actions.Add(new GameDamageAction(
+            AttackerUid: player.Uid,
+            VictimUid: player.Uid,
+            Damage: 0,
+            VictimHealth: player.CurrentHealth,
+            VictimMaxHealth: maxHealth,
+            Killed: false));
+    }
+
+    private bool HasEnemyInRadiusNoLock(int roomId, byte sourceUid, float radius)
+    {
+        if (!TryGetRoomPlayerContextNoLock(roomId, sourceUid, out var room, out var playersByUid, out var source))
+        {
+            return false;
+        }
+
+        var sourceTeamId = ResolveGamePlayerTeamId(room, source);
+        if (sourceTeamId == GameTeamSpectator ||
+            !TryResolveProximityWorldPosition(source, preferShoot: false, out var sourcePosition))
+        {
+            return false;
+        }
+
+        var radiusSquared = MathF.Max(0.1f, radius) * MathF.Max(0.1f, radius);
+        return playersByUid.Values.Any(player =>
+            player.Uid != sourceUid &&
+            player.CurrentHealth > 0 &&
+            IsEnemyTeam(sourceTeamId, ResolveGamePlayerTeamId(room, player)) &&
+            TryResolveProximityWorldPosition(player, preferShoot: false, out var targetPosition) &&
+            DistanceSquared(sourcePosition.X, sourcePosition.Y, sourcePosition.Z, targetPosition.X, targetPosition.Y, targetPosition.Z) <= radiusSquared);
+    }
+
+    private static int ApplyPercentBonus(int value, int percent)
+    {
+        return Math.Max(1, (int)MathF.Round(value * (100 + Math.Max(0, percent)) / 100f));
+    }
+
+    private static bool IsSniperAttack(GameShootAction? shoot)
+    {
+        return shoot is { } action &&
+            (action.WeaponSubtype == 2 ||
+             action.WeaponResource.Contains("sniper", StringComparison.OrdinalIgnoreCase) ||
+             action.WeaponResource.Contains("sniperrifle", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsKnifeAttack(GameShootAction? shoot)
+    {
+        return shoot is { } action &&
+            (action.WeaponSubtype is 6 or 13 ||
+             action.WeaponResource.StartsWith("knives_", StringComparison.OrdinalIgnoreCase) ||
+             action.WeaponResource.Contains("knife", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsMachineGunAttack(GameShootAction? shoot)
+    {
+        return shoot is { } action &&
+            (action.WeaponSubtype == 3 ||
+             action.WeaponResource.Contains("machinegun", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsRifleAttack(GameShootAction? shoot)
+    {
+        return shoot is { } action &&
+            (action.WeaponSubtype == 1 ||
+             action.WeaponResource.Contains("rifle", StringComparison.OrdinalIgnoreCase) ||
+             action.WeaponResource.StartsWith("smg_", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void RegisterGameBuffNoLock(
+        int roomId,
+        byte targetUid,
+        byte sourceUid,
+        short buffType,
+        float duration,
+        float value1,
+        float value2)
+    {
+        if (roomId <= 0 || targetUid == 0)
+        {
+            return;
+        }
+
+        if (!_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid))
+        {
+            buffsByUid = new Dictionary<byte, Dictionary<short, GameBuffRuntime>>();
+            _gameBuffsByRoomId[roomId] = buffsByUid;
+        }
+
+        if (!buffsByUid.TryGetValue(targetUid, out var buffs))
+        {
+            buffs = new Dictionary<short, GameBuffRuntime>();
+            buffsByUid[targetUid] = buffs;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var durationSeconds = float.IsFinite(duration) && duration > 0f ? duration : 0f;
+        buffs[buffType] = new GameBuffRuntime(
+            buffType,
+            sourceUid,
+            targetUid,
+            now,
+            durationSeconds <= 0f ? DateTimeOffset.MaxValue : now.AddSeconds(durationSeconds),
+            now,
+            value1,
+            value2);
+    }
+
+    private void QueueBuffStartActionNoLock(
+        int roomId,
+        byte sourceUid,
+        byte targetUid,
+        short buffType,
+        float duration,
+        byte cooldownLock,
+        float value1,
+        float value2)
+    {
+        if (roomId <= 0 || sourceUid == 0 || targetUid == 0)
+        {
+            return;
+        }
+
+        if (!_pendingBuffStartActionsByRoomId.TryGetValue(roomId, out var actions))
+        {
+            actions = [];
+            _pendingBuffStartActionsByRoomId[roomId] = actions;
+        }
+
+        actions.Add(new GameBuffStartAction(
+            sourceUid,
+            targetUid,
+            buffType,
+            duration,
+            cooldownLock,
+            value1,
+            value2));
+    }
+
+    private GameBuffStartAction[] DrainPendingBuffStartActionsNoLock(int roomId)
+    {
+        if (!_pendingBuffStartActionsByRoomId.TryGetValue(roomId, out var actions) ||
+            actions.Count == 0)
+        {
+            return [];
+        }
+
+        _pendingBuffStartActionsByRoomId.Remove(roomId);
+        return actions.ToArray();
+    }
+
+    private void ClearBreakableStealthNoLock(int roomId, byte uid)
+    {
+        if (_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid) &&
+            buffsByUid.TryGetValue(uid, out var buffs))
+        {
+            buffs.Remove(GameBuffTypeLurk);
+        }
+    }
+
+    private int ApplyShieldAbsorbNoLock(int roomId, byte victimUid, int damage, out int absorbed)
+    {
+        absorbed = 0;
+        if (damage <= 0 ||
+            !_gameBuffsByRoomId.TryGetValue(roomId, out var buffsByUid) ||
+            !buffsByUid.TryGetValue(victimUid, out var buffs) ||
+            !buffs.TryGetValue(GameBuffTypeShield, out var shield))
+        {
+            return damage;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (shield.ExpiresAt <= now || shield.Value1 <= 0f)
+        {
+            buffs.Remove(GameBuffTypeShield);
+            return damage;
+        }
+
+        var shieldValue = Math.Max(0, (int)MathF.Round(shield.Value1));
+        if (shieldValue >= damage)
+        {
+            absorbed = damage;
+            if (shieldValue == damage)
+            {
+                buffs.Remove(GameBuffTypeShield);
+            }
+            else
+            {
+                buffs[GameBuffTypeShield] = shield with { Value1 = shieldValue - damage };
+            }
+
+            return 0;
+        }
+
+        absorbed = Math.Min(shieldValue, damage);
+        shieldValue -= absorbed;
+        if (shieldValue <= 0)
+        {
+            buffs.Remove(GameBuffTypeShield);
+        }
+        else
+        {
+            buffs[GameBuffTypeShield] = shield with { Value1 = shieldValue };
+        }
+
+        return Math.Max(0, damage - absorbed);
+    }
+
     private static bool HasAnyGamePosition(GamePlayerRuntime player)
     {
         return player.LastPosition is not null || player.LastShoot is not null;
@@ -1953,6 +4105,26 @@ internal sealed class PracticeRoomManager
             return IsFinitePosition(position);
         }
 
+        if (player.LastPosition is { } movementPosition)
+        {
+            position = MovementPositionToWorld(movementPosition);
+            return IsFinitePosition(position);
+        }
+
+        if (player.LastShoot is { } fallbackShoot)
+        {
+            position = ShootOriginToWorld(fallbackShoot);
+            return IsFinitePosition(position);
+        }
+
+        position = default;
+        return false;
+    }
+
+    private static bool TryResolveMovementWorldPosition(
+        GamePlayerRuntime player,
+        out (float X, float Y, float Z) position)
+    {
         if (player.LastPosition is { } movementPosition)
         {
             position = MovementPositionToWorld(movementPosition);
@@ -2043,6 +4215,46 @@ internal sealed class PracticeRoomManager
         return hit;
     }
 
+    private static bool TryComputeSpurtHitScore(
+        (float X, float Y, float Z) source,
+        (float X, float Y, float Z, float LengthSquared) direction,
+        (float X, float Y, float Z) target,
+        float maxRange,
+        float hitRadius,
+        out float score)
+    {
+        score = float.MaxValue;
+        if (direction.LengthSquared <= 0f)
+        {
+            return false;
+        }
+
+        var hitRadiusSquared = MathF.Max(0.1f, hitRadius) * MathF.Max(0.1f, hitRadius);
+        var bestScore = float.MaxValue;
+        var hit = false;
+        foreach (var targetY in new[] { target.Y, target.Y + 0.8f, target.Y + 1.6f })
+        {
+            var toTargetX = target.X - source.X;
+            var toTargetY = targetY - source.Y;
+            var toTargetZ = target.Z - source.Z;
+            var projection = Dot(toTargetX, toTargetY, toTargetZ, direction.X, direction.Y, direction.Z);
+            if (projection < -0.25f || projection > maxRange)
+            {
+                continue;
+            }
+
+            var closestX = source.X + (direction.X * projection);
+            var closestY = source.Y + (direction.Y * projection);
+            var closestZ = source.Z + (direction.Z * projection);
+            var distanceSquared = DistanceSquared(target.X, targetY, target.Z, closestX, closestY, closestZ);
+            bestScore = MathF.Min(bestScore, distanceSquared);
+            hit |= distanceSquared <= hitRadiusSquared;
+        }
+
+        score = bestScore;
+        return hit;
+    }
+
     private static bool IsEnemyTeam(byte sourceTeamId, byte targetTeamId)
     {
         return sourceTeamId != GameTeamSpectator &&
@@ -2106,7 +4318,8 @@ internal sealed class PracticeRoomManager
         int CandidateCount,
         int PositionedCandidateCount,
         byte AttackerTeamId,
-        float BestHitScore)
+        float BestHitScore,
+        IReadOnlyList<GameDamageAction> ExtraActions)
     {
         public static GameDamageAttempt NotApplied(
             string reason,
@@ -2121,7 +4334,8 @@ internal sealed class PracticeRoomManager
                 candidateCount,
                 positionedCandidateCount,
                 attackerTeamId,
-                bestHitScore);
+                bestHitScore,
+                []);
         }
     }
 
@@ -2193,6 +4407,53 @@ internal sealed class PracticeRoomManager
             MathF.Sin(yaw) * cosPitch,
             MathF.Sin(pitch),
             -MathF.Cos(yaw) * cosPitch);
+    }
+
+    private static (float X, float Y, float Z, float LengthSquared) ResolveMovementDirection(GamePosition position)
+    {
+        if (position.Facing0Raw is not { } facing0Raw)
+        {
+            if (position.YawRaw is not { } yawRaw)
+            {
+                return (0f, 0f, 0f, 0f);
+            }
+
+            var yawFromPosition = yawRaw / FacingRawAngleScale;
+            return NormalizeOrZero(
+                MathF.Sin(yawFromPosition),
+                0f,
+                -MathF.Cos(yawFromPosition));
+        }
+
+        var yaw = facing0Raw / FacingRawAngleScale;
+        return NormalizeOrZero(
+            MathF.Sin(yaw),
+            0f,
+            -MathF.Cos(yaw));
+    }
+
+    private static (float X, float Y, float Z, float LengthSquared) ResolveSpurtDirection(GamePlayerRuntime attacker)
+    {
+        if (attacker.LastPosition is { } movementPosition)
+        {
+            var movementDirection = ResolveMovementDirection(movementPosition);
+            if (movementDirection.LengthSquared > 0f)
+            {
+                return movementDirection;
+            }
+        }
+
+        if (attacker.LastShoot is { } shoot)
+        {
+            var shootDirection = ResolveShootDirection(shoot);
+            var flattenedDirection = NormalizeOrZero(shootDirection.X, 0f, shootDirection.Z);
+            if (flattenedDirection.LengthSquared > 0f)
+            {
+                return flattenedDirection;
+            }
+        }
+
+        return (0f, 0f, -1f, 1f);
     }
 
     private static (float X, float Y, float Z) ShootOriginToWorld(GameShootAction shoot)
@@ -2337,6 +4598,24 @@ internal sealed class PracticeRoomManager
 
     private static IReadOnlyList<BattleLevelChoice> LoadRandomBattleLevelChoices()
     {
+        try
+        {
+            using var db = new AvatarStarDbContext();
+            var dbChoices = db.LobbyLevels
+                .Where(x => x.Enabled != 0)
+                .OrderBy(x => x.Id)
+                .Select(x => new BattleLevelChoice(x.Id, string.IsNullOrWhiteSpace(x.ShowName) ? x.Name : x.ShowName))
+                .ToArray();
+            if (dbChoices.Length > 0)
+            {
+                return dbChoices;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load lobby levels from database; falling back to JSON/built-in map choices.");
+        }
+
         var configPath = ResolveLobbyLevelInfoConfigPath();
         if (string.IsNullOrWhiteSpace(configPath))
         {
@@ -2475,6 +4754,8 @@ internal sealed class PracticeRoomManager
         float VectorX,
         float VectorY,
         float VectorZ,
+        byte WeaponSubtype,
+        string WeaponResource,
         DateTimeOffset LastSeenAt);
 
     internal readonly record struct GameDamageHitRule(
@@ -2522,11 +4803,68 @@ internal sealed class PracticeRoomManager
             float.MaxValue);
     }
 
+    internal readonly record struct GameAreaEffectBroadcastResult(
+        bool Applied,
+        int BroadcastCount,
+        int TargetCount,
+        int KillCount,
+        string Reason);
+
+    internal readonly record struct GameBuffStartAction(
+        byte FromUid,
+        byte TargetUid,
+        short BuffType,
+        float Duration,
+        byte CooldownLock,
+        float Value1,
+        float Value2);
+
+    internal readonly record struct PlayerSkillRuntime(
+        IReadOnlyDictionary<byte, int> SkillLevels,
+        IReadOnlySet<string> SkillResources)
+    {
+        public static PlayerSkillRuntime Empty { get; } = new(
+            new Dictionary<byte, int>(),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+
+        public bool HasSkill(byte skillType)
+        {
+            return SkillLevels.ContainsKey(skillType);
+        }
+
+        public bool HasSkillResource(string resource)
+        {
+            return SkillResources.Contains(resource);
+        }
+    }
+
     internal readonly record struct GamePlayerSnapshot(
         byte Uid,
         long CharacterId,
         string CharacterName,
         GamePosition? LastPosition);
+
+    private readonly record struct GameBuffRuntime(
+        short BuffType,
+        byte SourceUid,
+        byte TargetUid,
+        DateTimeOffset StartedAt,
+        DateTimeOffset ExpiresAt,
+        DateTimeOffset LastTickAt,
+        float Value1,
+        float Value2);
+
+    private readonly record struct GameDropItemRuntime(
+        byte DropId,
+        byte OwnerUid,
+        byte DropType,
+        byte Slot,
+        GamePosition Position,
+        int Value,
+        int SecondaryValue,
+        DateTimeOffset LastTickAt,
+        DateTimeOffset CreatedAt,
+        bool Triggered);
 
     internal readonly record struct GamePosition(
         short XRaw,
@@ -2564,6 +4902,9 @@ internal sealed class PracticeRoomManager
         public int CurrentHealth { get; set; } = DefaultGamePlayerHealth;
         public GamePosition? LastPosition { get; set; }
         public GameShootAction? LastShoot { get; set; }
+        public int TransferChargePercent { get; set; }
+        public bool TransferReleasing { get; set; }
+        public byte LastKillerUid { get; set; }
     }
 
     internal sealed class PracticeRoomSession

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
+using AvatarStar.Server.Persistence;
 
 namespace AvatarStar.Server.Game.Resources;
 
@@ -165,7 +166,7 @@ public class ShopItemDatabase
 
     static ShopItemDatabase()
     {
-        var loaded = TryLoadFromJsonConfig();
+        var loaded = TryLoadFromDatabaseConfig() || TryLoadFromJsonConfig();
         if (!loaded)
         {
             InitializeWeapons();
@@ -465,7 +466,12 @@ public class ShopItemDatabase
     public static bool ReloadFromJsonConfig()
     {
         // TryLoadFromJsonConfig swaps dictionaries only on success, so current config stays intact on failure.
-        return TryLoadFromJsonConfig();
+        return TryLoadFromDatabaseConfig() || TryLoadFromJsonConfig();
+    }
+
+    public static bool ReloadFromDatabaseConfig()
+    {
+        return TryLoadFromDatabaseConfig();
     }
 
     public static long GetConfigRevision() => Interlocked.Read(ref _configRevision);
@@ -641,6 +647,116 @@ public class ShopItemDatabase
         catch
         {
             return false;
+        }
+    }
+
+    private static bool TryLoadFromDatabaseConfig()
+    {
+        try
+        {
+            using var db = new AvatarStarDbContext();
+            var dbItems = db.ShopItems.ToArray();
+            if (dbItems.Length == 0)
+            {
+                return false;
+            }
+
+            var pricesBySid = db.ShopPrices
+                .ToArray()
+                .GroupBy(x => x.Sid)
+                .ToDictionary(x => x.Key, x => x.OrderBy(p => p.PriceId).ToArray());
+
+            var newItems = new Dictionary<int, ShopItem>();
+            var newItemsByResource = new Dictionary<string, ShopItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in dbItems)
+            {
+                var shopItem = new ShopItem
+                {
+                    Sid = item.Sid,
+                    Type = Enum.IsDefined(typeof(ItemType), item.Type) ? (ItemType)item.Type : ItemType.Item,
+                    Subtype = item.Subtype,
+                    Resource = item.Resource ?? string.Empty,
+                    Display = item.Display ?? string.Empty,
+                    Level = item.Level,
+                    Occupation = item.Occupation,
+                    Grade = item.Grade <= 0 ? 1 : item.Grade,
+                    Description = item.Description ?? string.Empty,
+                    Avatar = NormalizeAvatar(DeserializeConfigJson(item.AvatarJson)),
+                    AvatarLevel = item.AvatarLevel,
+                    Tip = NormalizeAnyJson(DeserializeConfigJson(item.TipJson)),
+                    Quantity = item.Quantity <= 0 ? 1 : item.Quantity,
+                    IsLimited = item.IsLimited != 0,
+                    Category = item.Category ?? string.Empty,
+                    Prices = pricesBySid.TryGetValue(item.Sid, out var dbPrices)
+                        ? dbPrices.Select(p => new ShopPrice
+                            {
+                                PriceId = p.PriceId <= 0 ? 1 : p.PriceId,
+                                Currency = Enum.IsDefined(typeof(CurrencyType), p.Currency) ? (CurrencyType)p.Currency : CurrencyType.Gold,
+                                Price = p.Price,
+                                RebatePrice = p.RebatePrice,
+                                SellState = p.SellState,
+                                UnitType = p.UnitType <= 0 ? 1 : p.UnitType,
+                                Unit = p.Unit <= 0 ? 1 : p.Unit,
+                                RepeatDuration = p.RepeatDuration <= 0 ? 1 : p.RepeatDuration,
+                                AccomplishCount = p.AccomplishCount,
+                                IsRenew = p.IsRenew != 0,
+                                IsCardPrice = p.IsCardPrice != 0,
+                                IsGive = p.IsGive != 0,
+                                VipLevel = p.VipLevel,
+                                StartDateTime = p.StartDateTime,
+                                EndDateTime = p.EndDateTime
+                            })
+                            .ToArray()
+                        : Array.Empty<ShopPrice>()
+                };
+
+                if (shopItem.Type is ItemType.AvatarCard or ItemType.SkinCard && shopItem.Avatar is null)
+                {
+                    shopItem.Avatar = CreateDefaultEquipAvatar();
+                }
+
+                if (shopItem.Prices.Length == 0)
+                {
+                    shopItem.Prices = new[] { new ShopPrice { PriceId = 1, Currency = CurrencyType.Gold, Price = 0 } };
+                }
+
+                newItems[shopItem.Sid] = shopItem;
+                if (!string.IsNullOrWhiteSpace(shopItem.Resource))
+                {
+                    newItemsByResource[shopItem.Resource] = shopItem;
+                }
+            }
+
+            if (newItems.Count == 0)
+            {
+                return false;
+            }
+
+            Items = newItems;
+            ItemsByResource = newItemsByResource;
+            BumpConfigRevision();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static object? DeserializeConfigJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<object>(json);
+        }
+        catch
+        {
+            return null;
         }
     }
 

@@ -2,19 +2,30 @@ using AvatarStar.Server.Game;
 using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Game.Resources;
 using AvatarStar.Server.Game.Udp;
+using AvatarStar.Server.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
+var logDirectory = ResolveLogDirectory();
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .Enrich.FromLogContext()
     .WriteTo.Console()
+    .WriteTo.File(
+        Path.Combine(logDirectory, "game-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        shared: true,
+        flushToDiskInterval: TimeSpan.FromSeconds(1))
     .CreateLogger();
 
 try
 {
+    new DatabaseInitializer().Initialize();
+
     var builder = Host.CreateApplicationBuilder(args);
 
     var configDirectory = Path.Combine(AppContext.BaseDirectory, "Config");
@@ -43,6 +54,8 @@ try
     });
     builder.Services.AddSingleton<PlayerStore>();
     builder.Services.AddSingleton<PracticeRoomManager>();
+    builder.Services.AddSingleton<AccountRepository>();
+    builder.Services.AddSingleton<ConfigRepository>();
     builder.Services.AddSerilog();
 
     var enableTcp = (Environment.GetEnvironmentVariable("AS_GAME_TCP") ?? "1").Equals("1", StringComparison.OrdinalIgnoreCase);
@@ -72,4 +85,31 @@ catch (Exception ex)
 finally
 {
     await Log.CloseAndFlushAsync();
+}
+
+static string ResolveLogDirectory()
+{
+    var configured = Environment.GetEnvironmentVariable("AS_LOG_DIR");
+    var directory = string.IsNullOrWhiteSpace(configured)
+        ? Path.Combine(ResolveProjectRoot(), "logs")
+        : configured!;
+
+    Directory.CreateDirectory(directory);
+    return directory;
+}
+
+static string ResolveProjectRoot()
+{
+    var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+    while (current is not null)
+    {
+        if (Directory.Exists(Path.Combine(current.FullName, "src")))
+        {
+            return current.FullName;
+        }
+
+        current = current.Parent;
+    }
+
+    return Directory.GetCurrentDirectory();
 }

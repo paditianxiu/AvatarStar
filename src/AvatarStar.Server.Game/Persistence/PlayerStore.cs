@@ -1,7 +1,10 @@
 using System.Globalization;
 using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Game.Resources;
+using AvatarStar.Server.Persistence;
 using System.Reflection;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Text.Json;
 
 namespace AvatarStar.Server.Game;
@@ -10,15 +13,65 @@ internal sealed class PlayerStore
 {
     private readonly object _lock = new();
     private readonly Dictionary<int, PlayerState> _players = new();
+    private readonly string _dbPath = AvatarStarDatabase.ResolveDatabasePath();
     private int _nextCharacterId = 1;
+    private readonly AsyncLocal<long> _currentAccountId = new();
+
+    private static readonly string[] AvatarPartKeys =
+    [
+        "skin",
+        "eye",
+        "mouth",
+        "nose",
+        "ear",
+        "beard",
+        "hair",
+        "helmet",
+        "underwear",
+        "outerwear",
+        "trousers",
+        "glove",
+        "shoes",
+        "decal",
+        "movable",
+        "immobile",
+        "immobileUp",
+        "immobileDown"
+    ];
+
+    private static readonly string[] RequiredAvatarModelKeys =
+    [
+        "skin",
+        "outerwear",
+        "glove",
+        "shoes"
+    ];
+
+    private long CurrentAccountId => _currentAccountId.Value > 0 ? _currentAccountId.Value : 1;
+
+    public void SetCurrentAccount(long accountId)
+    {
+        _currentAccountId.Value = accountId <= 0 ? 1 : accountId;
+    }
 
     public IReadOnlyList<CharacterInfo> ListCharacters()
     {
         lock (_lock)
         {
-            return _players.Values
-                .OrderBy(p => p.Character.Id)
-                .Select(p => p.Character)
+            using var db = new AvatarStarDbContext(_dbPath);
+            EnsureDefaultCharacterNoLock(db);
+            LoadAccountCharactersNoLock(db);
+            return db.Characters
+                .Where(x => x.AccountId == CurrentAccountId && x.DeletedAt == null)
+                .OrderBy(x => x.Id)
+                .Select(x => new CharacterInfo(
+                    x.Id,
+                    x.Name,
+                    x.Level,
+                    x.Occupation,
+                    x.BattleForce,
+                    EnsureCompleteEquipAvatar(DeserializeAvatar(x.EquipAvatarJson), x.Occupation, null),
+                    x.MaxHealth))
                 .ToList();
         }
     }
@@ -32,9 +85,24 @@ internal sealed class PlayerStore
                 return existing;
             }
 
+            using (var db = new AvatarStarDbContext(_dbPath))
+            {
+                var loaded = LoadCharacterNoLock(db, characterId);
+                if (loaded is not null)
+                {
+                    _players[characterId] = loaded;
+                    return loaded;
+                }
+            }
+
             var name = $"Player{characterId}";
             var created = new PlayerState(CharacterInfo.Create(characterId, name, occupation: 0));
+            created.Character = created.Character with
+            {
+                EquipAvatar = EnsureCompleteEquipAvatar(created.Character.EquipAvatar, created.Character.Occupation)
+            };
             _players[characterId] = created;
+            SaveCharacterNoLock(created);
             return created;
         }
     }
@@ -51,11 +119,20 @@ internal sealed class PlayerStore
         lock (_lock)
         {
             var id = _nextCharacterId++;
+            using (var db = new AvatarStarDbContext(_dbPath))
+            {
+                var maxId = db.Characters.Any() ? db.Characters.Max(x => x.Id) : 0;
+                id = Math.Max(id, maxId + 1);
+                _nextCharacterId = id + 1;
+            }
             var player = new PlayerState(CharacterInfo.Create(id, name, occupation));
             var resolvedAvatarId = string.IsNullOrWhiteSpace(avatarId)
                 ? GetDefaultAvatarId(occupation, avatarConfig)
                 : avatarId!;
-            var resolvedEquipAvatar = equipAvatar ?? BuildDefaultEquipAvatar(resolvedAvatarId);
+            var resolvedEquipAvatar = EnsureCompleteEquipAvatar(
+                equipAvatar ?? BuildDefaultEquipAvatar(occupation, resolvedAvatarId),
+                occupation,
+                resolvedAvatarId);
             player.Character = player.Character with { EquipAvatar = resolvedEquipAvatar };
             player.InitializeStarterInventory(
                 occupation,
@@ -65,6 +142,7 @@ internal sealed class PlayerStore
                 cardDisplay: starterCardDisplay,
                 cardDesigner: starterCardDesigner);
             _players[id] = player;
+            SaveCharacterNoLock(player);
             return player;
         }
     }
@@ -92,6 +170,25 @@ internal sealed class PlayerStore
 
     private static object BuildDefaultEquipAvatar(string avatarId)
     {
+        return BuildDefaultEquipAvatar(0, avatarId);
+    }
+
+    private static object BuildDefaultEquipAvatar(int occupation, string? avatarId = null)
+    {
+        if (TryLoadDefaultEquipAvatarFromLua(occupation, avatarId, out var luaAvatar))
+        {
+            return luaAvatar;
+        }
+
+        var resolvedAvatarId = string.IsNullOrWhiteSpace(avatarId)
+            ? GetOccupationDefaultAvatarId(occupation)
+            : avatarId!;
+
+        return BuildEmptyEquipAvatar(resolvedAvatarId);
+    }
+
+    private static object BuildEmptyEquipAvatar(string avatarId)
+    {
         return new
         {
             avatarId,
@@ -116,6 +213,193 @@ internal sealed class PlayerStore
         };
     }
 
+    private static object EnsureCompleteEquipAvatar(object? avatar, int occupation, string? preferredAvatarId = null)
+    {
+        var resolvedAvatarId = FirstNonEmpty(
+            preferredAvatarId,
+            GetAvatarValue(avatar, "avatarId"),
+            GetOccupationDefaultAvatarId(occupation));
+
+        _ = TryLoadDefaultEquipAvatarFromLua(occupation, resolvedAvatarId, out var defaults);
+        var defaultMap = defaults.Count > 0
+            ? defaults
+            : ToAvatarStringMap(BuildEmptyEquipAvatar(resolvedAvatarId));
+        var result = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["avatarId"] = resolvedAvatarId
+        };
+
+        foreach (var key in AvatarPartKeys)
+        {
+            var current = GetAvatarValue(avatar, key);
+            if (IsEmptyAvatarPart(current) &&
+                defaultMap.TryGetValue(key, out var defaultValue) &&
+                !string.IsNullOrWhiteSpace(defaultValue))
+            {
+                current = defaultValue;
+            }
+
+            result[key] = string.IsNullOrWhiteSpace(current) ? "{}" : current!;
+        }
+
+        return result;
+    }
+
+    private static bool TryLoadDefaultEquipAvatarFromLua(
+        int occupation,
+        string? avatarId,
+        out Dictionary<string, string> avatar)
+    {
+        avatar = new Dictionary<string, string>(StringComparer.Ordinal);
+        var payloadPath = GetSysAvatarPayloadCandidates(occupation).FirstOrDefault(File.Exists);
+        if (payloadPath is null)
+        {
+            return false;
+        }
+
+        var payload = File.ReadAllText(payloadPath);
+        foreach (Match match in Regex.Matches(
+                     payload,
+                     @"avatar\s*=\s*\{(?<body>.*?)^\s*\},",
+                     RegexOptions.Singleline | RegexOptions.Multiline))
+        {
+            var candidate = ParseLuaAvatarBlock(match.Groups["body"].Value);
+            if (candidate.Count == 0)
+            {
+                continue;
+            }
+
+            var candidateAvatarId = candidate.GetValueOrDefault("avatarId");
+            if (string.IsNullOrWhiteSpace(avatarId) ||
+                string.Equals(candidateAvatarId, avatarId, StringComparison.Ordinal))
+            {
+                avatar = candidate;
+                return true;
+            }
+
+            if (avatar.Count == 0)
+            {
+                avatar = candidate;
+            }
+        }
+
+        return avatar.Count > 0;
+    }
+
+    private static IEnumerable<string> GetSysAvatarPayloadCandidates(int occupation)
+    {
+        var jobId = Math.Clamp(occupation, 0, 3) + 1;
+        var fileNamePrefix = jobId.ToString(CultureInfo.InvariantCulture) + "_";
+        var directories = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Config", "SysAvatarPayloads"),
+            Path.Combine(Directory.GetCurrentDirectory(), "Config", "SysAvatarPayloads"),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "AvatarStar.Server.Game", "Config", "SysAvatarPayloads")
+        };
+
+        foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(directory, fileNamePrefix + "*.lua").OrderBy(x => x))
+            {
+                yield return file;
+            }
+        }
+    }
+
+    private static Dictionary<string, string> ParseLuaAvatarBlock(string body)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (Match field in Regex.Matches(
+                     body,
+                     @"(?m)^\s*(?<key>avatarId|skin|eye|mouth|nose|ear|beard|hair|helmet|underwear|outerwear|trousers|glove|shoes|decal|movable|immobile|immobileUp|immobileDown)\s*=\s*""(?<value>[^""]*)"""))
+        {
+            result[field.Groups["key"].Value] = field.Groups["value"].Value;
+        }
+
+        return result;
+    }
+
+    private static Dictionary<string, string> ToAvatarStringMap(object avatar)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        result["avatarId"] = GetAvatarValue(avatar, "avatarId") ?? "0";
+        foreach (var key in AvatarPartKeys)
+        {
+            result[key] = GetAvatarValue(avatar, key) ?? "{}";
+        }
+
+        return result;
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var value in values)
+        {
+            if (!string.IsNullOrWhiteSpace(value) &&
+                !string.Equals(value, "0", StringComparison.Ordinal))
+            {
+                return value!;
+            }
+        }
+
+        return "0";
+    }
+
+    private static bool IsEmptyAvatarPart(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ||
+               string.Equals(value.Trim(), "{}", StringComparison.Ordinal);
+    }
+
+    private static bool HasIncompleteEquipAvatar(object? avatar)
+    {
+        if (avatar is null)
+        {
+            return true;
+        }
+
+        return RequiredAvatarModelKeys.Any(key => IsEmptyAvatarPart(GetAvatarValue(avatar, key)));
+    }
+
+    private static string? GetAvatarValue(object? avatar, string key)
+    {
+        if (avatar is null)
+        {
+            return null;
+        }
+
+        if (avatar is IReadOnlyDictionary<string, string> stringMap &&
+            stringMap.TryGetValue(key, out var stringValue))
+        {
+            return stringValue;
+        }
+
+        if (avatar is IReadOnlyDictionary<string, object?> objectMap &&
+            objectMap.TryGetValue(key, out var objectValue))
+        {
+            return Convert.ToString(objectValue, CultureInfo.InvariantCulture);
+        }
+
+        if (avatar is JsonElement jsonElement &&
+            jsonElement.ValueKind == JsonValueKind.Object &&
+            jsonElement.TryGetProperty(key, out var property))
+        {
+            return property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : property.ToString();
+        }
+
+        var propertyInfo = avatar.GetType().GetProperty(key);
+        return propertyInfo is null
+            ? null
+            : Convert.ToString(propertyInfo.GetValue(avatar), CultureInfo.InvariantCulture);
+    }
+
     private static int StableSid(int itemType, string resource)
     {
         unchecked
@@ -138,7 +422,375 @@ internal sealed class PlayerStore
     {
         lock (_lock)
         {
-            return _players.Remove(characterId);
+            _players.Remove(characterId);
+            using var db = new AvatarStarDbContext(_dbPath);
+            var entity = db.Characters.Find(characterId);
+            if (entity is null)
+            {
+                return false;
+            }
+
+            entity.DeletedAt = DateTimeOffset.UtcNow.ToString("O");
+            entity.UpdatedAt = DateTimeOffset.UtcNow.ToString("O");
+            db.SaveChanges();
+            return true;
+        }
+    }
+
+    public void SaveActiveCharacter(int characterId)
+    {
+        lock (_lock)
+        {
+            if (_players.TryGetValue(characterId, out var player))
+            {
+                SaveCharacterNoLock(player);
+            }
+        }
+    }
+
+    public void SaveAll()
+    {
+        lock (_lock)
+        {
+            foreach (var player in _players.Values)
+            {
+                SaveCharacterNoLock(player);
+            }
+        }
+    }
+
+    private void LoadAccountCharactersNoLock(AvatarStarDbContext db)
+    {
+        foreach (var character in db.Characters.Where(x => x.AccountId == CurrentAccountId && x.DeletedAt == null).ToArray())
+        {
+            if (_players.ContainsKey(character.Id)) continue;
+            if (LoadCharacterNoLock(db, character.Id) is { } player)
+            {
+                _players[character.Id] = player;
+            }
+        }
+    }
+
+    private void EnsureDefaultCharacterNoLock(AvatarStarDbContext db)
+    {
+        if (db.Characters.Any(x => x.AccountId == CurrentAccountId && x.DeletedAt == null))
+        {
+            return;
+        }
+
+        var id = db.Characters.Any() ? db.Characters.Max(x => x.Id) + 1 : 1;
+        _nextCharacterId = Math.Max(_nextCharacterId, id + 1);
+        var player = new PlayerState(CharacterInfo.Create(id, $"Player{id}", occupation: 0));
+        player.EnsureStarterInventory();
+        _players[id] = player;
+        SaveCharacterNoLock(player);
+    }
+
+    private PlayerState? LoadCharacterNoLock(AvatarStarDbContext db, int characterId)
+    {
+        var entity = db.Characters.FirstOrDefault(x => x.Id == characterId && x.DeletedAt == null);
+        if (entity is null) return null;
+
+        var rawEquipAvatar = DeserializeAvatar(entity.EquipAvatarJson);
+        var needsAvatarBackfill = HasIncompleteEquipAvatar(rawEquipAvatar);
+
+        var player = new PlayerState(new CharacterInfo(
+            entity.Id,
+            entity.Name,
+            entity.Level,
+            entity.Occupation,
+            entity.BattleForce,
+            EnsureCompleteEquipAvatar(rawEquipAvatar, entity.Occupation),
+            entity.MaxHealth))
+        {
+            Gp = entity.Gp,
+            Mb = entity.Mb,
+            Tb = entity.Tb,
+            NextPid = entity.NextPid,
+            EquippedAvatarPid = entity.EquippedAvatarPid
+        };
+
+        foreach (var item in db.InventoryItems.Where(x => x.CharacterId == characterId).OrderBy(x => x.StorageType).ThenBy(x => x.Slot))
+        {
+            if (!player.Storages.TryGetValue(item.StorageType, out var slots))
+            {
+                slots = new Dictionary<int, InventoryItem>();
+                player.Storages[item.StorageType] = slots;
+            }
+
+            slots[item.Slot] = new InventoryItem(
+                item.Pid,
+                item.Slot,
+                item.Resource,
+                item.Subtype,
+                item.SubType,
+                item.Grade,
+                item.Quantity,
+                item.UnitType,
+                item.Unit,
+                item.Remain,
+                item.IsRenew != 0,
+                item.Category,
+                item.IsBind,
+                item.IsEquip,
+                item.Sid,
+                item.Type,
+                DeserializeNullableObject(item.AvatarJson),
+                item.Position,
+                item.Display,
+                item.Designer,
+                item.Description,
+                DeserializeAttributes(item.AttributesJson));
+        }
+
+        foreach (var equip in db.EquippedItems.Where(x => x.CharacterId == characterId))
+        {
+            player.EquippedItemsByType[equip.EquipType] = equip.Pid;
+        }
+
+        foreach (var skill in db.CharacterSkillLevels.Where(x => x.CharacterId == characterId))
+        {
+            player.SkillLevels[skill.SkillId] = skill.Level;
+        }
+
+        foreach (var point in db.CharacterBoxPoints.Where(x => x.CharacterId == characterId))
+        {
+            player.BoxPoints[point.Category] = point.Points;
+        }
+
+        foreach (var claim in db.CharacterBoxPointClaims.Where(x => x.CharacterId == characterId))
+        {
+            if (!player.BoxPointClaimCounts.TryGetValue(claim.Category, out var byThreshold))
+            {
+                byThreshold = new Dictionary<int, int>();
+                player.BoxPointClaimCounts[claim.Category] = byThreshold;
+            }
+            byThreshold[claim.Threshold] = claim.ClaimCount;
+        }
+
+        var monthKey = DateTime.Now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        player.SetCheckinMonthForPersistence(monthKey);
+        foreach (var day in db.CharacterCheckinDays.Where(x => x.CharacterId == characterId && x.MonthKey == monthKey))
+        {
+            player.CheckinDays.Add(day.Day);
+        }
+        foreach (var claim in db.CharacterCheckinClaims.Where(x => x.CharacterId == characterId && x.MonthKey == monthKey))
+        {
+            player.CheckinClaimedRewardIds.Add(claim.CheckinId);
+        }
+
+        foreach (var purchase in db.CharacterShopPurchases.Where(x => x.CharacterId == characterId))
+        {
+            player.ShopPurchasedCounts[(purchase.Sid, purchase.PriceId)] = purchase.PurchaseCount;
+        }
+
+        var onlineRewardState = db.CharacterOnlineRewardStates.Find(characterId);
+        if (onlineRewardState is not null)
+        {
+            player.LoadOnlineRewardStateFromPersistence(
+                onlineRewardState.DayKey,
+                onlineRewardState.ClaimedLevel,
+                onlineRewardState.StageStartedUtc);
+        }
+
+        player.LoadHotKeySlotsFromPersistence(db.HotkeySlots.Where(x => x.CharacterId == characterId).ToArray());
+        needsAvatarBackfill = needsAvatarBackfill || player.NeedsAvatarCardBackfill();
+        if (needsAvatarBackfill)
+        {
+            player.EnsureStarterInventory();
+            SaveCharacterNoLock(player);
+        }
+
+        return player;
+    }
+
+    private void SaveCharacterNoLock(PlayerState player)
+    {
+        using var db = new AvatarStarDbContext(_dbPath);
+        using var tx = db.Database.BeginTransaction();
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        var character = player.Character;
+        var entity = db.Characters.Find(character.Id);
+        if (entity is null)
+        {
+            entity = new CharacterEntity
+            {
+                Id = character.Id,
+                AccountId = CurrentAccountId,
+                CreatedAt = now
+            };
+            db.Characters.Add(entity);
+        }
+
+        if (entity.AccountId <= 0)
+        {
+            entity.AccountId = CurrentAccountId;
+        }
+        entity.Name = character.Name;
+        entity.Level = character.Level;
+        entity.Occupation = character.Occupation;
+        entity.BattleForce = character.BattleForce;
+        entity.MaxHealth = character.MaxHealth;
+        entity.Gp = player.Gp;
+        entity.Mb = player.Mb;
+        entity.Tb = player.Tb;
+        entity.NextPid = player.NextPid;
+        entity.EquipAvatarJson = SerializeJson(character.EquipAvatar);
+        entity.EquippedAvatarPid = player.EquippedAvatarPid;
+        entity.UpdatedAt = now;
+        entity.DeletedAt = null;
+
+        db.InventoryItems.RemoveRange(db.InventoryItems.Where(x => x.CharacterId == character.Id));
+        foreach (var storage in player.Storages)
+        {
+            foreach (var pair in storage.Value)
+            {
+                var item = pair.Value.Slot == pair.Key ? pair.Value : pair.Value with { Slot = pair.Key };
+                db.InventoryItems.Add(new InventoryItemEntity
+                {
+                    CharacterId = character.Id,
+                    Pid = item.Pid,
+                    StorageType = storage.Key,
+                    Slot = item.Slot,
+                    Sid = item.Sid,
+                    Type = item.Type,
+                    Subtype = item.Subtype,
+                    SubType = item.SubType,
+                    Resource = item.Resource,
+                    Display = item.Display,
+                    Designer = item.Designer,
+                    Description = item.Description,
+                    Grade = item.Grade,
+                    Quantity = item.Quantity,
+                    UnitType = item.UnitType,
+                    Unit = item.Unit,
+                    Remain = item.Remain,
+                    IsRenew = item.IsRenew ? 1 : 0,
+                    Category = item.Category,
+                    IsBind = item.IsBind,
+                    IsEquip = item.IsEquip,
+                    AvatarJson = item.Avatar is null ? null : SerializeJson(item.Avatar),
+                    Position = item.Position,
+                    AttributesJson = item.Attributes is null ? null : SerializeJson(item.Attributes),
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            }
+        }
+
+        db.EquippedItems.RemoveRange(db.EquippedItems.Where(x => x.CharacterId == character.Id));
+        foreach (var equip in player.EquippedItemsByType)
+        {
+            db.EquippedItems.Add(new EquippedItemEntity { CharacterId = character.Id, EquipType = equip.Key, Pid = equip.Value });
+        }
+
+        db.HotkeySlots.RemoveRange(db.HotkeySlots.Where(x => x.CharacterId == character.Id));
+        foreach (var slot in player.GetHotKeySlotEntitiesForPersistence())
+        {
+            slot.CharacterId = character.Id;
+            db.HotkeySlots.Add(slot);
+        }
+
+        db.CharacterSkillLevels.RemoveRange(db.CharacterSkillLevels.Where(x => x.CharacterId == character.Id));
+        foreach (var skill in player.SkillLevels.Where(x => x.Value > 0))
+        {
+            db.CharacterSkillLevels.Add(new CharacterSkillLevelEntity { CharacterId = character.Id, SkillId = skill.Key, Level = skill.Value });
+        }
+
+        db.CharacterBoxPoints.RemoveRange(db.CharacterBoxPoints.Where(x => x.CharacterId == character.Id));
+        foreach (var point in player.BoxPoints)
+        {
+            db.CharacterBoxPoints.Add(new CharacterBoxPointEntity { CharacterId = character.Id, Category = point.Key, Points = point.Value });
+        }
+
+        db.CharacterBoxPointClaims.RemoveRange(db.CharacterBoxPointClaims.Where(x => x.CharacterId == character.Id));
+        foreach (var (category, byThreshold) in player.BoxPointClaimCounts)
+        {
+            foreach (var (threshold, count) in byThreshold)
+            {
+                db.CharacterBoxPointClaims.Add(new CharacterBoxPointClaimEntity { CharacterId = character.Id, Category = category, Threshold = threshold, ClaimCount = count });
+            }
+        }
+
+        var monthKey = DateTime.Now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        db.CharacterCheckinDays.RemoveRange(db.CharacterCheckinDays.Where(x => x.CharacterId == character.Id && x.MonthKey == monthKey));
+        foreach (var day in player.CheckinDays)
+        {
+            db.CharacterCheckinDays.Add(new CharacterCheckinDayEntity { CharacterId = character.Id, MonthKey = monthKey, Day = day, CheckedAt = now });
+        }
+
+        db.CharacterCheckinClaims.RemoveRange(db.CharacterCheckinClaims.Where(x => x.CharacterId == character.Id && x.MonthKey == monthKey));
+        foreach (var claim in player.CheckinClaimedRewardIds)
+        {
+            db.CharacterCheckinClaims.Add(new CharacterCheckinClaimEntity { CharacterId = character.Id, MonthKey = monthKey, CheckinId = claim, ClaimedAt = now });
+        }
+
+        db.CharacterShopPurchases.RemoveRange(db.CharacterShopPurchases.Where(x => x.CharacterId == character.Id));
+        foreach (var purchase in player.ShopPurchasedCounts)
+        {
+            db.CharacterShopPurchases.Add(new CharacterShopPurchaseEntity
+            {
+                CharacterId = character.Id,
+                Sid = purchase.Key.Sid,
+                PriceId = purchase.Key.PriceId,
+                PurchaseCount = purchase.Value,
+                UpdatedAt = now
+            });
+        }
+
+        var (onlineDayKey, onlineClaimedLevel, onlineStageStartedUtc) = player.GetOnlineRewardStateForPersistence();
+        if (!string.IsNullOrWhiteSpace(onlineDayKey))
+        {
+            var onlineEntity = db.CharacterOnlineRewardStates.Find(character.Id);
+            if (onlineEntity is null)
+            {
+                onlineEntity = new CharacterOnlineRewardStateEntity { CharacterId = character.Id };
+                db.CharacterOnlineRewardStates.Add(onlineEntity);
+            }
+
+            onlineEntity.DayKey = onlineDayKey;
+            onlineEntity.ClaimedLevel = onlineClaimedLevel;
+            onlineEntity.StageStartedUtc = onlineStageStartedUtc;
+            onlineEntity.UpdatedAt = now;
+        }
+
+        db.SaveChanges();
+        tx.Commit();
+    }
+
+    private static string SerializeJson(object value)
+    {
+        return JsonSerializer.Serialize(value);
+    }
+
+    private static object DeserializeAvatar(string json)
+    {
+        return DeserializeNullableObject(json) ?? BuildDefaultEquipAvatar("0");
+    }
+
+    private static object? DeserializeNullableObject(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static IReadOnlyDictionary<string, double>? DeserializeAttributes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, double>>(json);
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -149,12 +801,55 @@ internal sealed class PlayerStore
             int Type,
             string ItemId,
             string Resource,
+            string Display,
             int Grade,
             int Quantity,
             int UnitType,
             int Unit,
             int Subtype,
-            int Sid);
+            int Sid,
+            int Level);
+
+        private sealed record SkillRuntimeDefinition(
+            int Id,
+            int Occupation,
+            string Resource,
+            string DisplayBase,
+            bool IsActive,
+            float CoolDown,
+            float Range);
+
+        private static readonly SkillRuntimeDefinition[] GameSkillDefinitions =
+        [
+            new(0, 0, "cure", "id_datalist_Battlefield_Heal_01", true, 20f, 8f),
+            new(3, 0, "shock", "id_datalist_Shockwave_01", true, 20f, 8f),
+            new(6, 0, "vitals", "id_datalist_Achilles_Heel_01", false, 0f, 0f),
+            new(9, 0, "rain", "id_datalist_Arrow_Shower_01", true, 20f, 8f),
+            new(14, 0, "energy", "id_datalist_Healing_Beacon_01", true, 20f, 8f),
+            new(76, 0, "feud", "tips_buff_langwangshichou", false, 0f, 0f),
+
+            new(1, 1, "shield", "id_datalist_Shield_01", true, 20f, 8f),
+            new(4, 1, "gallop", "id_datalist_Haste_01", true, 20f, 8f),
+            new(7, 1, "tenacity", "id_datalist_Perseverance_01", false, 0f, 0f),
+            new(10, 1, "heavy", "id_datalist_Blitzkrieg_01", false, 0f, 0f),
+            new(12, 1, "transfer", "id_datalist_Damage_Converter_01", false, 0f, 0f),
+
+            new(2, 2, "latent", "id_datalist_Stealth_01", true, 20f, 8f),
+            new(5, 2, "piercing", "id_datalist_Fatal_Shot_01", false, 0f, 0f),
+            new(8, 2, "poison", "id_datalist_Poison_Pierce_01", false, 0f, 0f),
+            new(11, 2, "spurt", "id_datalist_Deadly_Sprint_01", true, 20f, 8f),
+            new(13, 2, "snare", "id_datalist_Trap_01", true, 20f, 8f),
+
+            new(38, 3, "conduction", "id_datalist_shengmingchuandao_01", true, 20f, 8f),
+            new(39, 3, "suckblood", "id_datalist_shengmingchouqu_01", false, 0f, 0f),
+            new(40, 3, "plague", "id_datalist_wenyichuanbo_01", false, 0f, 0f),
+            new(41, 3, "gasbomb", "id_datalist_duqidan_01", false, 0f, 0f),
+            new(42, 3, "overreaction", "id_datalist_guojifanying_01", true, 20f, 8f)
+        ];
+
+        private static readonly object GameSkillDefinitionCacheLock = new();
+        private static SkillRuntimeDefinition[]? DbGameSkillDefinitions;
+        private static DateTime DbGameSkillDefinitionsLoadedUtc;
 
         public sealed record GameLoadoutItem(
             byte Slot,
@@ -165,6 +860,15 @@ internal sealed class PlayerStore
             string DisplayName,
             byte Subtype);
 
+        public sealed record GameSkillSlotItem(
+            byte Slot,
+            byte SkillType,
+            string Resource,
+            string DisplayName,
+            bool Initiative,
+            float CoolDown,
+            float Range);
+
         public sealed record GameIndependentTrinketItem(
             int Slot,
             string Resource,
@@ -174,6 +878,15 @@ internal sealed class PlayerStore
         public int Gp { get; set; } = 100000;
         public int Mb { get; set; } = 0;
         public int Tb { get; set; } = 0;
+        public Dictionary<int, int> BoxPoints { get; } = new();
+        public Dictionary<int, Dictionary<int, int>> BoxPointClaimCounts { get; } = new();
+        public Dictionary<int, int> SkillLevels { get; } = new();
+        public string CheckinMonthKey { get; private set; } = string.Empty;
+        public HashSet<int> CheckinDays { get; } = new();
+        public HashSet<int> CheckinClaimedRewardIds { get; } = new();
+        public string OnlineRewardDayKey { get; private set; } = string.Empty;
+        public int OnlineRewardClaimedLevel { get; private set; }
+        private DateTime OnlineRewardStageStartedUtc { get; set; }
 
         // (sid, priceId) -> purchased count (用于限购显示/校验)
         public Dictionary<(int Sid, int PriceId), int> ShopPurchasedCounts { get; } = new();
@@ -185,6 +898,9 @@ internal sealed class PlayerStore
         private readonly Dictionary<int, HotKeySlot> _hotKeySlots = new();
         private const int HotKeySlotCount = 12;
         private const int MaxWeaponHotKeyCount = 3;
+        private const int DefaultStoragePageCount = 100;
+        private const int DefaultStoragePageSize = 24;
+        private const int AvatarCardStoragePageSize = 10;
         public int NextPid { get; set; } = 1;
         private bool _ensuringStarterInventory;
 
@@ -192,6 +908,177 @@ internal sealed class PlayerStore
         {
             Character = character;
         }
+
+        internal void SetCheckinMonthForPersistence(string monthKey)
+        {
+            CheckinMonthKey = monthKey;
+        }
+
+        internal void LoadOnlineRewardStateFromPersistence(string? dayKey, int claimedLevel, string? stageStartedUtc)
+        {
+            OnlineRewardDayKey = dayKey ?? string.Empty;
+            OnlineRewardClaimedLevel = Math.Max(0, claimedLevel);
+            OnlineRewardStageStartedUtc = DateTime.TryParse(
+                stageStartedUtc,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out var parsed)
+                ? parsed.ToUniversalTime()
+                : default;
+        }
+
+        internal (string DayKey, int ClaimedLevel, string StageStartedUtc) GetOnlineRewardStateForPersistence()
+        {
+            return (
+                OnlineRewardDayKey,
+                OnlineRewardClaimedLevel,
+                OnlineRewardStageStartedUtc == default
+                    ? string.Empty
+                    : OnlineRewardStageStartedUtc.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture));
+        }
+
+        internal void LoadHotKeySlotsFromPersistence(IEnumerable<HotkeySlotEntity> slots)
+        {
+            _hotKeySlots.Clear();
+            foreach (var slot in slots)
+            {
+                _hotKeySlots[slot.Slot] = new HotKeySlot(
+                    Slot: slot.Slot,
+                    Type: slot.EntryType,
+                    ItemId: slot.ItemId,
+                    Resource: slot.Resource,
+                    Display: slot.Display,
+                    Grade: slot.Grade,
+                    Quantity: slot.Quantity,
+                    UnitType: slot.UnitType,
+                    Unit: slot.Unit,
+                    Subtype: slot.Subtype,
+                    Sid: slot.Sid,
+                    Level: slot.Level);
+            }
+        }
+
+        internal IReadOnlyList<HotkeySlotEntity> GetHotKeySlotEntitiesForPersistence()
+        {
+            NormalizeHotKeySlots();
+            return _hotKeySlots.Values
+                .OrderBy(x => x.Slot)
+                .Select(x => new HotkeySlotEntity
+                {
+                    Slot = x.Slot,
+                    EntryType = x.Type,
+                    ItemId = x.ItemId,
+                    Resource = x.Resource,
+                    Display = x.Display,
+                    Grade = x.Grade,
+                    Quantity = x.Quantity,
+                    UnitType = x.UnitType,
+                    Unit = x.Unit,
+                    Subtype = x.Subtype,
+                    Sid = x.Sid,
+                    Level = x.Level
+                })
+                .ToArray();
+        }
+
+        public int GetSkillLevel(int skillId)
+        {
+            return SkillLevels.TryGetValue(skillId, out var level)
+                ? Math.Clamp(level, 0, 5)
+                : 0;
+        }
+
+        public int GetUsedSkillPoints()
+        {
+            return SkillLevels.Values.Sum(level => Math.Clamp(level, 0, 5));
+        }
+
+        public int GetLeftSkillPoints(int totalPoints = 15)
+        {
+            return Math.Max(0, totalPoints - GetUsedSkillPoints());
+        }
+
+        public bool TryAdjustSkills(
+            string? adjustSkills,
+            IReadOnlySet<int> validSkillIds,
+            out string? errorKey)
+        {
+            errorKey = null;
+
+            if (string.IsNullOrWhiteSpace(adjustSkills))
+            {
+                return true;
+            }
+
+            var nextLevels = new Dictionary<int, int>(SkillLevels);
+            foreach (var entry in adjustSkills.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var parts = entry.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length != 2 ||
+                    !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var skillId) ||
+                    !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var delta) ||
+                    delta <= 0)
+                {
+                    errorKey = "id_abilities_bufuhetiaojian";
+                    return false;
+                }
+
+                if (!validSkillIds.Contains(skillId))
+                {
+                    errorKey = "id_abilities_bufuhetiaojian";
+                    return false;
+                }
+
+                var currentLevel = nextLevels.TryGetValue(skillId, out var existing)
+                    ? Math.Clamp(existing, 0, 5)
+                    : 0;
+                var nextLevel = currentLevel + delta;
+                if (nextLevel > 5)
+                {
+                    errorKey = "id_abilities_levelmax";
+                    return false;
+                }
+
+                nextLevels[skillId] = nextLevel;
+            }
+
+            var usedPoints = nextLevels.Values.Sum(level => Math.Clamp(level, 0, 5));
+            if (usedPoints > 15)
+            {
+                errorKey = "id_abilities_skillpointnotenough";
+                return false;
+            }
+
+            SkillLevels.Clear();
+            foreach (var (skillId, level) in nextLevels)
+            {
+                if (level > 0)
+                {
+                    SkillLevels[skillId] = Math.Clamp(level, 0, 5);
+                }
+            }
+
+            return true;
+        }
+
+        public void ResetSkills()
+        {
+            SkillLevels.Clear();
+            foreach (var slot in _hotKeySlots
+                         .Where(pair => pair.Value.Type == 1)
+                         .Select(pair => pair.Key)
+                         .ToArray())
+            {
+                _hotKeySlots.Remove(slot);
+            }
+        }
+
+        public sealed record RewardGrantSnapshot(
+            int Gp,
+            int Mb,
+            int Tb,
+            int NextPid,
+            Dictionary<int, Dictionary<int, InventoryItem>> Storages);
 
         public int GetShopPurchasedCount(int sid, int priceId)
         {
@@ -205,6 +1092,225 @@ internal sealed class PlayerStore
             ShopPurchasedCounts[key] = GetShopPurchasedCount(sid, priceId) + delta;
         }
 
+        public int GetBoxPoint(int category)
+        {
+            if (category <= 0)
+            {
+                return 0;
+            }
+
+            return BoxPoints.TryGetValue(category, out var point) ? Math.Max(0, point) : 0;
+        }
+
+        public int AddBoxPoint(int category, int delta)
+        {
+            if (category <= 0 || delta == 0)
+            {
+                return GetBoxPoint(category);
+            }
+
+            var next = Math.Max(0, GetBoxPoint(category) + delta);
+            BoxPoints[category] = next;
+            return next;
+        }
+
+        public bool TryConsumeBoxPoint(int category, int cost, out int remainPoint)
+        {
+            remainPoint = GetBoxPoint(category);
+            if (category <= 0 || cost <= 0)
+            {
+                return false;
+            }
+
+            if (remainPoint < cost)
+            {
+                return false;
+            }
+
+            remainPoint -= cost;
+            BoxPoints[category] = remainPoint;
+            return true;
+        }
+
+        public int GetBoxPointClaimCount(int category, int threshold)
+        {
+            if (category <= 0 || threshold <= 0)
+            {
+                return 0;
+            }
+
+            return BoxPointClaimCounts.TryGetValue(category, out var byThreshold) &&
+                   byThreshold.TryGetValue(threshold, out var count)
+                ? Math.Max(0, count)
+                : 0;
+        }
+
+        public void AddBoxPointClaim(int category, int threshold)
+        {
+            if (category <= 0 || threshold <= 0)
+            {
+                return;
+            }
+
+            if (!BoxPointClaimCounts.TryGetValue(category, out var byThreshold))
+            {
+                byThreshold = new Dictionary<int, int>();
+                BoxPointClaimCounts[category] = byThreshold;
+            }
+
+            byThreshold[threshold] = GetBoxPointClaimCount(category, threshold) + 1;
+        }
+
+        public void EnsureCheckinMonth(DateTime now)
+        {
+            var monthKey = now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+            if (string.Equals(CheckinMonthKey, monthKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            CheckinMonthKey = monthKey;
+            CheckinDays.Clear();
+            CheckinClaimedRewardIds.Clear();
+        }
+
+        public IReadOnlyList<int> GetCheckinDaysOfMonth(DateTime now)
+        {
+            EnsureCheckinMonth(now);
+            return CheckinDays.OrderBy(day => day).ToArray();
+        }
+
+        public int GetCheckinCount(DateTime now)
+        {
+            EnsureCheckinMonth(now);
+            return CheckinDays.Count;
+        }
+
+        public bool HasCheckedInDay(DateTime now, int day)
+        {
+            EnsureCheckinMonth(now);
+            return day > 0 && CheckinDays.Contains(day);
+        }
+
+        public bool HasCheckedInToday(DateTime now)
+        {
+            return HasCheckedInDay(now, now.Day);
+        }
+
+        public bool TryAddCheckinDay(DateTime now, int day)
+        {
+            EnsureCheckinMonth(now);
+            if (day <= 0 || day > DateTime.DaysInMonth(now.Year, now.Month))
+            {
+                return false;
+            }
+
+            return CheckinDays.Add(day);
+        }
+
+        public bool HasClaimedCheckinReward(DateTime now, int checkinId)
+        {
+            EnsureCheckinMonth(now);
+            return checkinId > 0 && CheckinClaimedRewardIds.Contains(checkinId);
+        }
+
+        public bool TryClaimCheckinReward(DateTime now, int checkinId)
+        {
+            EnsureCheckinMonth(now);
+            return checkinId > 0 && CheckinClaimedRewardIds.Add(checkinId);
+        }
+
+        public void EnsureOnlineRewardDay(DateTime now, DateTime utcNow)
+        {
+            var dayKey = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (string.Equals(OnlineRewardDayKey, dayKey, StringComparison.Ordinal))
+            {
+                if (OnlineRewardStageStartedUtc == default || OnlineRewardStageStartedUtc > utcNow)
+                {
+                    OnlineRewardStageStartedUtc = utcNow;
+                }
+
+                return;
+            }
+
+            OnlineRewardDayKey = dayKey;
+            OnlineRewardClaimedLevel = 0;
+            OnlineRewardStageStartedUtc = utcNow;
+        }
+
+        public int GetOnlineRewardStageElapsedSeconds(DateTime now, DateTime utcNow)
+        {
+            EnsureOnlineRewardDay(now, utcNow);
+            var elapsed = utcNow - OnlineRewardStageStartedUtc;
+            return Math.Max(0, (int)Math.Floor(elapsed.TotalSeconds));
+        }
+
+        public bool TryClaimOnlineRewardLevel(DateTime now, DateTime utcNow, int level)
+        {
+            EnsureOnlineRewardDay(now, utcNow);
+            if (level <= 0 || level != OnlineRewardClaimedLevel + 1)
+            {
+                return false;
+            }
+
+            OnlineRewardClaimedLevel = level;
+            OnlineRewardStageStartedUtc = utcNow;
+            return true;
+        }
+
+        public RewardGrantSnapshot CaptureRewardGrantSnapshot()
+        {
+            EnsureStarterInventory();
+            return new RewardGrantSnapshot(
+                Gp,
+                Mb,
+                Tb,
+                NextPid,
+                Storages.ToDictionary(
+                    storage => storage.Key,
+                    storage => storage.Value.ToDictionary(slot => slot.Key, slot => slot.Value)));
+        }
+
+        public void RestoreRewardGrantSnapshot(RewardGrantSnapshot snapshot)
+        {
+            Gp = snapshot.Gp;
+            Mb = snapshot.Mb;
+            Tb = snapshot.Tb;
+            NextPid = snapshot.NextPid;
+
+            Storages.Clear();
+            foreach (var (storageType, slots) in snapshot.Storages)
+            {
+                Storages[storageType] = slots.ToDictionary(slot => slot.Key, slot => slot.Value);
+            }
+        }
+
+        public bool NeedsAvatarCardBackfill()
+        {
+            if (!Storages.TryGetValue(6, out var roomAvatarSlots) || roomAvatarSlots.Count == 0)
+            {
+                return true;
+            }
+
+            foreach (var storageType in new[] { 5, 6 })
+            {
+                if (!Storages.TryGetValue(storageType, out var slots))
+                {
+                    continue;
+                }
+
+                foreach (var item in slots.Values)
+                {
+                    if (item.Avatar is null || PlayerStore.HasIncompleteEquipAvatar(item.Avatar))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         public void EnsureStarterInventory()
         {
             if (_ensuringStarterInventory)
@@ -215,6 +1321,13 @@ internal sealed class PlayerStore
             _ensuringStarterInventory = true;
             try
             {
+                Character = Character with
+                {
+                    EquipAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                        Character.EquipAvatar,
+                        Character.Occupation)
+                };
+
                 if (Storages.Count == 0)
                 {
                     InitializeStarterInventory(
@@ -228,6 +1341,7 @@ internal sealed class PlayerStore
 
                 NormalizeLegacyStarterAvatarCard();
                 EnsureStarterSkinCard();
+                NormalizeAvatarCardStorage();
             }
             finally
             {
@@ -254,7 +1368,11 @@ internal sealed class PlayerStore
             {
                 resolvedAvatarId = PlayerStore.GetOccupationDefaultAvatarId(occupation);
             }
-            var resolvedEquipAvatar = EnsureAvatarHasAvatarId(equipAvatar ?? Character.EquipAvatar, resolvedAvatarId) ?? equipAvatar ?? Character.EquipAvatar;
+            var completeEquipAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                equipAvatar ?? Character.EquipAvatar,
+                occupation,
+                resolvedAvatarId);
+            var resolvedEquipAvatar = EnsureAvatarHasAvatarId(completeEquipAvatar, resolvedAvatarId) ?? completeEquipAvatar;
             Character = Character with { EquipAvatar = resolvedEquipAvatar };
             var resolvedCardDisplay = string.IsNullOrWhiteSpace(cardDisplay) ? Character.Name : cardDisplay!;
             var resolvedCardDesigner = string.IsNullOrWhiteSpace(cardDesigner) ? Character.Name : cardDesigner!;
@@ -399,15 +1517,18 @@ internal sealed class PlayerStore
                 Storages[6] = slots;
             }
 
-            const int maxSlots = 36;
-            var slot = Enumerable.Range(1, maxSlots).FirstOrDefault(i => !slots.ContainsKey(i));
+            var slot = FindFirstEmptyStorageSlot(6, slots);
             if (slot == 0)
             {
                 return;
             }
 
             var avatarId = GetAvatarIdFrom(Character.EquipAvatar) ?? "0";
-            var equipAvatar = EnsureAvatarHasAvatarId(Character.EquipAvatar, avatarId) ?? Character.EquipAvatar;
+            var completeAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                Character.EquipAvatar,
+                Character.Occupation,
+                avatarId);
+            var equipAvatar = EnsureAvatarHasAvatarId(completeAvatar, avatarId) ?? completeAvatar;
 
             AddItem(
                 storageType: 6,
@@ -423,6 +1544,65 @@ internal sealed class PlayerStore
                 subType: 1,
                 display: Character.Name,
                 designer: Character.Name);
+        }
+
+        private void NormalizeAvatarCardStorage()
+        {
+            foreach (var storageType in new[] { 5, 6 })
+            {
+                if (!Storages.TryGetValue(storageType, out var slots))
+                {
+                    continue;
+                }
+
+                foreach (var pair in slots.ToArray())
+                {
+                    var item = pair.Value;
+                    var subType = item.SubType > 0 ? item.SubType : item.Subtype;
+                    var effectiveSubType = subType > 0 ? subType : 1;
+                    var normalizedAvatar = NormalizeAvatarForCharacter(item.Avatar);
+
+                    slots[pair.Key] = item with
+                    {
+                        Avatar = normalizedAvatar,
+                        Position = item.Position ?? 1,
+                        Resource = string.IsNullOrWhiteSpace(item.Resource)
+                            ? (effectiveSubType == 2 ? "herocard" : "humancard")
+                            : item.Resource,
+                        Subtype = effectiveSubType,
+                        SubType = effectiveSubType,
+                        Type = item.Type == 0 ? storageType : item.Type
+                    };
+                }
+            }
+        }
+
+        private object NormalizeAvatarForCharacter(object? avatar, string? preferredAvatarId = null)
+        {
+            var resolvedAvatarId = GetAvatarIdFrom(avatar);
+            if (string.IsNullOrWhiteSpace(resolvedAvatarId) ||
+                string.Equals(resolvedAvatarId, "0", StringComparison.Ordinal))
+            {
+                resolvedAvatarId = preferredAvatarId;
+            }
+
+            if (string.IsNullOrWhiteSpace(resolvedAvatarId) ||
+                string.Equals(resolvedAvatarId, "0", StringComparison.Ordinal))
+            {
+                resolvedAvatarId = GetAvatarIdFrom(Character.EquipAvatar);
+            }
+
+            if (string.IsNullOrWhiteSpace(resolvedAvatarId) ||
+                string.Equals(resolvedAvatarId, "0", StringComparison.Ordinal))
+            {
+                resolvedAvatarId = PlayerStore.GetOccupationDefaultAvatarId(Character.Occupation);
+            }
+
+            var completeAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                avatar ?? Character.EquipAvatar,
+                Character.Occupation,
+                resolvedAvatarId);
+            return EnsureAvatarHasAvatarId(completeAvatar, resolvedAvatarId) ?? completeAvatar;
         }
 
         private static string? GetAvatarIdFrom(object? avatar)
@@ -571,7 +1751,8 @@ internal sealed class PlayerStore
             int? unit = null,
             int remain = 0,
             bool isRenew = false,
-            IReadOnlyDictionary<string, double>? attributes = null)
+            IReadOnlyDictionary<string, double>? attributes = null,
+            int category = 0)
         {
             if (!Storages.TryGetValue(storageType, out var slots))
             {
@@ -592,7 +1773,7 @@ internal sealed class PlayerStore
                 Unit: unit ?? quantity,
                 Remain: remain,
                 IsRenew: isRenew,
-                Category: 0,
+                Category: category,
                 IsBind: "N",
                 IsEquip: "N",
                 Sid: sid,
@@ -603,6 +1784,231 @@ internal sealed class PlayerStore
                 Designer: designer,
                 Description: description,
                 Attributes: attributes);
+        }
+
+        private static int GetStoragePageSize(int storageType)
+        {
+            return storageType == 5 ? AvatarCardStoragePageSize : DefaultStoragePageSize;
+        }
+
+        private static int GetStorageCapacity(int storageType)
+        {
+            return DefaultStoragePageCount * GetStoragePageSize(storageType);
+        }
+
+        private static int ToAbsoluteStorageSlot(int storageType, int page, int pageSlot)
+        {
+            var pageSize = GetStoragePageSize(storageType);
+            var safePage = page <= 0 ? 1 : page;
+            return ((safePage - 1) * pageSize) + pageSlot;
+        }
+
+        private static int FindFirstEmptyStorageSlot(int storageType, IReadOnlyDictionary<int, InventoryItem> slots)
+        {
+            var capacity = GetStorageCapacity(storageType);
+            for (var i = 1; i <= capacity; i++)
+            {
+                if (!slots.ContainsKey(i))
+                {
+                    return i;
+                }
+            }
+
+            return 0;
+        }
+
+        private static int GetItemCountForConsume(InventoryItem item)
+        {
+            var countByQuantity = Math.Max(0, item.Quantity);
+            var countByUnit = Math.Max(0, item.Unit);
+            return item.UnitType == 1
+                ? Math.Max(countByQuantity, countByUnit)
+                : countByQuantity;
+        }
+
+        private static InventoryItem WithConsumedCount(InventoryItem item, int nextCount)
+        {
+            var normalized = Math.Max(0, nextCount);
+            var quantity = item.Quantity;
+            var unit = item.Unit;
+
+            if (item.UnitType == 1)
+            {
+                quantity = normalized;
+                unit = normalized;
+            }
+            else
+            {
+                quantity = normalized;
+                unit = item.Unit;
+            }
+
+            return item with
+            {
+                Quantity = quantity,
+                Unit = unit
+            };
+        }
+
+        public int GetStorageResourceCount(int storageType, string resource)
+        {
+            EnsureStarterInventory();
+
+            if (string.IsNullOrWhiteSpace(resource) ||
+                !Storages.TryGetValue(storageType, out var slots) ||
+                slots.Count == 0)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            foreach (var item in slots.Values)
+            {
+                if (!string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                count += GetItemCountForConsume(item);
+            }
+
+            return Math.Max(0, count);
+        }
+
+        public int GetStorageCountByCategory(int storageType, int category, int subtype)
+        {
+            EnsureStarterInventory();
+
+            if (category <= 0 ||
+                !Storages.TryGetValue(storageType, out var slots) ||
+                slots.Count == 0)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            foreach (var item in slots.Values)
+            {
+                if (item.Category != category)
+                {
+                    continue;
+                }
+
+                var effectiveSubtype = item.SubType > 0 ? item.SubType : item.Subtype;
+                if (effectiveSubtype != subtype)
+                {
+                    continue;
+                }
+
+                count += GetItemCountForConsume(item);
+            }
+
+            return Math.Max(0, count);
+        }
+
+        public bool TryConsumeStorageResource(int storageType, string resource, int amount)
+        {
+            EnsureStarterInventory();
+
+            if (amount <= 0 || string.IsNullOrWhiteSpace(resource))
+            {
+                return false;
+            }
+
+            if (!Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
+            {
+                return false;
+            }
+
+            var candidates = slots
+                .OrderBy(x => x.Key)
+                .Where(x => string.Equals(x.Value.Resource, resource, StringComparison.OrdinalIgnoreCase))
+                .Select(x => (Slot: x.Key, Item: x.Value, Count: GetItemCountForConsume(x.Value)))
+                .Where(x => x.Count > 0)
+                .ToArray();
+            var totalCount = candidates.Sum(x => x.Count);
+            if (totalCount < amount)
+            {
+                return false;
+            }
+
+            var remaining = amount;
+            foreach (var candidate in candidates)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var consume = Math.Min(candidate.Count, remaining);
+                var nextCount = candidate.Count - consume;
+                remaining -= consume;
+
+                if (nextCount <= 0)
+                {
+                    slots.Remove(candidate.Slot);
+                    continue;
+                }
+
+                slots[candidate.Slot] = WithConsumedCount(candidate.Item, nextCount);
+            }
+
+            return remaining == 0;
+        }
+
+        public bool TryConsumeStorageByCategory(int storageType, int category, int subtype, int amount)
+        {
+            EnsureStarterInventory();
+
+            if (amount <= 0 || category <= 0)
+            {
+                return false;
+            }
+
+            if (!Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
+            {
+                return false;
+            }
+
+            var candidates = slots
+                .OrderBy(x => x.Key)
+                .Where(x =>
+                {
+                    var item = x.Value;
+                    var effectiveSubtype = item.SubType > 0 ? item.SubType : item.Subtype;
+                    return item.Category == category && effectiveSubtype == subtype;
+                })
+                .Select(x => (Slot: x.Key, Item: x.Value, Count: GetItemCountForConsume(x.Value)))
+                .Where(x => x.Count > 0)
+                .ToArray();
+            var totalCount = candidates.Sum(x => x.Count);
+            if (totalCount < amount)
+            {
+                return false;
+            }
+
+            var remaining = amount;
+            foreach (var candidate in candidates)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var consume = Math.Min(candidate.Count, remaining);
+                var nextCount = candidate.Count - consume;
+                remaining -= consume;
+
+                if (nextCount <= 0)
+                {
+                    slots.Remove(candidate.Slot);
+                    continue;
+                }
+
+                slots[candidate.Slot] = WithConsumedCount(candidate.Item, nextCount);
+            }
+
+            return remaining == 0;
         }
 
         private void NormalizeLegacyStarterAvatarCard()
@@ -630,7 +2036,7 @@ internal sealed class PlayerStore
 
             foreach (var item in toMove)
             {
-                var targetSlot = Enumerable.Range(1, 36).FirstOrDefault(i => !bagSlots.ContainsKey(i));
+                var targetSlot = FindFirstEmptyStorageSlot(5, bagSlots);
                 if (targetSlot == 0)
                 {
                     break;
@@ -712,12 +2118,14 @@ internal sealed class PlayerStore
                     Type: item.Type,
                     ItemId: item.Pid,
                     Resource: item.Resource,
+                    Display: item.Display,
                     Grade: item.Grade,
                     Quantity: item.Quantity,
                     UnitType: item.UnitType,
                     Unit: item.Unit,
                     Subtype: item.Subtype,
-                    Sid: item.Sid);
+                    Sid: item.Sid,
+                    Level: 0);
                 slot++;
             }
         }
@@ -800,18 +2208,30 @@ internal sealed class PlayerStore
                         slot = entry.Slot,
                         type = entry.Type,
                         itemid = entry.ItemId,
+                        id = entry.Sid,
+                        display = entry.Display,
                         resource = entry.Resource,
                         grade = entry.Grade,
                         quantity = entry.Quantity,
                         unitType = entry.UnitType,
                         unit = entry.Unit,
                         subtype = entry.Subtype,
-                        sid = entry.Sid
+                        sid = entry.Sid,
+                        level = entry.Level
                     };
                 }
                 else
                 {
-                    result[i - 1] = new { slot = i, type = 0 };
+                    result[i - 1] = new
+                    {
+                        slot = i,
+                        type = 0,
+                        itemid = "0",
+                        id = 0,
+                        display = string.Empty,
+                        resource = string.Empty,
+                        quantity = 0
+                    };
                 }
             }
 
@@ -855,13 +2275,76 @@ internal sealed class PlayerStore
                 Type: item.Type,
                 ItemId: item.Pid,
                 Resource: item.Resource,
+                Display: item.Display,
                 Grade: item.Grade,
                 Quantity: item.Quantity,
                 UnitType: item.UnitType,
                 Unit: item.Unit,
                 Subtype: item.Subtype,
-                Sid: item.Sid);
+                Sid: item.Sid,
+                Level: 0);
             SyncEquipmentEquipFlags();
+            return true;
+        }
+
+        public bool TrySetSkillHotKeySlot(
+            int slot,
+            int skillId,
+            string resource,
+            string display,
+            bool isActive,
+            out string? errorKey)
+        {
+            EnsureStarterInventory();
+            NormalizeHotKeySlots();
+            errorKey = null;
+
+            if (slot <= 0 || slot > HotKeySlotCount)
+            {
+                errorKey = "msgbox_common_num_1306";
+                return false;
+            }
+
+            if (skillId < 0 || string.IsNullOrWhiteSpace(resource) || string.IsNullOrWhiteSpace(display))
+            {
+                errorKey = "id_abilities_bufuhetiaojian";
+                return false;
+            }
+
+            var level = GetSkillLevel(skillId);
+            if (level <= 0)
+            {
+                errorKey = "id_abilities_skillpointnotenough";
+                return false;
+            }
+
+            if (!isActive)
+            {
+                errorKey = "id_abilities_bufuhetiaojian";
+                return false;
+            }
+
+            foreach (var existingSlot in _hotKeySlots
+                         .Where(pair => pair.Value.Type == 1 && pair.Value.Sid == skillId)
+                         .Select(pair => pair.Key)
+                         .ToArray())
+            {
+                _hotKeySlots.Remove(existingSlot);
+            }
+
+            _hotKeySlots[slot] = new HotKeySlot(
+                Slot: slot,
+                Type: 1,
+                ItemId: BuildSkillHotKeyItemId(skillId, level),
+                Resource: resource,
+                Display: display,
+                Grade: 1,
+                Quantity: 1,
+                UnitType: 1,
+                Unit: 1,
+                Subtype: 1,
+                Sid: skillId,
+                Level: level);
             return true;
         }
 
@@ -924,6 +2407,91 @@ internal sealed class PlayerStore
             return true;
         }
 
+        public bool TryMoveStorageItem(
+            int storageType,
+            int fromPage,
+            int fromSlot,
+            int toPage,
+            int toSlot,
+            string? pid,
+            out string? errorKey)
+        {
+            EnsureStarterInventory();
+            errorKey = null;
+
+            if (storageType <= 0 || fromSlot <= 0 || toSlot <= 0)
+            {
+                errorKey = "msgbox_common_num_1306";
+                return false;
+            }
+
+            var fromAbsoluteSlot = ToAbsoluteStorageSlot(storageType, fromPage, fromSlot);
+            var toAbsoluteSlot = ToAbsoluteStorageSlot(storageType, toPage, toSlot);
+            if (fromAbsoluteSlot == toAbsoluteSlot)
+            {
+                return true;
+            }
+
+            var capacity = GetStorageCapacity(storageType);
+            if (fromAbsoluteSlot <= 0 || fromAbsoluteSlot > capacity || toAbsoluteSlot <= 0 || toAbsoluteSlot > capacity)
+            {
+                errorKey = "msgbox_common_num_1306";
+                return false;
+            }
+
+            if (!Storages.TryGetValue(storageType, out var slots))
+            {
+                errorKey = "msgbox_common_num_1005";
+                return false;
+            }
+
+            if (!slots.TryGetValue(fromAbsoluteSlot, out var moving))
+            {
+                if (!string.IsNullOrWhiteSpace(pid))
+                {
+                    var byPid = slots
+                        .OrderBy(x => x.Key)
+                        .FirstOrDefault(x => string.Equals(x.Value.Pid, pid, StringComparison.Ordinal));
+                    if (!byPid.Equals(default(KeyValuePair<int, InventoryItem>)))
+                    {
+                        fromAbsoluteSlot = byPid.Key;
+                        moving = byPid.Value;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(moving?.Pid))
+                {
+                    errorKey = "msgbox_common_num_1005";
+                    return false;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(pid) && !string.Equals(moving.Pid, pid, StringComparison.Ordinal))
+            {
+                errorKey = "msgbox_common_num_1005";
+                return false;
+            }
+
+            var hasTarget = slots.TryGetValue(toAbsoluteSlot, out var target);
+            slots[toAbsoluteSlot] = moving with { Slot = toAbsoluteSlot };
+
+            if (hasTarget)
+            {
+                slots[fromAbsoluteSlot] = target! with { Slot = fromAbsoluteSlot };
+            }
+            else
+            {
+                slots.Remove(fromAbsoluteSlot);
+            }
+
+            if (storageType == (int)ShopItemDatabase.ItemType.Equipment)
+            {
+                SyncEquipmentEquipFlags();
+            }
+
+            return true;
+        }
+
         private InventoryItem? FindItemByPid(string? pid, params int[] storageTypes)
         {
             if (string.IsNullOrWhiteSpace(pid))
@@ -975,6 +2543,53 @@ internal sealed class PlayerStore
                 : hotKeyLoadout;
         }
 
+        public IReadOnlyList<GameSkillSlotItem> GetGameSkillSlotItems()
+        {
+            EnsureStarterInventory();
+            NormalizeHotKeySlots();
+
+            var activeSlots = _hotKeySlots.Values
+                .Where(slot =>
+                    slot.Type == 1 &&
+                    ResolveGameSkillSlotLevel(slot) > 0 &&
+                    slot.Sid >= 0 &&
+                    !string.IsNullOrWhiteSpace(slot.Resource))
+                .OrderBy(slot => slot.Slot)
+                .Select(CreateGameSkillSlotItem)
+                .ToList();
+
+            var equippedSkillIds = activeSlots
+                .Select(slot => (int)slot.SkillType)
+                .ToHashSet();
+            var nextPassiveSlot = HotKeySlotCount + 1;
+            foreach (var (skillId, level) in SkillLevels
+                         .Where(pair => pair.Value > 0)
+                         .OrderBy(pair => pair.Key))
+            {
+                if (equippedSkillIds.Contains(skillId))
+                {
+                    continue;
+                }
+
+                var definition = ResolveGameSkillDefinition(skillId, Character.Occupation);
+                if (definition is null || definition.IsActive)
+                {
+                    continue;
+                }
+
+                if (nextPassiveSlot > 36)
+                {
+                    break;
+                }
+
+                activeSlots.Add(CreateGameSkillSlotItem(nextPassiveSlot++, definition, level));
+            }
+
+            return activeSlots
+                .OrderBy(slot => slot.Slot)
+                .ToArray();
+        }
+
         public string GetGameLoadoutSource()
         {
             EnsureStarterInventory();
@@ -986,6 +2601,146 @@ internal sealed class PlayerStore
                 IsBattleLoadoutResource(slot.Resource))
                 ? "hotkey"
                 : "backpack-fallback";
+        }
+
+        private GameSkillSlotItem CreateGameSkillSlotItem(HotKeySlot slot)
+        {
+            var definition = ResolveGameSkillDefinition(slot.Sid, slot.Resource);
+            var effectiveLevel = ResolveGameSkillSlotLevel(slot);
+            var display = string.IsNullOrWhiteSpace(slot.Display)
+                ? GetGameSkillDisplay(definition, effectiveLevel, slot.Resource)
+                : slot.Display;
+            var skillId = definition?.Id ?? slot.Sid;
+
+            return new GameSkillSlotItem(
+                Slot: (byte)Math.Clamp(slot.Slot, 1, HotKeySlotCount),
+                SkillType: (byte)Math.Clamp(skillId, 0, byte.MaxValue),
+                Resource: string.IsNullOrWhiteSpace(definition?.Resource) ? slot.Resource : definition!.Resource,
+                DisplayName: display,
+                Initiative: definition?.IsActive ?? true,
+                CoolDown: definition?.CoolDown ?? 20f,
+                Range: definition?.Range ?? 8f);
+        }
+
+        private int ResolveGameSkillSlotLevel(HotKeySlot slot)
+        {
+            var learnedLevel = slot.Sid >= 0 ? GetSkillLevel(slot.Sid) : 0;
+            if (learnedLevel > 0)
+            {
+                return learnedLevel;
+            }
+
+            if (slot.Level > 0)
+            {
+                return Math.Clamp(slot.Level, 1, 5);
+            }
+
+            var displayLevel = ResolveGameSkillDisplayLevel(slot.Display);
+            return displayLevel > 0 ? displayLevel : 1;
+        }
+
+        private static GameSkillSlotItem CreateGameSkillSlotItem(
+            int slot,
+            SkillRuntimeDefinition definition,
+            int level)
+        {
+            return new GameSkillSlotItem(
+                Slot: (byte)Math.Clamp(slot, 1, 36),
+                SkillType: (byte)Math.Clamp(definition.Id, 0, byte.MaxValue),
+                Resource: definition.Resource,
+                DisplayName: GetGameSkillDisplay(definition, level, definition.Resource),
+                Initiative: definition.IsActive,
+                CoolDown: definition.CoolDown,
+                Range: definition.Range);
+        }
+
+        private static SkillRuntimeDefinition? ResolveGameSkillDefinition(int skillId, string resource)
+        {
+            var definitions = GetGameSkillDefinitions();
+            return definitions.FirstOrDefault(skill => skill.Id == skillId)
+                ?? definitions.FirstOrDefault(skill =>
+                    string.Equals(skill.Resource, resource, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static SkillRuntimeDefinition? ResolveGameSkillDefinition(int skillId, int occupation)
+        {
+            var definitions = GetGameSkillDefinitions();
+            return definitions.FirstOrDefault(skill => skill.Id == skillId && skill.Occupation == occupation)
+                ?? definitions.FirstOrDefault(skill => skill.Id == skillId);
+        }
+
+        private static IReadOnlyList<SkillRuntimeDefinition> GetGameSkillDefinitions()
+        {
+            lock (GameSkillDefinitionCacheLock)
+            {
+                if (DbGameSkillDefinitions is not null &&
+                    (DateTime.UtcNow - DbGameSkillDefinitionsLoadedUtc) < TimeSpan.FromSeconds(30))
+                {
+                    return DbGameSkillDefinitions;
+                }
+
+                try
+                {
+                    using var db = new AvatarStarDbContext();
+                    var skills = db.SkillDefinitions
+                        .OrderBy(x => x.Occupation)
+                        .ThenBy(x => x.Id)
+                        .Select(x => new SkillRuntimeDefinition(
+                            x.Id,
+                            x.Occupation,
+                            x.Resource,
+                            x.DisplayBase,
+                            x.IsActive != 0,
+                            x.CoolDown,
+                            x.Range))
+                        .ToArray();
+                    if (skills.Length > 0)
+                    {
+                        DbGameSkillDefinitions = skills;
+                        DbGameSkillDefinitionsLoadedUtc = DateTime.UtcNow;
+                        return DbGameSkillDefinitions;
+                    }
+                }
+                catch
+                {
+                    DbGameSkillDefinitions = null;
+                }
+
+                DbGameSkillDefinitionsLoadedUtc = DateTime.UtcNow;
+                return GameSkillDefinitions;
+            }
+        }
+
+        private static string GetGameSkillDisplay(SkillRuntimeDefinition? definition, int level, string fallbackResource)
+        {
+            if (definition is null)
+            {
+                return fallbackResource;
+            }
+
+            if (definition.DisplayBase.StartsWith("tips_", StringComparison.Ordinal))
+            {
+                return definition.DisplayBase;
+            }
+
+            var effectiveLevel = Math.Clamp(level <= 0 ? 1 : level, 1, 99);
+            var marker = "_01";
+            var idx = definition.DisplayBase.LastIndexOf(marker, StringComparison.Ordinal);
+            return idx >= 0
+                ? definition.DisplayBase[..idx] + $"_{effectiveLevel:00}"
+                : definition.DisplayBase;
+        }
+
+        private static int ResolveGameSkillDisplayLevel(string? display)
+        {
+            if (string.IsNullOrWhiteSpace(display) || display.Length < 3 || display[^3] != '_')
+            {
+                return 0;
+            }
+
+            return int.TryParse(display.AsSpan(display.Length - 2, 2), NumberStyles.Integer, CultureInfo.InvariantCulture, out var level)
+                ? Math.Clamp(level, 1, 5)
+                : 0;
         }
 
         private GameLoadoutItem CreateHotKeyLoadoutItem(HotKeySlot slot)
@@ -1090,6 +2845,13 @@ internal sealed class PlayerStore
                 : 0;
         }
 
+        private static string BuildSkillHotKeyItemId(int skillId, int level)
+        {
+            return string.Create(
+                CultureInfo.InvariantCulture,
+                $"1110260000000{100000 + Math.Max(0, skillId) * 100 + Math.Clamp(level, 0, 99):D6}");
+        }
+
         public InventoryItem? FindAvatarItemByAvatarId(string? avatarId)
         {
             EnsureStarterInventory();
@@ -1164,10 +2926,8 @@ internal sealed class PlayerStore
         private InventoryItem SyncEquippedAvatarState(InventoryItem equipped)
         {
             EquippedAvatarPid = equipped.Pid;
-            if (equipped.Avatar is not null)
-            {
-                Character = Character with { EquipAvatar = equipped.Avatar };
-            }
+            var normalizedAvatar = NormalizeAvatarForCharacter(equipped.Avatar);
+            Character = Character with { EquipAvatar = normalizedAvatar };
 
             foreach (var storageType in new[] { 5, 6 })
             {
@@ -1179,14 +2939,25 @@ internal sealed class PlayerStore
                 foreach (var pair in slots.ToArray())
                 {
                     var shouldEquip = pair.Value.Slot == equipped.Slot;
-                    slots[pair.Key] = pair.Value with
+                    var next = pair.Value with
                     {
                         IsEquip = shouldEquip ? "Y" : "N"
                     };
+
+                    if (shouldEquip)
+                    {
+                        next = next with
+                        {
+                            Avatar = normalizedAvatar,
+                            Position = next.Position ?? equipped.Position ?? 1
+                        };
+                    }
+
+                    slots[pair.Key] = next;
                 }
             }
 
-            return FindItemByPid(equipped.Pid, 5, 6) ?? equipped;
+            return FindItemByPid(equipped.Pid, 5, 6) ?? equipped with { Avatar = normalizedAvatar };
         }
 
         private void ReplaceItem(InventoryItem item)
@@ -1345,7 +3116,11 @@ internal sealed class PlayerStore
                 fallbackAvatarId = PlayerStore.GetOccupationDefaultAvatarId(Character.Occupation);
             }
 
-            var normalizedAvatar = EnsureAvatarHasAvatarId(item.Avatar, fallbackAvatarId) ?? item.Avatar;
+            var completeAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                item.Avatar,
+                Character.Occupation,
+                fallbackAvatarId);
+            var normalizedAvatar = EnsureAvatarHasAvatarId(completeAvatar, fallbackAvatarId) ?? completeAvatar;
             foreach (var storageType in new[] { 5, 6 })
             {
                 if (!Storages.TryGetValue(storageType, out var slots) || !slots.TryGetValue(item.Slot, out var slotItem))
@@ -1381,7 +3156,11 @@ internal sealed class PlayerStore
             var resolvedDesigner = string.IsNullOrWhiteSpace(designer) ? Character.Name : designer!;
             var resolvedDescription = description ?? string.Empty;
             var avatarId = GetAvatarIdFrom(avatar) ?? GetAvatarIdFrom(Character.EquipAvatar) ?? "0";
-            var resolvedAvatar = EnsureAvatarHasAvatarId(avatar ?? Character.EquipAvatar, avatarId) ?? avatar ?? Character.EquipAvatar;
+            var completeAvatar = PlayerStore.EnsureCompleteEquipAvatar(
+                avatar ?? Character.EquipAvatar,
+                Character.Occupation,
+                avatarId);
+            var resolvedAvatar = EnsureAvatarHasAvatarId(completeAvatar, avatarId) ?? completeAvatar;
 
             bool UpdateCardAtSlot(int storageType, int slot)
             {
@@ -1484,7 +3263,7 @@ internal sealed class PlayerStore
                 Storages[6] = cardsRoom;
             }
 
-            const int maxSlots = 36;
+            var maxSlots = Math.Min(GetStorageCapacity(5), GetStorageCapacity(6));
             var targetSlot = Enumerable.Range(1, maxSlots)
                 .FirstOrDefault(i => !cardsBag.ContainsKey(i) && !cardsRoom.ContainsKey(i));
             if (targetSlot == 0)
@@ -1572,6 +3351,107 @@ internal sealed class PlayerStore
             return true;
         }
 
+        private static int ResolveStorageTypeByItemType(int itemType)
+        {
+            return itemType switch
+            {
+                (int)ShopItemDatabase.ItemType.Equipment => 2,
+                (int)ShopItemDatabase.ItemType.Item => 3,
+                (int)ShopItemDatabase.ItemType.Gesture => 4,
+                (int)ShopItemDatabase.ItemType.AvatarCard => 5,
+                (int)ShopItemDatabase.ItemType.SkinCard => 6,
+                _ => 3
+            };
+        }
+
+        public bool TryGrantInventoryItem(
+            int type,
+            int subtype,
+            int grade,
+            int sid,
+            string resource,
+            int quantity,
+            int unitType,
+            int unit,
+            int category = 0,
+            object? avatar = null,
+            int? position = null,
+            string? display = null,
+            string? designer = null,
+            string? description = null)
+        {
+            EnsureStarterInventory();
+
+            var storageType = ResolveStorageTypeByItemType(type);
+            if (!Storages.TryGetValue(storageType, out var slots))
+            {
+                slots = new Dictionary<int, InventoryItem>();
+                Storages[storageType] = slots;
+            }
+
+            var normalizedQuantity = Math.Max(1, quantity);
+            var normalizedUnitType = unitType <= 0 ? 1 : unitType;
+            var normalizedUnit = normalizedUnitType == 1
+                ? Math.Max(1, unit <= 0 ? normalizedQuantity : unit)
+                : Math.Max(1, unit);
+            var effectiveSubType = subtype > 0 ? subtype : 0;
+            var effectiveGrade = grade > 0 ? grade : 1;
+
+            if (storageType == 3 && normalizedUnitType == 1)
+            {
+                var existing = slots
+                    .OrderBy(x => x.Key)
+                    .FirstOrDefault(x =>
+                    {
+                        var item = x.Value;
+                        var itemSubType = item.SubType > 0 ? item.SubType : item.Subtype;
+                        return itemSubType == effectiveSubType &&
+                               item.Category == category &&
+                               string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase);
+                    });
+                if (!existing.Equals(default(KeyValuePair<int, InventoryItem>)))
+                {
+                    var mergedCount = GetItemCountForConsume(existing.Value) + normalizedUnit;
+                    slots[existing.Key] = existing.Value with
+                    {
+                        Quantity = mergedCount,
+                        Unit = mergedCount,
+                        UnitType = 1,
+                        SubType = effectiveSubType,
+                        Subtype = effectiveSubType,
+                        Category = category
+                    };
+                    return true;
+                }
+            }
+
+            var slot = FindFirstEmptyStorageSlot(storageType, slots);
+            if (slot == 0)
+            {
+                return false;
+            }
+
+            AddItem(
+                storageType: storageType,
+                slot: slot,
+                resource: resource,
+                subtype: effectiveSubType,
+                grade: effectiveGrade,
+                sid: sid,
+                type: type,
+                quantity: normalizedQuantity,
+                avatar: avatar,
+                position: position,
+                subType: effectiveSubType,
+                display: display ?? string.Empty,
+                designer: designer ?? string.Empty,
+                description: description ?? string.Empty,
+                unitType: normalizedUnitType,
+                unit: normalizedUnit,
+                category: category);
+            return true;
+        }
+
         public bool TryPurchaseToInventory(
             ShopItemDatabase.ShopItem shopItem,
             int quantity,
@@ -1579,30 +3459,24 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
 
-            var storageType = shopItem.Type switch
-            {
-                ShopItemDatabase.ItemType.Equipment => 2,
-                ShopItemDatabase.ItemType.Item => 3,
-                ShopItemDatabase.ItemType.Gesture => 4,
-                ShopItemDatabase.ItemType.AvatarCard => 5,
-                ShopItemDatabase.ItemType.SkinCard => 6,
-                _ => 3
-            };
+            var storageType = ResolveStorageTypeByItemType((int)shopItem.Type);
 
-            const int maxSlots = 36;
             if (!Storages.TryGetValue(storageType, out var slots))
             {
                 slots = new Dictionary<int, InventoryItem>();
                 Storages[storageType] = slots;
             }
 
-            var slot = Enumerable.Range(1, maxSlots).FirstOrDefault(i => !slots.ContainsKey(i));
-            if (slot == 0) return false;
-
             var avatarId = GetAvatarIdFrom(Character.EquipAvatar) ?? "0";
             var avatar = shopItem.Type is ShopItemDatabase.ItemType.AvatarCard or ShopItemDatabase.ItemType.SkinCard
-                ? EnsureAvatarHasAvatarId(shopItem.Avatar, avatarId) ?? shopItem.Avatar
+                ? PlayerStore.EnsureCompleteEquipAvatar(
+                    EnsureAvatarHasAvatarId(shopItem.Avatar, avatarId) ?? shopItem.Avatar,
+                    Character.Occupation,
+                    avatarId)
                 : shopItem.Avatar;
+            var resource = string.IsNullOrWhiteSpace(shopItem.Resource) && avatar is not null
+                ? (shopItem.Subtype == 2 ? "herocard" : "humancard")
+                : shopItem.Resource;
             var instanceQuantity = Math.Max(1, quantity) * Math.Max(1, shopItem.Quantity);
             var instanceUnitType = price?.UnitType ?? 1;
             var instanceUnit = instanceUnitType == 1
@@ -1615,12 +3489,42 @@ internal sealed class PlayerStore
                     ? shopItem.Subtype
                     : 0;
 
+            if (shopItem.Type == ShopItemDatabase.ItemType.Item &&
+                storageType == 3 &&
+                instanceUnitType == 1)
+            {
+                var existing = slots
+                    .OrderBy(x => x.Key)
+                    .FirstOrDefault(x =>
+                    {
+                        var item = x.Value;
+                        return item.Type == (int)shopItem.Type &&
+                               item.Sid == shopItem.Sid &&
+                               string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase);
+                    });
+                if (!existing.Equals(default(KeyValuePair<int, InventoryItem>)))
+                {
+                    var mergedCount = GetItemCountForConsume(existing.Value) + instanceUnit;
+                    slots[existing.Key] = existing.Value with
+                    {
+                        Quantity = mergedCount,
+                        Unit = mergedCount,
+                        UnitType = 1
+                    };
+                    return true;
+                }
+            }
+
+            var slot = FindFirstEmptyStorageSlot(storageType, slots);
+            if (slot == 0)
+            {
+                return false;
+            }
+
             AddItem(
                 storageType,
                 slot,
-                resource: string.IsNullOrWhiteSpace(shopItem.Resource) && avatar is not null
-                    ? (shopItem.Subtype == 2 ? "herocard" : "humancard")
-                    : shopItem.Resource,
+                resource: resource,
                 subtype: shopItem.Subtype,
                 grade: shopItem.Grade,
                 sid: shopItem.Sid,
