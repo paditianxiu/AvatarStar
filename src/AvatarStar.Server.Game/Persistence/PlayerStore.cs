@@ -174,6 +174,11 @@ internal sealed class PlayerStore
         public int Gp { get; set; } = 100000;
         public int Mb { get; set; } = 0;
         public int Tb { get; set; } = 0;
+        public Dictionary<int, int> BoxPoints { get; } = new();
+        public Dictionary<int, Dictionary<int, int>> BoxPointClaimCounts { get; } = new();
+        public string CheckinMonthKey { get; private set; } = string.Empty;
+        public HashSet<int> CheckinDays { get; } = new();
+        public HashSet<int> CheckinClaimedRewardIds { get; } = new();
 
         // (sid, priceId) -> purchased count (用于限购显示/校验)
         public Dictionary<(int Sid, int PriceId), int> ShopPurchasedCounts { get; } = new();
@@ -193,6 +198,13 @@ internal sealed class PlayerStore
             Character = character;
         }
 
+        public sealed record RewardGrantSnapshot(
+            int Gp,
+            int Mb,
+            int Tb,
+            int NextPid,
+            Dictionary<int, Dictionary<int, InventoryItem>> Storages);
+
         public int GetShopPurchasedCount(int sid, int priceId)
         {
             return ShopPurchasedCounts.TryGetValue((sid, priceId), out var v) ? v : 0;
@@ -203,6 +215,161 @@ internal sealed class PlayerStore
             if (delta <= 0) return;
             var key = (sid, priceId);
             ShopPurchasedCounts[key] = GetShopPurchasedCount(sid, priceId) + delta;
+        }
+
+        public int GetBoxPoint(int category)
+        {
+            if (category <= 0)
+            {
+                return 0;
+            }
+
+            return BoxPoints.TryGetValue(category, out var point) ? Math.Max(0, point) : 0;
+        }
+
+        public int AddBoxPoint(int category, int delta)
+        {
+            if (category <= 0 || delta == 0)
+            {
+                return GetBoxPoint(category);
+            }
+
+            var next = Math.Max(0, GetBoxPoint(category) + delta);
+            BoxPoints[category] = next;
+            return next;
+        }
+
+        public bool TryConsumeBoxPoint(int category, int cost, out int remainPoint)
+        {
+            remainPoint = GetBoxPoint(category);
+            if (category <= 0 || cost <= 0)
+            {
+                return false;
+            }
+
+            if (remainPoint < cost)
+            {
+                return false;
+            }
+
+            remainPoint -= cost;
+            BoxPoints[category] = remainPoint;
+            return true;
+        }
+
+        public int GetBoxPointClaimCount(int category, int threshold)
+        {
+            if (category <= 0 || threshold <= 0)
+            {
+                return 0;
+            }
+
+            return BoxPointClaimCounts.TryGetValue(category, out var byThreshold) &&
+                   byThreshold.TryGetValue(threshold, out var count)
+                ? Math.Max(0, count)
+                : 0;
+        }
+
+        public void AddBoxPointClaim(int category, int threshold)
+        {
+            if (category <= 0 || threshold <= 0)
+            {
+                return;
+            }
+
+            if (!BoxPointClaimCounts.TryGetValue(category, out var byThreshold))
+            {
+                byThreshold = new Dictionary<int, int>();
+                BoxPointClaimCounts[category] = byThreshold;
+            }
+
+            byThreshold[threshold] = GetBoxPointClaimCount(category, threshold) + 1;
+        }
+
+        public void EnsureCheckinMonth(DateTime now)
+        {
+            var monthKey = now.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+            if (string.Equals(CheckinMonthKey, monthKey, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            CheckinMonthKey = monthKey;
+            CheckinDays.Clear();
+            CheckinClaimedRewardIds.Clear();
+        }
+
+        public IReadOnlyList<int> GetCheckinDaysOfMonth(DateTime now)
+        {
+            EnsureCheckinMonth(now);
+            return CheckinDays.OrderBy(day => day).ToArray();
+        }
+
+        public int GetCheckinCount(DateTime now)
+        {
+            EnsureCheckinMonth(now);
+            return CheckinDays.Count;
+        }
+
+        public bool HasCheckedInDay(DateTime now, int day)
+        {
+            EnsureCheckinMonth(now);
+            return day > 0 && CheckinDays.Contains(day);
+        }
+
+        public bool HasCheckedInToday(DateTime now)
+        {
+            return HasCheckedInDay(now, now.Day);
+        }
+
+        public bool TryAddCheckinDay(DateTime now, int day)
+        {
+            EnsureCheckinMonth(now);
+            if (day <= 0 || day > DateTime.DaysInMonth(now.Year, now.Month))
+            {
+                return false;
+            }
+
+            return CheckinDays.Add(day);
+        }
+
+        public bool HasClaimedCheckinReward(DateTime now, int checkinId)
+        {
+            EnsureCheckinMonth(now);
+            return checkinId > 0 && CheckinClaimedRewardIds.Contains(checkinId);
+        }
+
+        public bool TryClaimCheckinReward(DateTime now, int checkinId)
+        {
+            EnsureCheckinMonth(now);
+            return checkinId > 0 && CheckinClaimedRewardIds.Add(checkinId);
+        }
+
+        public RewardGrantSnapshot CaptureRewardGrantSnapshot()
+        {
+            EnsureStarterInventory();
+            return new RewardGrantSnapshot(
+                Gp,
+                Mb,
+                Tb,
+                NextPid,
+                Storages.ToDictionary(
+                    storage => storage.Key,
+                    storage => storage.Value.ToDictionary(slot => slot.Key, slot => slot.Value)));
+        }
+
+        public void RestoreRewardGrantSnapshot(RewardGrantSnapshot snapshot)
+        {
+            Gp = snapshot.Gp;
+            Mb = snapshot.Mb;
+            Tb = snapshot.Tb;
+            NextPid = snapshot.NextPid;
+
+            Storages.Clear();
+            foreach (var (storageType, slots) in snapshot.Storages)
+            {
+                Storages[storageType] = slots.ToDictionary(slot => slot.Key, slot => slot.Value);
+            }
         }
 
         public void EnsureStarterInventory()
@@ -571,7 +738,8 @@ internal sealed class PlayerStore
             int? unit = null,
             int remain = 0,
             bool isRenew = false,
-            IReadOnlyDictionary<string, double>? attributes = null)
+            IReadOnlyDictionary<string, double>? attributes = null,
+            int category = 0)
         {
             if (!Storages.TryGetValue(storageType, out var slots))
             {
@@ -592,7 +760,7 @@ internal sealed class PlayerStore
                 Unit: unit ?? quantity,
                 Remain: remain,
                 IsRenew: isRenew,
-                Category: 0,
+                Category: category,
                 IsBind: "N",
                 IsEquip: "N",
                 Sid: sid,
@@ -603,6 +771,200 @@ internal sealed class PlayerStore
                 Designer: designer,
                 Description: description,
                 Attributes: attributes);
+        }
+
+        private static int GetItemCountForConsume(InventoryItem item)
+        {
+            var countByQuantity = Math.Max(0, item.Quantity);
+            var countByUnit = Math.Max(0, item.Unit);
+            return item.UnitType == 1
+                ? Math.Max(countByQuantity, countByUnit)
+                : countByQuantity;
+        }
+
+        private static InventoryItem WithConsumedCount(InventoryItem item, int nextCount)
+        {
+            var normalized = Math.Max(0, nextCount);
+            var quantity = item.Quantity;
+            var unit = item.Unit;
+
+            if (item.UnitType == 1)
+            {
+                quantity = normalized;
+                unit = normalized;
+            }
+            else
+            {
+                quantity = normalized;
+                unit = item.Unit;
+            }
+
+            return item with
+            {
+                Quantity = quantity,
+                Unit = unit
+            };
+        }
+
+        public int GetStorageResourceCount(int storageType, string resource)
+        {
+            EnsureStarterInventory();
+
+            if (string.IsNullOrWhiteSpace(resource) ||
+                !Storages.TryGetValue(storageType, out var slots) ||
+                slots.Count == 0)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            foreach (var item in slots.Values)
+            {
+                if (!string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                count += GetItemCountForConsume(item);
+            }
+
+            return Math.Max(0, count);
+        }
+
+        public int GetStorageCountByCategory(int storageType, int category, int subtype)
+        {
+            EnsureStarterInventory();
+
+            if (category <= 0 ||
+                !Storages.TryGetValue(storageType, out var slots) ||
+                slots.Count == 0)
+            {
+                return 0;
+            }
+
+            var count = 0;
+            foreach (var item in slots.Values)
+            {
+                if (item.Category != category)
+                {
+                    continue;
+                }
+
+                var effectiveSubtype = item.SubType > 0 ? item.SubType : item.Subtype;
+                if (effectiveSubtype != subtype)
+                {
+                    continue;
+                }
+
+                count += GetItemCountForConsume(item);
+            }
+
+            return Math.Max(0, count);
+        }
+
+        public bool TryConsumeStorageResource(int storageType, string resource, int amount)
+        {
+            EnsureStarterInventory();
+
+            if (amount <= 0 || string.IsNullOrWhiteSpace(resource))
+            {
+                return false;
+            }
+
+            if (!Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
+            {
+                return false;
+            }
+
+            var candidates = slots
+                .OrderBy(x => x.Key)
+                .Where(x => string.Equals(x.Value.Resource, resource, StringComparison.OrdinalIgnoreCase))
+                .Select(x => (Slot: x.Key, Item: x.Value, Count: GetItemCountForConsume(x.Value)))
+                .Where(x => x.Count > 0)
+                .ToArray();
+            var totalCount = candidates.Sum(x => x.Count);
+            if (totalCount < amount)
+            {
+                return false;
+            }
+
+            var remaining = amount;
+            foreach (var candidate in candidates)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var consume = Math.Min(candidate.Count, remaining);
+                var nextCount = candidate.Count - consume;
+                remaining -= consume;
+
+                if (nextCount <= 0)
+                {
+                    slots.Remove(candidate.Slot);
+                    continue;
+                }
+
+                slots[candidate.Slot] = WithConsumedCount(candidate.Item, nextCount);
+            }
+
+            return remaining == 0;
+        }
+
+        public bool TryConsumeStorageByCategory(int storageType, int category, int subtype, int amount)
+        {
+            EnsureStarterInventory();
+
+            if (amount <= 0 || category <= 0)
+            {
+                return false;
+            }
+
+            if (!Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
+            {
+                return false;
+            }
+
+            var candidates = slots
+                .OrderBy(x => x.Key)
+                .Where(x =>
+                {
+                    var item = x.Value;
+                    var effectiveSubtype = item.SubType > 0 ? item.SubType : item.Subtype;
+                    return item.Category == category && effectiveSubtype == subtype;
+                })
+                .Select(x => (Slot: x.Key, Item: x.Value, Count: GetItemCountForConsume(x.Value)))
+                .Where(x => x.Count > 0)
+                .ToArray();
+            var totalCount = candidates.Sum(x => x.Count);
+            if (totalCount < amount)
+            {
+                return false;
+            }
+
+            var remaining = amount;
+            foreach (var candidate in candidates)
+            {
+                if (remaining <= 0)
+                {
+                    break;
+                }
+
+                var consume = Math.Min(candidate.Count, remaining);
+                var nextCount = candidate.Count - consume;
+                remaining -= consume;
+
+                if (nextCount <= 0)
+                {
+                    slots.Remove(candidate.Slot);
+                    continue;
+                }
+
+                slots[candidate.Slot] = WithConsumedCount(candidate.Item, nextCount);
+            }
+
+            return remaining == 0;
         }
 
         private void NormalizeLegacyStarterAvatarCard()
@@ -1572,6 +1934,108 @@ internal sealed class PlayerStore
             return true;
         }
 
+        private static int ResolveStorageTypeByItemType(int itemType)
+        {
+            return itemType switch
+            {
+                (int)ShopItemDatabase.ItemType.Equipment => 2,
+                (int)ShopItemDatabase.ItemType.Item => 3,
+                (int)ShopItemDatabase.ItemType.Gesture => 4,
+                (int)ShopItemDatabase.ItemType.AvatarCard => 5,
+                (int)ShopItemDatabase.ItemType.SkinCard => 6,
+                _ => 3
+            };
+        }
+
+        public bool TryGrantInventoryItem(
+            int type,
+            int subtype,
+            int grade,
+            int sid,
+            string resource,
+            int quantity,
+            int unitType,
+            int unit,
+            int category = 0,
+            object? avatar = null,
+            int? position = null,
+            string? display = null,
+            string? designer = null,
+            string? description = null)
+        {
+            EnsureStarterInventory();
+
+            var storageType = ResolveStorageTypeByItemType(type);
+            const int maxSlots = int.MaxValue;
+            if (!Storages.TryGetValue(storageType, out var slots))
+            {
+                slots = new Dictionary<int, InventoryItem>();
+                Storages[storageType] = slots;
+            }
+
+            var normalizedQuantity = Math.Max(1, quantity);
+            var normalizedUnitType = unitType <= 0 ? 1 : unitType;
+            var normalizedUnit = normalizedUnitType == 1
+                ? Math.Max(1, unit <= 0 ? normalizedQuantity : unit)
+                : Math.Max(1, unit);
+            var effectiveSubType = subtype > 0 ? subtype : 0;
+            var effectiveGrade = grade > 0 ? grade : 1;
+
+            if (storageType == 3 && normalizedUnitType == 1)
+            {
+                var existing = slots
+                    .OrderBy(x => x.Key)
+                    .FirstOrDefault(x =>
+                    {
+                        var item = x.Value;
+                        var itemSubType = item.SubType > 0 ? item.SubType : item.Subtype;
+                        return itemSubType == effectiveSubType &&
+                               item.Category == category &&
+                               string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase);
+                    });
+                if (!existing.Equals(default(KeyValuePair<int, InventoryItem>)))
+                {
+                    var mergedCount = GetItemCountForConsume(existing.Value) + normalizedUnit;
+                    slots[existing.Key] = existing.Value with
+                    {
+                        Quantity = mergedCount,
+                        Unit = mergedCount,
+                        UnitType = 1,
+                        SubType = effectiveSubType,
+                        Subtype = effectiveSubType,
+                        Category = category
+                    };
+                    return true;
+                }
+            }
+
+            var slot = Enumerable.Range(1, maxSlots).FirstOrDefault(i => !slots.ContainsKey(i));
+            if (slot == 0)
+            {
+                return false;
+            }
+
+            AddItem(
+                storageType: storageType,
+                slot: slot,
+                resource: resource,
+                subtype: effectiveSubType,
+                grade: effectiveGrade,
+                sid: sid,
+                type: type,
+                quantity: normalizedQuantity,
+                avatar: avatar,
+                position: position,
+                subType: effectiveSubType,
+                display: display ?? string.Empty,
+                designer: designer ?? string.Empty,
+                description: description ?? string.Empty,
+                unitType: normalizedUnitType,
+                unit: normalizedUnit,
+                category: category);
+            return true;
+        }
+
         public bool TryPurchaseToInventory(
             ShopItemDatabase.ShopItem shopItem,
             int quantity,
@@ -1579,30 +2043,22 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
 
-            var storageType = shopItem.Type switch
-            {
-                ShopItemDatabase.ItemType.Equipment => 2,
-                ShopItemDatabase.ItemType.Item => 3,
-                ShopItemDatabase.ItemType.Gesture => 4,
-                ShopItemDatabase.ItemType.AvatarCard => 5,
-                ShopItemDatabase.ItemType.SkinCard => 6,
-                _ => 3
-            };
+            var storageType = ResolveStorageTypeByItemType((int)shopItem.Type);
 
-            const int maxSlots = 36;
+            const int maxSlots = int.MaxValue;
             if (!Storages.TryGetValue(storageType, out var slots))
             {
                 slots = new Dictionary<int, InventoryItem>();
                 Storages[storageType] = slots;
             }
 
-            var slot = Enumerable.Range(1, maxSlots).FirstOrDefault(i => !slots.ContainsKey(i));
-            if (slot == 0) return false;
-
             var avatarId = GetAvatarIdFrom(Character.EquipAvatar) ?? "0";
             var avatar = shopItem.Type is ShopItemDatabase.ItemType.AvatarCard or ShopItemDatabase.ItemType.SkinCard
                 ? EnsureAvatarHasAvatarId(shopItem.Avatar, avatarId) ?? shopItem.Avatar
                 : shopItem.Avatar;
+            var resource = string.IsNullOrWhiteSpace(shopItem.Resource) && avatar is not null
+                ? (shopItem.Subtype == 2 ? "herocard" : "humancard")
+                : shopItem.Resource;
             var instanceQuantity = Math.Max(1, quantity) * Math.Max(1, shopItem.Quantity);
             var instanceUnitType = price?.UnitType ?? 1;
             var instanceUnit = instanceUnitType == 1
@@ -1615,12 +2071,42 @@ internal sealed class PlayerStore
                     ? shopItem.Subtype
                     : 0;
 
+            if (shopItem.Type == ShopItemDatabase.ItemType.Item &&
+                storageType == 3 &&
+                instanceUnitType == 1)
+            {
+                var existing = slots
+                    .OrderBy(x => x.Key)
+                    .FirstOrDefault(x =>
+                    {
+                        var item = x.Value;
+                        return item.Type == (int)shopItem.Type &&
+                               item.Sid == shopItem.Sid &&
+                               string.Equals(item.Resource, resource, StringComparison.OrdinalIgnoreCase);
+                    });
+                if (!existing.Equals(default(KeyValuePair<int, InventoryItem>)))
+                {
+                    var mergedCount = GetItemCountForConsume(existing.Value) + instanceUnit;
+                    slots[existing.Key] = existing.Value with
+                    {
+                        Quantity = mergedCount,
+                        Unit = mergedCount,
+                        UnitType = 1
+                    };
+                    return true;
+                }
+            }
+
+            var slot = Enumerable.Range(1, maxSlots).FirstOrDefault(i => !slots.ContainsKey(i));
+            if (slot == 0)
+            {
+                return false;
+            }
+
             AddItem(
                 storageType,
                 slot,
-                resource: string.IsNullOrWhiteSpace(shopItem.Resource) && avatar is not null
-                    ? (shopItem.Subtype == 2 ? "herocard" : "humancard")
-                    : shopItem.Resource,
+                resource: resource,
                 subtype: shopItem.Subtype,
                 grade: shopItem.Grade,
                 sid: shopItem.Sid,

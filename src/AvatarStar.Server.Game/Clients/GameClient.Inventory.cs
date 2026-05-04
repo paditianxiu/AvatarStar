@@ -86,11 +86,20 @@ internal partial class GameClient
             {
                 var shopItem = ShopItemDatabase.GetShopItem(x.Sid);
                 var effectiveSubType = x.SubType > 0 ? x.SubType : x.Subtype;
+                var payloadSubtype = x.Subtype;
+                var payloadSubType = effectiveSubType;
+                var payloadCategory = x.Category;
+                if (TryResolveBoxInventoryIdentity(x, out var boxSubtype, out var boxCategory))
+                {
+                    payloadSubtype = boxSubtype;
+                    payloadSubType = boxSubtype;
+                    payloadCategory = boxCategory;
+                }
                 var clientResource = ShopItemDatabase.GetClientResource(
                     shopItem,
                     x.Resource,
                     x.Type,
-                    effectiveSubType);
+                    payloadSubType);
                 // In tooltip/storage Lua, occupation=0 means "all classes"; negative values are shop-only config syntax.
                 var occupation = shopItem?.Occupation ?? 0;
                 if (occupation < 0)
@@ -105,8 +114,8 @@ internal partial class GameClient
                     slot = pageBySlot ? (x.Slot - pageOffset) : x.Slot,
                     storageSlot = x.Slot,
                     resource = clientResource,
-                    subtype = x.Subtype,
-                    subType = effectiveSubType, // several client helpers read camel-case subType even for equipment
+                    subtype = payloadSubtype,
+                    subType = payloadSubType, // several client helpers read camel-case subType even for equipment
                     grade = x.Grade,
                     level = shopItem?.Level ?? 0,
                     occupation,
@@ -116,7 +125,7 @@ internal partial class GameClient
                     unit = x.Unit,
                     remain = x.Remain,
                     isRenew = x.IsRenew,
-                    category = x.Category,
+                    category = payloadCategory,
                     isBind = string.IsNullOrWhiteSpace(x.IsBind) ? "N" : x.IsBind,
                     isEquip = string.IsNullOrWhiteSpace(x.IsEquip) ? "N" : x.IsEquip,
                     // Keep storage item shape close to `tip_player_item` to avoid client nil-index crashes.
