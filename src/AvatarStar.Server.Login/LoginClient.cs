@@ -1,7 +1,9 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Net.Sockets;
+using AvatarStar.Server.Database;
 using AvatarStar.Server.Utilities;
+using MySqlConnector;
 using Serilog;
 
 namespace AvatarStar.Server.Login;
@@ -24,6 +26,8 @@ public class LoginClient : Client
         Log.Debug("[{Dir}:{Remote}] packetId={PacketId} len={Len}\n{Hex}",
             direction, remote, packetId, data.Length, HexDump.Dump(preview));
     }
+
+    private static readonly AccountRepository Accounts = new();
 
     public LoginClient(ClientHandler clientHandler, Socket socket) : base(clientHandler, socket)
     {
@@ -68,25 +72,7 @@ public class LoginClient : Client
                     Log.Debug("- Unknown {UkShort}", reader.ReadShort());
                 }
 
-                // 简单的认证逻辑：检查用户名和密码
-                ServerErrorCode authResult;
-                string? authToken = null;
-
-                if (string.IsNullOrEmpty(pUsername) || string.IsNullOrEmpty(pPassword))
-                {
-                    authResult = ServerErrorCode.InvalidUserId;
-                }
-                else if (pUsername == "test" && pPassword == "test123")
-                {
-                    authResult = ServerErrorCode.Success;
-                    authToken = $"token_{pUsername}_{DateTime.UtcNow.Ticks}";
-                }
-                else
-                {
-                    authResult = ServerErrorCode.PasswordError;
-                }
-
-                await WritePacket3(authResult, authToken);
+                await HandleAccountLoginAsync(pUsername, pPassword);
                 break;
             }
 
@@ -100,6 +86,18 @@ public class LoginClient : Client
                 await WritePacket4();
                 break;
             }
+
+            // Register account and return token.
+            case 5:
+            {
+                var pUsername = reader.ReadString();
+                var pPassword = reader.ReadString();
+
+                Log.Debug("- Register Username {Username}", pUsername);
+
+                await HandleAccountRegisterAsync(pUsername, pPassword);
+                break;
+            }
         }
 
         // Check for remaining data
@@ -107,6 +105,67 @@ public class LoginClient : Client
         {
             Log.Warning("Packet {PacketId} has {Remaining} bytes remaining", packetId, reader.Remaining);
         }
+    }
+
+    private async Task HandleAccountLoginAsync(string username, string password)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            await WritePacket3(ServerErrorCode.InvalidUserId, null);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            await WritePacket3(ServerErrorCode.PasswordError, null);
+            return;
+        }
+
+        try
+        {
+            var result = await Accounts.LoginAsync(username, password);
+            await WritePacket3(
+                result.Success ? ServerErrorCode.Success : ServerErrorCode.PasswordError,
+                result.Token);
+        }
+        catch (Exception ex) when (IsDatabaseException(ex))
+        {
+            Log.Error(ex, "Account login failed because database is unavailable");
+            await WritePacket3(ServerErrorCode.SystemError, null);
+        }
+    }
+
+    private async Task HandleAccountRegisterAsync(string username, string password)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            await WritePacket3(ServerErrorCode.InvalidUserId, null);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            await WritePacket3(ServerErrorCode.PasswordError, null);
+            return;
+        }
+
+        try
+        {
+            var result = await Accounts.RegisterAsync(username, password);
+            await WritePacket3(
+                result.Created ? ServerErrorCode.Success : ServerErrorCode.AccountLocked,
+                result.Token);
+        }
+        catch (Exception ex) when (IsDatabaseException(ex))
+        {
+            Log.Error(ex, "Account registration failed because database is unavailable");
+            await WritePacket3(ServerErrorCode.SystemError, null);
+        }
+    }
+
+    private static bool IsDatabaseException(Exception ex)
+    {
+        return ex is MySqlException or InvalidOperationException;
     }
 
     protected override ClientBuffer CreateBuffer()

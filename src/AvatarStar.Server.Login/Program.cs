@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using AvatarStar.Server;
+using AvatarStar.Server.Database;
 using AvatarStar.Server.Login;
 using Serilog;
 
@@ -10,6 +11,10 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 Log.Information("Starting");
+
+var accounts = new AccountRepository();
+await accounts.InitializeAsync();
+Log.Information("MySQL account schema initialized");
 
 var clientHandler = new ClientHandler();
 var server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

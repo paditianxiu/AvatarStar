@@ -147,7 +147,7 @@ internal partial class GameClient
                     refitTotalExp = 0,
                     sid = x.Sid,
                     type = x.Type,
-                    avatar = x.Avatar,
+                    avatar = LuaSerializer.NormalizeJsonElement(x.Avatar),
                     position = x.Position,
                     display = x.Display,
                     designer = x.Designer,

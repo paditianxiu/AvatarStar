@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Game.Resources;
+using MySqlConnector;
 using Serilog;
 
 namespace AvatarStar.Server.Game;
@@ -1690,7 +1691,9 @@ internal partial class GameClient
         {
             case "player_list":
             {
-                var characters = _playerStore.ListCharacters();
+                var characters = _accountId > 0
+                    ? _playerStore.ListCharacters(_accountId)
+                    : _playerStore.ListCharacters();
                 var characterObjects = new object[characters.Count];
                 for (var i = 0; i < characters.Count; i++)
                 {
@@ -1767,8 +1770,26 @@ internal partial class GameClient
             case "player_create":
                 {
                     var config = _sysAvatarPayloadMonitor.CurrentValue;
-                    var existingCount = _playerStore.ListCharacters().Count;
-                    var name = rpcArgs.TryGetValue("name", out var n) ? n : $"Player{existingCount + 1}";
+                    var existingCount = _accountId > 0
+                        ? _playerStore.ListCharacters(_accountId).Count
+                        : _playerStore.ListCharacters().Count;
+                    var name = rpcArgs.TryGetValue("name", out var n) ? n.Trim() : $"Player{existingCount + 1}";
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        writer.WriteString("ok = 0\nerror = " + LuaEscape("character name cannot be empty"));
+                        await SendAsync(writer);
+                        return;
+                    }
+
+                    if (_playerStore.CharacterNameExists(name) ||
+                        await _gameDataRepository.CharacterNameExistsAsync(name))
+                    {
+                        Log.Information("player_create rejected: duplicate character name={Name} accountId={AccountId}", name, _accountId);
+                        writer.WriteString("ok = 0\nerror = " + LuaEscape("character name already exists"));
+                        await SendAsync(writer);
+                        return;
+                    }
+
                     var jobIdStr = rpcArgs.TryGetValue("id", out var jid) ? jid : "1";
                     _ = int.TryParse(jobIdStr, out var jobId);
 
@@ -1803,14 +1824,33 @@ internal partial class GameClient
                         immobileDown = Suit("immobileDown")
                     };
 
-                    var created = _playerStore.CreateCharacter(
-                        name,
-                        occupation,
-                        config,
-                        equipAvatar,
-                        avatarId,
-                        starterCardDisplay: cardDisplay,
-                        starterCardDesigner: cardDesigner);
+                    var previousRoleId = _activeRoleId;
+                    PlayerStore.PlayerState created;
+                    try
+                    {
+                        created = _playerStore.CreateCharacter(
+                            _accountId,
+                            name,
+                            occupation,
+                            config,
+                            equipAvatar,
+                            avatarId,
+                            starterCardDisplay: cardDisplay,
+                            starterCardDesigner: cardDesigner);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        Log.Information("player_create rejected by memory store: duplicate character name={Name} accountId={AccountId}", name, _accountId);
+                        writer.WriteString("ok = 0\nerror = " + LuaEscape("character name already exists"));
+                        await SendAsync(writer);
+                        return;
+                    }
+                    catch (ArgumentException)
+                    {
+                        writer.WriteString("ok = 0\nerror = " + LuaEscape("character name cannot be empty"));
+                        await SendAsync(writer);
+                        return;
+                    }
 
                     _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
                     _activeRoleId = created.Character.Id;
@@ -1842,7 +1882,34 @@ internal partial class GameClient
                             unitType: 1,
                             unit: 99999);
                     }
-           
+
+                    try
+                    {
+                        await SaveActiveAccountAsync();
+                    }
+                    catch (MySqlException ex) when (ex.Number == 1062)
+                    {
+                        _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
+                        if (_accountId > 0)
+                        {
+                            _playerStore.DeleteCharacter(_accountId, created.Character.Id);
+                        }
+                        else
+                        {
+                            _playerStore.DeleteCharacter(created.Character.Id);
+                        }
+                        _activeRoleId = previousRoleId;
+                        _practiceRoomManager.RegisterGameClient(_activeRoleId, this);
+
+                        Log.Information(
+                            "player_create rejected by database unique index: duplicate character name={Name} accountId={AccountId}",
+                            name,
+                            _accountId);
+                        writer.WriteString("ok = 0\nerror = " + LuaEscape("character name already exists"));
+                        await SendAsync(writer);
+                        return;
+                    }
+            
 
                     writer.WriteString("ok = 1\nwarning = nil");
                     await SendAsync(writer);
@@ -1853,7 +1920,14 @@ internal partial class GameClient
             {
                 if (rpcArgs.TryGetValue("cid", out var cidStr) && int.TryParse(cidStr, out var cid))
                 {
-                    _playerStore.DeleteCharacter(cid);
+                    if (_accountId > 0)
+                    {
+                        _playerStore.DeleteCharacter(_accountId, cid);
+                    }
+                    else
+                    {
+                        _playerStore.DeleteCharacter(cid);
+                    }
                 }
                 writer.WriteString("ok = 1");
                 await SendAsync(writer);

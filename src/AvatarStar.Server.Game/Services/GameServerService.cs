@@ -1,25 +1,41 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using AvatarStar.Server.Database;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace AvatarStar.Server.Game;
 
-public class GameServerService : BackgroundService
+internal sealed class GameServerService : BackgroundService
 {
     private readonly ILogger<GameServerService> _logger;
     private readonly IServiceProvider _serviceProvider;
+    private readonly AccountRepository _accountRepository;
+    private readonly GameDataRepository _gameDataRepository;
+    private readonly PlayerStore _playerStore;
 
-    public GameServerService(ILogger<GameServerService> logger, IServiceProvider serviceProvider)
+    public GameServerService(
+        ILogger<GameServerService> logger,
+        IServiceProvider serviceProvider,
+        AccountRepository accountRepository,
+        GameDataRepository gameDataRepository,
+        PlayerStore playerStore)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
+        _accountRepository = accountRepository;
+        _gameDataRepository = gameDataRepository;
+        _playerStore = playerStore;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Starting");
+        await _accountRepository.InitializeAsync(stoppingToken);
+        await _gameDataRepository.InitializeAsync(stoppingToken);
+        _playerStore.EnsureNextCharacterIdAtLeast(await _gameDataRepository.GetNextCharacterIdAsync(stoppingToken));
+        _logger.LogInformation("MySQL game data schema initialized");
 
         var clientHandler = new ClientHandler();
         var server = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

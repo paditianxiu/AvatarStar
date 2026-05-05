@@ -10,7 +10,72 @@ internal sealed class PlayerStore
 {
     private readonly object _lock = new();
     private readonly Dictionary<int, PlayerState> _players = new();
+    private readonly Dictionary<long, HashSet<int>> _characterIdsByAccount = new();
     private int _nextCharacterId = 1;
+
+    public void LoadAccount(long accountId, PlayerStoreSnapshot? snapshot)
+    {
+        lock (_lock)
+        {
+            if (accountId <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(accountId));
+            }
+
+            if (_characterIdsByAccount.TryGetValue(accountId, out var previousCharacterIds))
+            {
+                foreach (var characterId in previousCharacterIds)
+                {
+                    _players.Remove(characterId);
+                }
+            }
+
+            var characterIds = new HashSet<int>();
+            if (snapshot is not null)
+            {
+                _nextCharacterId = Math.Max(_nextCharacterId, snapshot.NextCharacterId);
+                foreach (var playerSnapshot in snapshot.Players)
+                {
+                    var player = PlayerState.FromSnapshot(playerSnapshot);
+                    _players[player.Character.Id] = player;
+                    characterIds.Add(player.Character.Id);
+                }
+            }
+
+            _characterIdsByAccount[accountId] = characterIds;
+            _nextCharacterId = Math.Max(_nextCharacterId, _players.Keys.DefaultIfEmpty(0).Max() + 1);
+        }
+    }
+
+    public void EnsureNextCharacterIdAtLeast(int nextCharacterId)
+    {
+        lock (_lock)
+        {
+            _nextCharacterId = Math.Max(_nextCharacterId, nextCharacterId);
+        }
+    }
+
+    public PlayerStoreSnapshot CreateSnapshot(long accountId)
+    {
+        lock (_lock)
+        {
+            var characterIds = _characterIdsByAccount.TryGetValue(accountId, out var ids)
+                ? ids
+                : new HashSet<int>();
+
+            return new PlayerStoreSnapshot
+            {
+                NextCharacterId = Math.Max(_nextCharacterId, _players.Keys.DefaultIfEmpty(0).Max() + 1),
+                Players = characterIds
+                    .Select(characterId => _players.TryGetValue(characterId, out var player) ? player : null)
+                    .Where(player => player is not null)
+                    .Select(player => player!)
+                    .OrderBy(player => player.Character.Id)
+                    .Select(player => player.ToSnapshot())
+                    .ToList()
+            };
+        }
+    }
 
     public IReadOnlyList<CharacterInfo> ListCharacters()
     {
@@ -20,6 +85,39 @@ internal sealed class PlayerStore
                 .OrderBy(p => p.Character.Id)
                 .Select(p => p.Character)
                 .ToList();
+        }
+    }
+
+    public IReadOnlyList<CharacterInfo> ListCharacters(long accountId)
+    {
+        lock (_lock)
+        {
+            if (!_characterIdsByAccount.TryGetValue(accountId, out var characterIds))
+            {
+                return Array.Empty<CharacterInfo>();
+            }
+
+            return characterIds
+                .Select(characterId => _players.TryGetValue(characterId, out var player) ? player : null)
+                .Where(player => player is not null)
+                .Select(player => player!)
+                .OrderBy(p => p.Character.Id)
+                .Select(p => p.Character)
+                .ToList();
+        }
+    }
+
+    public bool CharacterNameExists(string name)
+    {
+        var normalizedName = NormalizeCharacterName(name);
+        if (normalizedName.Length == 0)
+        {
+            return false;
+        }
+
+        lock (_lock)
+        {
+            return CharacterNameExistsCore(normalizedName);
         }
     }
 
@@ -40,6 +138,7 @@ internal sealed class PlayerStore
     }
 
     public PlayerState CreateCharacter(
+        long accountId,
         string name,
         int occupation,
         SysAvatarPayloadConfig? avatarConfig = null,
@@ -50,8 +149,19 @@ internal sealed class PlayerStore
     {
         lock (_lock)
         {
+            var normalizedName = NormalizeCharacterName(name);
+            if (normalizedName.Length == 0)
+            {
+                throw new ArgumentException("Character name cannot be empty.", nameof(name));
+            }
+
+            if (CharacterNameExistsCore(normalizedName))
+            {
+                throw new InvalidOperationException("Character name already exists.");
+            }
+
             var id = _nextCharacterId++;
-            var player = new PlayerState(CharacterInfo.Create(id, name, occupation));
+            var player = new PlayerState(CharacterInfo.Create(id, normalizedName, occupation));
             var resolvedAvatarId = string.IsNullOrWhiteSpace(avatarId)
                 ? GetDefaultAvatarId(occupation, avatarConfig)
                 : avatarId!;
@@ -65,8 +175,49 @@ internal sealed class PlayerStore
                 cardDisplay: starterCardDisplay,
                 cardDesigner: starterCardDesigner);
             _players[id] = player;
+            if (accountId > 0)
+            {
+                if (!_characterIdsByAccount.TryGetValue(accountId, out var characterIds))
+                {
+                    characterIds = new HashSet<int>();
+                    _characterIdsByAccount[accountId] = characterIds;
+                }
+
+                characterIds.Add(id);
+            }
             return player;
         }
+    }
+
+    public PlayerState CreateCharacter(
+        string name,
+        int occupation,
+        SysAvatarPayloadConfig? avatarConfig = null,
+        object? equipAvatar = null,
+        string? avatarId = null,
+        string? starterCardDisplay = null,
+        string? starterCardDesigner = null)
+    {
+        return CreateCharacter(
+            accountId: 0,
+            name,
+            occupation,
+            avatarConfig,
+            equipAvatar,
+            avatarId,
+            starterCardDisplay,
+            starterCardDesigner);
+    }
+
+    private bool CharacterNameExistsCore(string normalizedName)
+    {
+        return _players.Values.Any(player =>
+            string.Equals(player.Character.Name.Trim(), normalizedName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeCharacterName(string name)
+    {
+        return name.Trim();
     }
 
     private static string GetDefaultAvatarId(int occupation, SysAvatarPayloadConfig? avatarConfig)
@@ -142,6 +293,20 @@ internal sealed class PlayerStore
         }
     }
 
+    public bool DeleteCharacter(long accountId, int characterId)
+    {
+        lock (_lock)
+        {
+            if (!_characterIdsByAccount.TryGetValue(accountId, out var characterIds) ||
+                !characterIds.Remove(characterId))
+            {
+                return false;
+            }
+
+            return _players.Remove(characterId);
+        }
+    }
+
     public sealed class PlayerState
     {
         private sealed record HotKeySlot(
@@ -196,6 +361,143 @@ internal sealed class PlayerStore
         public PlayerState(CharacterInfo character)
         {
             Character = character;
+        }
+
+        public PlayerStateSnapshot ToSnapshot()
+        {
+            return new PlayerStateSnapshot
+            {
+                Character = Character,
+                Gp = Gp,
+                Mb = Mb,
+                Tb = Tb,
+                NextPid = NextPid,
+                EquippedAvatarPid = EquippedAvatarPid,
+                BoxPoints = new Dictionary<int, int>(BoxPoints),
+                BoxPointClaimCounts = BoxPointClaimCounts.ToDictionary(
+                    pair => pair.Key,
+                    pair => new Dictionary<int, int>(pair.Value)),
+                CheckinMonthKey = CheckinMonthKey,
+                CheckinDays = new HashSet<int>(CheckinDays),
+                CheckinClaimedRewardIds = new HashSet<int>(CheckinClaimedRewardIds),
+                ShopPurchasedCounts = ShopPurchasedCounts.ToDictionary(
+                    pair => $"{pair.Key.Sid}:{pair.Key.PriceId}",
+                    pair => pair.Value),
+                Storages = Storages.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.ToDictionary(slot => slot.Key, slot => slot.Value)),
+                EquippedItemsByType = new Dictionary<int, string>(EquippedItemsByType),
+                HotKeySlots = _hotKeySlots.ToDictionary(
+                    pair => pair.Key,
+                    pair => new HotKeySlotSnapshot(
+                        pair.Value.Slot,
+                        pair.Value.Type,
+                        pair.Value.ItemId,
+                        pair.Value.Resource,
+                        pair.Value.Grade,
+                        pair.Value.Quantity,
+                        pair.Value.UnitType,
+                        pair.Value.Unit,
+                        pair.Value.Subtype,
+                        pair.Value.Sid))
+            };
+        }
+
+        public static PlayerState FromSnapshot(PlayerStateSnapshot snapshot)
+        {
+            var character = snapshot.Character with
+            {
+                EquipAvatar = NormalizeAvatarPayload(snapshot.Character.EquipAvatar) ?? CharacterInfo.Create(0, string.Empty, snapshot.Character.Occupation).EquipAvatar
+            };
+            var player = new PlayerState(character)
+            {
+                Gp = snapshot.Gp,
+                Mb = snapshot.Mb,
+                Tb = snapshot.Tb,
+                NextPid = Math.Max(1, snapshot.NextPid),
+                EquippedAvatarPid = snapshot.EquippedAvatarPid
+            };
+
+            foreach (var (key, value) in snapshot.BoxPoints)
+            {
+                player.BoxPoints[key] = value;
+            }
+
+            foreach (var (category, thresholds) in snapshot.BoxPointClaimCounts)
+            {
+                player.BoxPointClaimCounts[category] = new Dictionary<int, int>(thresholds);
+            }
+
+            player.CheckinMonthKey = snapshot.CheckinMonthKey ?? string.Empty;
+            foreach (var day in snapshot.CheckinDays)
+            {
+                player.CheckinDays.Add(day);
+            }
+
+            foreach (var rewardId in snapshot.CheckinClaimedRewardIds)
+            {
+                player.CheckinClaimedRewardIds.Add(rewardId);
+            }
+
+            foreach (var (key, value) in snapshot.ShopPurchasedCounts)
+            {
+                var parts = key.Split(':', 2);
+                if (parts.Length == 2 &&
+                    int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var sid) &&
+                    int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var priceId))
+                {
+                    player.ShopPurchasedCounts[(sid, priceId)] = value;
+                }
+            }
+
+            foreach (var (storageType, slots) in snapshot.Storages)
+            {
+                player.Storages[storageType] = slots.ToDictionary(
+                    slot => slot.Key,
+                    slot => NormalizeInventoryItem(slot.Value));
+            }
+
+            foreach (var (equipType, pid) in snapshot.EquippedItemsByType)
+            {
+                player.EquippedItemsByType[equipType] = pid;
+            }
+
+            foreach (var (slot, hotKey) in snapshot.HotKeySlots)
+            {
+                player._hotKeySlots[slot] = new HotKeySlot(
+                    hotKey.Slot,
+                    hotKey.Type,
+                    hotKey.ItemId,
+                    hotKey.Resource,
+                    hotKey.Grade,
+                    hotKey.Quantity,
+                    hotKey.UnitType,
+                    hotKey.Unit,
+                    hotKey.Subtype,
+                    hotKey.Sid);
+            }
+
+            return player;
+        }
+
+        private static InventoryItem NormalizeInventoryItem(InventoryItem item)
+        {
+            var normalizedAvatar = NormalizeAvatarPayload(item.Avatar);
+            var normalizedSubType = item.SubType > 0 ? item.SubType : item.Subtype;
+            var normalizedSubtype = item.Subtype > 0 ? item.Subtype : normalizedSubType;
+            return item with
+            {
+                Avatar = normalizedAvatar,
+                Subtype = normalizedSubtype,
+                SubType = normalizedSubType,
+                Resource = string.IsNullOrWhiteSpace(item.Resource) && item.Type is 5 or 6
+                    ? (normalizedSubType == 2 ? "herocard" : "humancard")
+                    : item.Resource,
+                Position = item.Type is 5 or 6 ? item.Position ?? 1 : item.Position,
+                Display = item.Display ?? string.Empty,
+                Designer = item.Designer ?? string.Empty,
+                Description = item.Description ?? string.Empty
+            };
         }
 
         public sealed record RewardGrantSnapshot(
@@ -641,11 +943,48 @@ internal sealed class PlayerStore
             return null;
         }
 
+        private static object? NormalizeAvatarPayload(object? avatar)
+        {
+            if (avatar is null)
+            {
+                return null;
+            }
+
+            if (avatar is JsonElement element)
+            {
+                return ConvertJsonElement(element);
+            }
+
+            return avatar;
+        }
+
+        private static object? ConvertJsonElement(JsonElement element)
+        {
+            return element.ValueKind switch
+            {
+                JsonValueKind.Object => element.EnumerateObject()
+                    .ToDictionary(property => property.Name, property => ConvertJsonElement(property.Value), StringComparer.OrdinalIgnoreCase),
+                JsonValueKind.Array => element.EnumerateArray().Select(ConvertJsonElement).ToArray(),
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.Number when element.TryGetInt64(out var longValue) => longValue,
+                JsonValueKind.Number when element.TryGetDouble(out var doubleValue) => doubleValue,
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => null
+            };
+        }
+
         private static object? EnsureAvatarHasAvatarId(object? avatar, string? avatarId)
         {
             if (avatar is null || string.IsNullOrWhiteSpace(avatarId))
             {
                 return avatar;
+            }
+
+            avatar = NormalizeAvatarPayload(avatar);
+            if (avatar is null)
+            {
+                return null;
             }
 
             var existingAvatarId = GetAvatarIdFrom(avatar);
@@ -682,19 +1021,6 @@ internal sealed class PlayerStore
                 }
                 copy["avatarId"] = avatarId!;
                 return copy;
-            }
-
-            if (avatar is JsonElement el && el.ValueKind == JsonValueKind.Object)
-            {
-                var dict = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
-                foreach (var prop in el.EnumerateObject())
-                {
-                    dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String
-                        ? (object)(prop.Value.GetString() ?? string.Empty)
-                        : prop.Value.GetRawText();
-                }
-                dict["avatarId"] = avatarId!;
-                return dict;
             }
 
             // Anonymous/object payloads from character creation are immutable; clone to a mutable dictionary.

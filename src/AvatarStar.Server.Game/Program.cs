@@ -2,6 +2,7 @@ using AvatarStar.Server.Game;
 using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Game.Resources;
 using AvatarStar.Server.Game.Udp;
+using AvatarStar.Server.Database;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,6 +42,8 @@ try
             Log.Information("Loaded {Count} sysavatar_list payload override(s)", loaded);
         }
     });
+    builder.Services.AddSingleton<AccountRepository>();
+    builder.Services.AddSingleton<GameDataRepository>();
     builder.Services.AddSingleton<PlayerStore>();
     builder.Services.AddSingleton<PracticeRoomManager>();
     builder.Services.AddSerilog();

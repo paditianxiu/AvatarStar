@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Collections.Generic;
+using AvatarStar.Server.Database;
 using AvatarStar.Server.Game.Config;
 using AvatarStar.Server.Utilities;
 using System.Globalization;
@@ -15,6 +16,8 @@ namespace AvatarStar.Server.Game;
 internal partial class GameClient : Client, IDisconnectAwareClient
 {
     private readonly IOptionsMonitor<SysAvatarPayloadConfig> _sysAvatarPayloadMonitor;
+    private readonly AccountRepository _accountRepository;
+    private readonly GameDataRepository _gameDataRepository;
     private readonly PlayerStore _playerStore;
     private readonly PracticeRoomManager _practiceRoomManager;
 
@@ -106,6 +109,9 @@ internal partial class GameClient : Client, IDisconnectAwareClient
 
     private long _activeRoleId;
     private string _activeRoleExtra = string.Empty;
+    private long _accountId;
+    private string _accountName = string.Empty;
+    private bool _accountDataLoaded;
     private bool _lobbyRoomListReady;
 
     private readonly record struct LobbyLevelInfo(
@@ -318,8 +324,9 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         }
 
         // Default fallback player for lobby flows that assume `player` exists.
-        _activeRoleId = 1;
-        return _playerStore.GetOrCreate(1);
+        var first = _accountId > 0 ? _playerStore.ListCharacters(_accountId).FirstOrDefault() : null;
+        _activeRoleId = first?.Id ?? 1;
+        return _playerStore.GetOrCreate((int)_activeRoleId);
     }
 
     // Lobby dispatch mapping (IDA sub_91A200 -> byte_91AC98, state=5):
@@ -412,10 +419,14 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         ClientHandler clientHandler,
         Socket socket,
         IOptionsMonitor<SysAvatarPayloadConfig> sysAvatarPayloadMonitor,
+        AccountRepository accountRepository,
+        GameDataRepository gameDataRepository,
         PlayerStore playerStore,
         PracticeRoomManager practiceRoomManager) : base(clientHandler, socket)
     {
         _sysAvatarPayloadMonitor = sysAvatarPayloadMonitor;
+        _accountRepository = accountRepository;
+        _gameDataRepository = gameDataRepository;
         _playerStore = playerStore;
         _practiceRoomManager = practiceRoomManager;
         _state = ProtocolState.AwaitHandshake;
@@ -472,6 +483,11 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         if (reader.Remaining > 0)
         {
             Log.Warning("Packet has {Remaining} bytes remaining", reader.Remaining);
+        }
+
+        if (_state == ProtocolState.Connected && _accountDataLoaded)
+        {
+            await SaveActiveAccountAsync();
         }
     }
 
@@ -603,10 +619,35 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         if (token is not null)
         {
             Log.Information("Login: version={Version} flag={Flag} tokenLen={TokenLen}", version, flag, token.Length);
+            var auth = await _accountRepository.ValidateTokenAsync(token);
+            if (auth is null)
+            {
+                Log.Warning("Login rejected: invalid token from {Remote}", RemoteEndPoint);
+                using var fail = new PacketWriter();
+                fail.WriteInt(0);
+                fail.WriteLong(0);
+                fail.WriteString("Invalid token");
+                await SendAsync(fail);
+                return;
+            }
+
+            _accountId = auth.AccountId;
+            _accountName = auth.Username;
+            var snapshot = await _gameDataRepository.LoadAccountAsync(_accountId);
+            _playerStore.LoadAccount(_accountId, snapshot);
+            _accountDataLoaded = true;
+            Log.Information("Login accepted: accountId={AccountId} username={Username}", _accountId, _accountName);
         }
         else
         {
             Log.Information("Login: version={Version} flag={Flag} userLen={UserLen}", version, flag, username?.Length ?? 0);
+            Log.Warning("Login rejected: token login is required");
+            using var fail = new PacketWriter();
+            fail.WriteInt(0);
+            fail.WriteLong(0);
+            fail.WriteString("Token login required");
+            await SendAsync(fail);
+            return;
         }
 
         using var response = new PacketWriter();
@@ -770,6 +811,17 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         }
     }
 
+    private Task SaveActiveAccountAsync()
+    {
+        if (_accountId <= 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        var snapshot = _playerStore.CreateSnapshot(_accountId);
+        return _gameDataRepository.SaveAccountAsync(_accountId, snapshot);
+    }
+
     private async Task HandlePacket40RawBlobAsync(PacketReader reader)
     {
         var rawFrame = reader.RemainingSpan.ToArray();
@@ -852,6 +904,18 @@ internal partial class GameClient : Client, IDisconnectAwareClient
 
     public void OnClientDisconnected()
     {
+        if (_accountDataLoaded)
+        {
+            try
+            {
+                SaveActiveAccountAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to save account data on disconnect: accountId={AccountId}", _accountId);
+            }
+        }
+
         _practiceRoomManager.UnregisterGameClient(_activeRoleId, this);
     }
 
