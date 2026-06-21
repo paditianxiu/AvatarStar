@@ -103,7 +103,7 @@ EXIT;
 服务端通过环境变量 `AS_MYSQL_CONNECTION_STRING` 读取 MySQL 连接串。每个启动服务端的 PowerShell 窗口都需要设置一次：
 
 ```powershell
-$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 $env:AS_REPO_ROOT="你的项目路径"
 ```
 
@@ -112,14 +112,14 @@ $env:AS_REPO_ROOT="你的项目路径"
 - `Server=127.0.0.1`：MySQL 地址。
 - `Port=3306`：MySQL 默认端口。
 - `Database=avatarstar`：第 1 步创建的数据库。
-- `User ID=avatarstar` / `Password=AvatarStar123!`：第 1 步创建的账号。
+- `User ID=avatarstar` / `Password=AvatarStar123`：第 1 步创建的账号。
 - `SslMode=None`：本地开发关闭 SSL。
 - `AllowPublicKeyRetrieval=True`：兼容 MySQL 8 默认认证方式。
 
 可选：如果不想每次打开终端都重新设置，可以写入当前 Windows 用户环境变量。执行后需要重新打开 PowerShell：
 
 ```powershell
-setx AS_MYSQL_CONNECTION_STRING "Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+setx AS_MYSQL_CONNECTION_STRING "Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 setx AS_REPO_ROOT "你的项目路径"
 ```
 
@@ -151,7 +151,7 @@ dotnet build "src/AvatarStar.sln" -c Debug
 打开一个新的 PowerShell，设置环境变量：
 
 ```powershell
-$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 $env:AS_REPO_ROOT="你的项目路径"
 ```
 
@@ -246,7 +246,7 @@ ON DUPLICATE KEY UPDATE
 
 ```powershell
 cd "你的项目路径"
-$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 dotnet run --project "src/AvatarStar.Server.Login/AvatarStar.Server.Login.csproj"
 ```
 
@@ -322,7 +322,7 @@ $env:AS_CHANNEL_HOST="127.0.0.1"
 当前终端没有设置 `AS_MYSQL_CONNECTION_STRING`。在启动 `dotnet run` 的同一个 PowerShell 窗口执行：
 
 ```powershell
-$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 ```
 
 ### `Access denied for user 'avatarstar'`
@@ -370,7 +370,7 @@ netstat -ano | findstr ":9533"
 ```powershell
 # 1. 建库后，在一个 PowerShell 窗口启动游戏服
 cd "你的项目路径"
-$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
+$env:AS_MYSQL_CONNECTION_STRING="Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123;SslMode=None;AllowPublicKeyRetrieval=True"
 $env:AS_REPO_ROOT="C:/Users/33735/Desktop/CXBT/AvatarStarCBT-master"
 dotnet run --project "src/AvatarStar.Server.Game/AvatarStar.Server.Game.csproj"
 ```
