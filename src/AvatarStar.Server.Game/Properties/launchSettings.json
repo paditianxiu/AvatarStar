@@ -3,7 +3,8 @@
     "AvatarStar.Server.Game": {
       "commandName": "Project",
       "environmentVariables": {
-        "AS_REPO_ROOT": "D:\\ASBETA\\AvatarStarCBT-master"
+        "AS_REPO_ROOT": "D:\\ASBETA\\AvatarStarCBT-master",
+        "AS_MYSQL_CONNECTION_STRING": "Server=127.0.0.1;Port=3306;Database=avatarstar;User ID=avatarstar;Password=AvatarStar123!;SslMode=None;AllowPublicKeyRetrieval=True"
       }
     }
   }
