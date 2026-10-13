@@ -31,6 +31,25 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte InitialGamePlayerActive = 1;
     private const byte InitialGamePlayerNotEntering = 0;
     private const byte InitialGamePlayerTransformReady = 1;
+    private const byte GameSkillEquipmentUsableFlag = 1;
+    // In-game equipment/skill activation.
+    // The retail client tells the server which quick slot it just activated with packet 136
+    // (`0x88 <slot>`); the retail server answers with packet 160 (`0x40 <slot> 01 01`) so the
+    // client can start the ability. Slots 1..N follow the packet103 character equipment block,
+    // where profession skills are the type-1 entries.
+    private const short GameSkillActivateRequestPacketId = 136;
+    private const short GameSkillActivateStatePacketId = 160;
+    private const byte GameSkillActivateStateMarker = 0x40;
+    private const byte GameSkillActivateStateFlag = 1;
+    // In-game ability release. Packet 136 (above) only starts the quick-slot ability; the client
+    // follows up with packet 152 (`0x98 ...`) carrying the resolved cast payload, and the retail
+    // server relays it to the room as packet 185 (`0x40 01 <payload> 00 00 00 00 00 00 00`) so the
+    // ability plays for every client, the caster included.
+    private const short GameSkillCastRequestPacketId = 152;
+    private const short GameSkillCastBroadcastPacketId = 185;
+    private const byte GameSkillCastBroadcastMarker = 0x40;
+    private const byte GameSkillCastBroadcastFlag = 1;
+    private const int GameSkillCastBroadcastTrailingBytes = 7;
     private const short InitialGamePlayerActionStateFlags = 0x0002;
     private const byte GamePlayerListTerminator = 0;
     private const int PlayerEnteringClearRetryCount = 3;
@@ -1013,6 +1032,12 @@ internal sealed class PracticeRoomChannelProtocol
             case ChannelState.InGame when packetId == 121:
                 await HandlePacket121LeaveGameAsync(reader);
                 break;
+            case ChannelState.InGame when packetId == GameSkillActivateRequestPacketId:
+                await HandlePacket136GameSkillActivateAsync(reader);
+                break;
+            case ChannelState.InGame when packetId == GameSkillCastRequestPacketId:
+                await HandlePacket152GameSkillCastAsync(reader);
+                break;
             case ChannelState.InGame when packetId == 137:
                 await HandlePacket137GameClientReadyAsync(reader);
                 break;
@@ -1043,6 +1068,17 @@ internal sealed class PracticeRoomChannelProtocol
                     {
                         break;
                     }
+
+                    // Dump the raw payload so unmapped in-game packets (for example a skill the
+                    // client activates through a code path we have not mapped yet) can be
+                    // identified from the server log without re-running the client.
+                    Log.Warning(
+                        "Unhandled in-game channel packet packetId={PacketId} payloadBytes={PayloadBytes} payloadHex={PayloadHex} remote={Remote}",
+                        packetId,
+                        payload.Length,
+                        Convert.ToHexString(payload),
+                        _remoteLabel);
+                    break;
                 }
 
                 Log.Warning(
@@ -2801,6 +2837,125 @@ internal sealed class PracticeRoomChannelProtocol
         Log.Verbose("Channel packet120 <- {Remote}: value={Value}", _remoteLabel, notifyValue);
         await SendPendingPlayerEnteringClearAsync("packet120");
         await SendPendingSilentLoadoutHudRefreshAsync("packet120");
+    }
+
+    /// <summary>
+    /// In-game skill/equipment activation (`0x88 &lt;slot&gt;`). The slot matches the packet103
+    /// character equipment block, so profession skills (type 1) can be activated from the in-game
+    /// skill bar. The retail server acknowledges the activation with packet 160 and passes the
+    /// activation on to the other players in the room.
+    /// </summary>
+    private async Task HandlePacket136GameSkillActivateAsync(PacketReader reader)
+    {
+        if (!reader.TryReadByte(out var slot))
+        {
+            Log.Warning(
+                "Channel packet136 <- {Remote}: malformed skill activation remaining={Remaining}",
+                _remoteLabel,
+                reader.Remaining);
+            return;
+        }
+
+        var room = _currentGameRoom;
+        var slotSummary = DescribeGameEquipmentSlot(room, slot);
+
+        await SendPacket160GameSkillActivateAsync(slot, "packet136-local");
+        var broadcastCount = room is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameSkillActivateAsync(
+                room.RoomId,
+                this,
+                slot,
+                "packet136");
+
+        Log.Information(
+            "Channel packet136 <- {Remote}: slot={Slot} activated ({SlotSummary}); packet160 ack sent, peerBroadcastCount={BroadcastCount}",
+            _remoteLabel,
+            slot,
+            slotSummary,
+            broadcastCount);
+    }
+
+    /// <summary>
+    /// In-game ability release (`0x98 ...`). Packet 136 only starts the quick-slot ability; once the
+    /// client has resolved where the ability lands it releases it with packet 152, and the retail
+    /// server relays that cast to the room as packet 185 so every client plays the same effect.
+    /// </summary>
+    private async Task HandlePacket152GameSkillCastAsync(PacketReader reader)
+    {
+        var payload = reader.RemainingSpan.ToArray();
+        if (payload.Length > 0)
+        {
+            _ = reader.TryReadFixedBytes(payload.Length, out _);
+        }
+
+        if (payload.Length == 0)
+        {
+            Log.Warning(
+                "Channel packet152 <- {Remote}: malformed skill cast payloadBytes=0",
+                _remoteLabel);
+            return;
+        }
+
+        var room = _currentGameRoom;
+        var slotSummary = room is null
+            ? "no-active-room"
+            : DescribeGameEquipmentSlot(room, ResolveGameSkillCastSlot(payload));
+        var broadcastCount = room is null
+            ? 0
+            : await _practiceRoomManager.BroadcastGameSkillCastAsync(
+                room.RoomId,
+                payload,
+                "packet152");
+
+        Log.Information(
+            "Channel packet152 <- {Remote}: skill cast slot={Slot} ({SlotSummary}) payloadBytes={PayloadBytes} hex={PayloadHex}; packet185 relayed to {BroadcastCount} channel(s)",
+            _remoteLabel,
+            ResolveGameSkillCastSlot(payload),
+            slotSummary,
+            payload.Length,
+            Convert.ToHexString(payload),
+            broadcastCount);
+    }
+
+    /// <summary>
+    /// The client packet152 cast payload starts with a marker byte followed by the quick-slot it
+    /// belongs to, so the slot can be logged (and resolved against the packet103 equipment block).
+    /// </summary>
+    private static byte ResolveGameSkillCastSlot(byte[] payload)
+    {
+        return payload.Length >= 2 ? payload[1] : payload[0];
+    }
+
+    /// <summary>Describes an equipment-block slot of the local player for logging purposes.</summary>
+    private string DescribeGameEquipmentSlot(PracticeRoomManager.PracticeRoomSession? room, byte slot)
+    {
+        if (room is null)
+        {
+            return "no-active-room";
+        }
+
+        var playerState = GetLocalPlayerState(room);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ??
+            Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        var equipmentItems = GetSupportedGameEquipmentBlockItems(loadoutItems);
+        foreach (var item in equipmentItems)
+        {
+            if (item.Slot != slot)
+            {
+                continue;
+            }
+
+            if (item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+            {
+                var definition = SkillCatalog.FindSkill(item.SkillId);
+                return $"skillId={item.SkillId},level={item.SkillLevel},res={item.Resource},display={definition?.ResolveDisplay(item.SkillLevel) ?? item.DisplayName}";
+            }
+
+            return $"type={item.ItemType},subtype={NormalizeGameEquipmentSubtype(item.Subtype)},res={item.Resource}";
+        }
+
+        return "unknown-slot";
     }
 
     private async Task HandlePacket137GameClientReadyAsync(PacketReader reader)
@@ -4814,6 +4969,53 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    /// <summary>
+    /// Packet 160: in-game skill/equipment activation state (`0x40 &lt;slot&gt; 01 01`), matching the
+    /// retail server reply to the client packet 136 activation request.
+    /// </summary>
+    internal Task SendPacket160GameSkillActivateAsync(byte slot, string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameSkillActivateStatePacketId);
+        writer.WriteByte(GameSkillActivateStateMarker);
+        writer.WriteByte(slot);
+        writer.WriteByte(GameSkillActivateStateFlag);
+        writer.WriteByte(GameSkillActivateStateFlag);
+
+        Log.Debug(
+            "Channel packet160 -> {Remote}: slot={Slot} trigger={Trigger}",
+            _remoteLabel,
+            slot,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 185: relays an in-game ability release (client packet 152) to a room client. The
+    /// layout matches the retail server: `0x40 01 &lt;payload&gt; 00 00 00 00 00 00 00`.
+    /// </summary>
+    internal Task SendPacket185GameSkillCastAsync(byte[] payload, string trigger)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(GameSkillCastBroadcastPacketId);
+        writer.WriteByte(GameSkillCastBroadcastMarker);
+        writer.WriteByte(GameSkillCastBroadcastFlag);
+        writer.WriteRaw(payload);
+        for (var i = 0; i < GameSkillCastBroadcastTrailingBytes; i++)
+        {
+            writer.WriteByte(0);
+        }
+
+        Log.Debug(
+            "Channel packet185 -> {Remote}: skill cast relay trigger={Trigger} payloadBytes={PayloadBytes} hex={PayloadHex}",
+            _remoteLabel,
+            trigger,
+            payload.Length,
+            Convert.ToHexString(payload));
+        return SendPacketAsync(writer);
+    }
+
     internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
     {
         using var writer = new PacketWriter();
@@ -4922,7 +5124,9 @@ internal sealed class PracticeRoomChannelProtocol
         var career = (byte)(character?.Occupation ?? member?.Career ?? 0);
         var loadoutSource = playerState?.GetGameLoadoutSource() ?? "empty";
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
-        var loadoutGroups = BuildGameLoadoutGroups(loadoutItems);
+        // Skills travel inside the character equipment block (packet103); the hotbar groups stay weapon-only.
+        var loadoutGroups = BuildGameLoadoutGroups(
+            loadoutItems.Where(IsSupportedGameEquipmentItem).ToArray());
         var playerHealth = ResolveLocalGamePlayerMaxHealth(character);
         var teamId = ResolveGameTeamId(member);
         var packet106HeaderByte = UseLegacyHotbarBootstrapSequence ? career : teamId;
@@ -5442,7 +5646,7 @@ internal sealed class PracticeRoomChannelProtocol
         var rankType = member?.RankType is > 0 ? member.RankType : (byte)1;
         var rankLevel = member?.RankLevel is > 0 ? member.RankLevel : 1;
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
-        var equipmentItems = GetSupportedGameEquipmentItems(loadoutItems);
+        var equipmentItems = GetSupportedGameEquipmentBlockItems(loadoutItems);
         var independentTrinketItems = playerState?.GetGameIndependentTrinketItems() ??
             Array.Empty<PlayerStore.PlayerState.GameIndependentTrinketItem>();
 
@@ -5552,6 +5756,19 @@ internal sealed class PracticeRoomChannelProtocol
             .ToArray();
     }
 
+    private static IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> GetSupportedGameEquipmentBlockItems(
+        IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> loadoutItems)
+    {
+        // The character equipment block carries weapons (type 2) as well as the profession skills
+        // the player placed on the hotbar (type 1). The client builds the in-game skill bar from
+        // those type-1 entries, so they must not be filtered out here.
+        return loadoutItems
+            .Where(item => IsSupportedGameEquipmentItem(item) || IsSkillGameEquipmentItem(item))
+            .OrderBy(item => item.Slot)
+            .Take(EquipmentBlockMaxEntries)
+            .ToArray();
+    }
+
     private string FormatGameLoadoutSummary(IReadOnlyList<PlayerStore.PlayerState.GameLoadoutItem> loadoutItems)
     {
         if (loadoutItems.Count == 0)
@@ -5563,6 +5780,12 @@ internal sealed class PracticeRoomChannelProtocol
             "; ",
             loadoutItems.Select(item =>
             {
+                if (item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+                {
+                    var skillDefinition = SkillCatalog.FindSkill(item.SkillId);
+                    return $"slot={item.Slot},type={item.ItemType},skillId={item.SkillId},res={item.Resource},level={item.SkillLevel},display={item.DisplayName},cool_down:{FormatProtocolFloat(skillDefinition?.ResolveCooldown(item.SkillLevel) ?? 0f)},range:{FormatProtocolFloat(skillDefinition?.ResolveDistance(item.SkillLevel) ?? 0f)}";
+                }
+
                 var stats = ResolveGameWeaponRuntimeStatsForClient(item);
                 var properties = ResolveGameLoadoutPropertiesForClient(item);
                 var propertyText = properties.Count == 0
@@ -5597,6 +5820,13 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         return IsSupportedGameEquipmentSubtype(NormalizeGameEquipmentSubtype(item.Subtype));
+    }
+
+    private static bool IsSkillGameEquipmentItem(PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        return item.ItemType == (byte)ShopItemDatabase.ItemType.Skill &&
+               item.SkillLevel > 0 &&
+               !string.IsNullOrWhiteSpace(item.Resource);
     }
 
     private static bool IsSpecialRearmGameEquipmentItem(PlayerStore.PlayerState.GameLoadoutItem item)
@@ -5666,6 +5896,12 @@ internal sealed class PracticeRoomChannelProtocol
         PacketWriter writer,
         PlayerStore.PlayerState.GameLoadoutItem item)
     {
+        if (item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+        {
+            WriteGameSkillEquipmentEntry(writer, item);
+            return;
+        }
+
         var slot = (byte)Math.Clamp((int)item.Slot, 1, EquipmentBlockMaxEntries);
         var subtype = NormalizeGameEquipmentSubtype(item.Subtype);
 
@@ -5703,6 +5939,35 @@ internal sealed class PracticeRoomChannelProtocol
                 WriteBasicWeaponEquipmentPayload(writer, item);
                 break;
         }
+    }
+
+    /// <summary>
+    /// Writes one profession skill entry of the character equipment block. Layout mirrors the
+    /// retail server: slot, type=1, skill id, then the shared resource/display payload followed
+    /// by the "usable in game" flag byte.
+    /// </summary>
+    private void WriteGameSkillEquipmentEntry(
+        PacketWriter writer,
+        PlayerStore.PlayerState.GameLoadoutItem item)
+    {
+        var slot = (byte)Math.Clamp((int)item.Slot, 1, EquipmentBlockMaxEntries);
+        var skillId = (byte)Math.Clamp(item.SkillId, 0, byte.MaxValue);
+        var definition = SkillCatalog.FindSkill(item.SkillId);
+        var resource = string.IsNullOrWhiteSpace(item.Resource)
+            ? definition?.Resource ?? string.Empty
+            : item.Resource;
+        var display = string.IsNullOrWhiteSpace(item.DisplayName)
+            ? definition?.ResolveDisplay(item.SkillLevel) ?? resource
+            : item.DisplayName;
+
+        writer.WriteByte(slot);
+        writer.WriteByte((byte)ShopItemDatabase.ItemType.Skill);
+        writer.WriteByte(skillId);
+        writer.WriteString(TrimProtocolString(resource, 63));
+        writer.WriteString(TrimProtocolString(display, 255));
+        writer.WriteFloat(definition?.ResolveCooldown(item.SkillLevel) ?? 0f);
+        writer.WriteFloat(definition?.ResolveDistance(item.SkillLevel) ?? 0f);
+        writer.WriteByte(GameSkillEquipmentUsableFlag);
     }
 
     private void WriteGameEquipmentCommonPayload(

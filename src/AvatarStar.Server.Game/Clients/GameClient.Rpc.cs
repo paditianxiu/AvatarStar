@@ -2605,6 +2605,36 @@ internal partial class GameClient
                 return;
             }
 
+            case "skill_reset":
+            {
+                var player = GetActivePlayerStateOrDefault();
+                // The client sends the chosen currency id as `t`; older builds name it `currency`.
+                var currency = GetIntArg(rpcArgs, "currency", GetIntArg(rpcArgs, "t", 0));
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                var cost = SkillCatalog.GetResetCosts(occupation)
+                    .FirstOrDefault(entry => entry.Currency == currency)?.Cost ?? -1;
+                var spentPoints = player.GetSpentSkillPoints();
+                var ok = cost >= 0 &&
+                         spentPoints > 0 &&
+                         player.TrySpendCurrency(currency, cost);
+                if (ok)
+                {
+                    player.ResetSkillLevels();
+                }
+
+                Log.Debug(
+                    "skill_reset: currency={Currency} cost={Cost} spent={Spent} ok={Ok}",
+                    currency,
+                    cost,
+                    spentPoints,
+                    ok);
+                writer.WriteString(ok
+                    ? $"ok = 1\ngp = {player.Gp}\nmb = {player.Mb}\ntb = {player.Tb}"
+                    : "ok = 0");
+                await SendAsync(writer);
+                return;
+            }
+
             case "box_info":
             {
                 var requestedCategory = GetIntArg(rpcArgs, "category", 1);

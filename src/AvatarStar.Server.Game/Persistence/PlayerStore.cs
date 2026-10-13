@@ -329,7 +329,9 @@ internal sealed class PlayerStore
             string Resource,
             byte Grade,
             string DisplayName,
-            byte Subtype);
+            byte Subtype,
+            int SkillId = 0,
+            int SkillLevel = 0);
 
         public sealed record GameIndependentTrinketItem(
             int Slot,
@@ -359,6 +361,10 @@ internal sealed class PlayerStore
         private const int HotKeySlotCount = 12;
         private const int MaxWeaponHotKeyCount = 3;
         private const long SkillLoadoutItemIdBase = 1_110_210_000_000_000_000L;
+        // Skill points handed out to every character. The retail formula derives this from the
+        // character level (floor((level + 1) / 2)); a flat value lets any profession level all of
+        // its skills while iterating on the skill system.
+        private const int TotalSkillPoints = 15;
         public int NextPid { get; set; } = 1;
         private bool _ensuringStarterInventory;
 
@@ -391,10 +397,13 @@ internal sealed class PlayerStore
             return clamped;
         }
 
-        /// <summary>Total skill points earned from character level: floor((level + 1) / 2).</summary>
+        /// <summary>
+        /// Total skill points the character can invest. The client shows `leftpoints` as
+        /// total - invested, and only allows investing while a point is left.
+        /// </summary>
         public int GetTotalSkillPoints()
         {
-            return Math.Max(0, (Character.Level + 1) / 2);
+            return TotalSkillPoints;
         }
 
         public int GetSpentSkillPoints()
@@ -414,6 +423,54 @@ internal sealed class PlayerStore
         public int GetLeftSkillPoints()
         {
             return Math.Max(0, GetTotalSkillPoints() - GetSpentSkillPoints());
+        }
+
+        /// <summary>
+        /// Charges <paramref name="cost"/> of the given currency id (1 = gold, 2 = diamond, 4 = ticket).
+        /// A non-positive cost always succeeds; otherwise the balance has to cover it.
+        /// </summary>
+        public bool TrySpendCurrency(int currency, int cost)
+        {
+            if (cost <= 0)
+            {
+                return true;
+            }
+
+            switch ((ShopItemDatabase.CurrencyType)currency)
+            {
+                case ShopItemDatabase.CurrencyType.Gold:
+                    if (Gp < cost) return false;
+                    Gp -= cost;
+                    return true;
+                case ShopItemDatabase.CurrencyType.Diamond:
+                    if (Mb < cost) return false;
+                    Mb -= cost;
+                    return true;
+                case ShopItemDatabase.CurrencyType.Ticket:
+                    if (Tb < cost) return false;
+                    Tb -= cost;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Refunds every invested skill point and clears the skill hotbar, mirroring the
+        /// client "reset" button (`skill_reset`).
+        /// </summary>
+        public void ResetSkillLevels()
+        {
+            SkillLevels.Clear();
+
+            var skillSlots = _hotKeySlots
+                .Where(pair => pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
+                .Select(pair => pair.Key)
+                .ToArray();
+            foreach (var slot in skillSlots)
+            {
+                _hotKeySlots.Remove(slot);
+            }
         }
 
         public PlayerStateSnapshot ToSnapshot()
@@ -1563,15 +1620,10 @@ internal sealed class PlayerStore
                         {
                             slot = entry.Slot,
                             type = entry.Type,
-                            itemid = string.Empty,
+                            itemid = ResolveSkillLoadoutItemId(entry.SkillId).ToString(CultureInfo.InvariantCulture),
                             display = definition?.ResolveDisplay(GetSkillLevel(entry.SkillId)) ?? string.Empty,
-                            resource = entry.Resource,
-                            grade = 0,
-                            quantity = 0,
-                            unitType = 0,
-                            unit = 0,
-                            subtype = 0,
-                            sid = 0
+                            resource = string.IsNullOrWhiteSpace(definition?.Resource) ? entry.Resource : definition!.Resource,
+                            quantity = 1
                         };
                         continue;
                     }
@@ -1592,7 +1644,15 @@ internal sealed class PlayerStore
                 }
                 else
                 {
-                    result[i - 1] = new { slot = i, type = 0 };
+                    result[i - 1] = new
+                    {
+                        slot = i,
+                        type = 0,
+                        itemid = "0",
+                        display = string.Empty,
+                        resource = string.Empty,
+                        quantity = 0
+                    };
                 }
             }
 
@@ -1830,14 +1890,17 @@ internal sealed class PlayerStore
             {
                 var definition = FindSkill(slot.SkillId);
                 var skillResource = string.IsNullOrWhiteSpace(definition?.Resource) ? slot.Resource : definition!.Resource;
+                var skillLevel = GetSkillLevel(slot.SkillId);
                 return new GameLoadoutItem(
                     Slot: (byte)Math.Clamp(slot.Slot, 0, byte.MaxValue),
                     ItemType: (byte)ShopItemDatabase.ItemType.Skill,
                     ItemId: ResolveSkillLoadoutItemId(slot.SkillId),
                     Resource: skillResource,
                     Grade: 0,
-                    DisplayName: definition?.ResolveDisplay(GetSkillLevel(slot.SkillId)) ?? skillResource,
-                    Subtype: 1);
+                    DisplayName: definition?.ResolveDisplay(skillLevel) ?? skillResource,
+                    Subtype: 1,
+                    SkillId: slot.SkillId,
+                    SkillLevel: skillLevel);
             }
 
             var backpackItem = FindBackpackItemForHotKeySlot(slot);

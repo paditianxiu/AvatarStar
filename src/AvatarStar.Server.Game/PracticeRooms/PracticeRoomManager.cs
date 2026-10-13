@@ -1675,6 +1675,86 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
+    /// <summary>
+    /// Relays an in-game skill/equipment activation (packet 136 -&gt; packet 160) to the other
+    /// players of the room.
+    /// </summary>
+    public async Task<int> BroadcastGameSkillActivateAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte slot,
+        string trigger)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket160GameSkillActivateAsync(slot, trigger);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    /// <summary>
+    /// Relays an in-game ability release (packet 152 -&gt; packet 185) to the room. The caster is
+    /// included on purpose: the retail server echoes the same relay back to the caster as the
+    /// authoritative cast, which is what makes the ability actually play for the local player.
+    /// </summary>
+    public async Task<int> BroadcastGameSkillCastAsync(
+        int roomId,
+        byte[] payload,
+        string trigger)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys.ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket185GameSkillCastAsync(payload, trigger);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
     private void RemoveRoomNoLock(int roomId)
     {
         if (!_roomsById.TryGetValue(roomId, out var room))

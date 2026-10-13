@@ -9,9 +9,10 @@
 *.sln.iml
 *.iml
 
-
+.tmpbuild/
 AvatarStar_cache/
 AvatarStar_zh_cn_cache/
+.tmp_tips.txt
 
 # Visual Studio / .NET build outputs
 **/[Bb]in/
