@@ -359,6 +359,13 @@ internal sealed class PlayerStore
         public string? EquippedAvatarPid { get; set; }
         private readonly Dictionary<int, HotKeySlot> _hotKeySlots = new();
         private const int HotKeySlotCount = 12;
+        // The lobby quick-slot panel only lists 12 entries, but the in-game character equipment
+        // block addresses the full retail quick bar (its last two profession skills sit on 0x0D and
+        // 0x0E), so the internal quick bar accepts a couple of extra slots while the lobby keeps
+        // reporting HotKeySlotCount entries.
+        private const int HotKeySlotCapacity = 14;
+        // Slots 1..3 are the battle weapon quick slots, so default profession skills start at 4.
+        private const int DefaultSkillHotKeySlotStart = 4;
         private const int MaxWeaponHotKeyCount = 3;
         private const long SkillLoadoutItemIdBase = 1_110_210_000_000_000_000L;
         // Skill points handed out to every character. The retail formula derives this from the
@@ -1462,7 +1469,7 @@ internal sealed class PlayerStore
 
         private void NormalizeHotKeySlots()
         {
-            var invalidSlots = _hotKeySlots.Keys.Where(x => x <= 0 || x > HotKeySlotCount).ToArray();
+            var invalidSlots = _hotKeySlots.Keys.Where(x => x <= 0 || x > HotKeySlotCapacity).ToArray();
             foreach (var invalidSlot in invalidSlots)
             {
                 _hotKeySlots.Remove(invalidSlot);
@@ -1545,6 +1552,64 @@ internal sealed class PlayerStore
             return _hotKeySlots.Values.Count(x => x.Type == 2);
         }
 
+        /// <summary>
+        /// Guarantees that every active profession skill owns a quick slot. A fresh character only
+        /// receives weapon quick slots (see <see cref="EnsureDefaultWeaponHotKeySlots"/>), and the
+        /// skill quick slots are otherwise only written when the player drags a skill onto the bar.
+        /// Without them the in-game character equipment block carries no type-1 entries, the client
+        /// builds an empty in-game skill bar and no key can trigger a skill.
+        /// Weapon slots 1..3 stay untouched; profession skills take the lowest free slot from 4 up,
+        /// which matches the retail layout (weapons first, then the profession skills).
+        /// </summary>
+        private void EnsureDefaultSkillHotKeySlots()
+        {
+            var occupation = Math.Clamp(Character.Occupation, 0, 3);
+            var equippedSkillIds = new HashSet<int>(
+                _hotKeySlots.Values
+                    .Where(slot => slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    .Select(slot => slot.SkillId));
+
+            foreach (var definition in SkillCatalog.GetSkills(occupation))
+            {
+                if (!definition.IsActive || !equippedSkillIds.Add(definition.Id))
+                {
+                    continue;
+                }
+
+                var slot = FindFreeSkillHotKeySlot();
+                if (slot <= 0)
+                {
+                    break;
+                }
+
+                _hotKeySlots[slot] = new HotKeySlot(
+                    Slot: slot,
+                    Type: (int)ShopItemDatabase.ItemType.Skill,
+                    ItemId: string.Empty,
+                    Resource: definition.Resource,
+                    Grade: 0,
+                    Quantity: 0,
+                    UnitType: 0,
+                    Unit: 0,
+                    Subtype: 0,
+                    Sid: 0,
+                    SkillId: definition.Id);
+            }
+        }
+
+        private int FindFreeSkillHotKeySlot()
+        {
+            for (var slot = DefaultSkillHotKeySlotStart; slot <= HotKeySlotCapacity; slot++)
+            {
+                if (!_hotKeySlots.ContainsKey(slot))
+                {
+                    return slot;
+                }
+            }
+
+            return 0;
+        }
+
         private void RemoveHotKeyReferencesToItem(string itemId, int exceptSlot)
         {
             var duplicateSlots = _hotKeySlots
@@ -1605,6 +1670,7 @@ internal sealed class PlayerStore
             EnsureStarterInventory();
             NormalizeHotKeySlots();
             EnsureDefaultWeaponHotKeySlots();
+            EnsureDefaultSkillHotKeySlots();
             SyncEquipmentEquipFlags();
 
             totalSlots = totalSlots <= 0 ? HotKeySlotCount : Math.Clamp(totalSlots, 1, HotKeySlotCount);
@@ -1679,7 +1745,7 @@ internal sealed class PlayerStore
         /// </summary>
         public bool TrySetSkillHotKeySlot(int slot, int skillId)
         {
-            if (slot <= 0 || slot > HotKeySlotCount)
+            if (slot <= 0 || slot > HotKeySlotCapacity)
             {
                 return false;
             }
@@ -1860,15 +1926,46 @@ internal sealed class PlayerStore
             EnsureStarterInventory();
             NormalizeHotKeySlots();
             EnsureDefaultWeaponHotKeySlots();
+            EnsureDefaultSkillHotKeySlots();
 
             var hotKeyLoadout = _hotKeySlots.Values
                 .Where(IsBattleLoadoutHotKeySlot)
                 .OrderBy(slot => slot.Slot)
                 .Select(CreateHotKeyLoadoutItem)
                 .ToList();
-            return hotKeyLoadout.Count == 0
-                ? GetBackpackGameLoadoutItems()
-                : hotKeyLoadout;
+            // Equipment items decide whether the quick bar counts as configured: a character whose
+            // bar only holds profession skills still needs the backpack weapons merged in, but the
+            // skill entries must survive that fallback.
+            var hasEquipmentEntries = _hotKeySlots.Values.Any(slot =>
+                slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                IsBattleLoadoutResource(slot.Resource));
+
+            return hasEquipmentEntries
+                ? hotKeyLoadout
+                : MergeSkillLoadoutIntoBackpackFallback(GetBackpackGameLoadoutItems());
+        }
+
+        /// <summary>
+        /// The backpack fallback only knows about weapons, so the profession skills of the quick bar
+        /// are appended to keep the in-game skill bar populated when the weapon quick slots are empty.
+        /// </summary>
+        private IReadOnlyList<GameLoadoutItem> MergeSkillLoadoutIntoBackpackFallback(
+            IReadOnlyList<GameLoadoutItem> backpackItems)
+        {
+            var skillItems = _hotKeySlots.Values
+                .Where(slot => slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+                .OrderBy(slot => slot.Slot)
+                .Select(CreateHotKeyLoadoutItem)
+                .ToArray();
+            if (skillItems.Length == 0)
+            {
+                return backpackItems;
+            }
+
+            var merged = new List<GameLoadoutItem>(backpackItems.Count + skillItems.Length);
+            merged.AddRange(backpackItems);
+            merged.AddRange(skillItems);
+            return merged;
         }
 
         public string GetGameLoadoutSource()
@@ -1876,6 +1973,7 @@ internal sealed class PlayerStore
             EnsureStarterInventory();
             NormalizeHotKeySlots();
             EnsureDefaultWeaponHotKeySlots();
+            EnsureDefaultSkillHotKeySlots();
 
             return _hotKeySlots.Values.Any(slot =>
                 slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
@@ -1981,7 +2079,11 @@ internal sealed class PlayerStore
         {
             if (slot.Type == (int)ShopItemDatabase.ItemType.Skill)
             {
-                return slot.SkillId > 0 && FindSkill(slot.SkillId) is not null;
+                // Skill id 0 is the guardian's Battlefield Heal, so a "positive id" test would drop
+                // the only heal of that profession; a resolved definition plus a resource key is the
+                // real marker of a usable quick-slot skill.
+                return FindSkill(slot.SkillId) is not null &&
+                       !string.IsNullOrWhiteSpace(slot.Resource);
             }
 
             return slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&

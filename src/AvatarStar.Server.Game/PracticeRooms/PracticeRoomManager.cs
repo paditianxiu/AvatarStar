@@ -1682,6 +1682,7 @@ internal sealed class PracticeRoomManager
     public async Task<int> BroadcastGameSkillActivateAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
+        byte actorUid,
         byte slot,
         string trigger)
     {
@@ -1704,7 +1705,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket160GameSkillActivateAsync(slot, trigger);
+                await target.SendPacket160GameSkillActivateAsync(actorUid, slot, trigger);
                 sent++;
             }
             catch
@@ -1723,6 +1724,7 @@ internal sealed class PracticeRoomManager
     /// </summary>
     public async Task<int> BroadcastGameSkillCastAsync(
         int roomId,
+        byte actorUid,
         byte[] payload,
         string trigger)
     {
@@ -1743,7 +1745,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket185GameSkillCastAsync(payload, trigger);
+                await target.SendPacket185GameSkillCastAsync(actorUid, payload, trigger);
                 sent++;
             }
             catch

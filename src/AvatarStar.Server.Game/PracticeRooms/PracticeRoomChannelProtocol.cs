@@ -39,7 +39,6 @@ internal sealed class PracticeRoomChannelProtocol
     // where profession skills are the type-1 entries.
     private const short GameSkillActivateRequestPacketId = 136;
     private const short GameSkillActivateStatePacketId = 160;
-    private const byte GameSkillActivateStateMarker = 0x40;
     private const byte GameSkillActivateStateFlag = 1;
     // In-game ability release. Packet 136 (above) only starts the quick-slot ability; the client
     // follows up with packet 152 (`0x98 ...`) carrying the resolved cast payload, and the retail
@@ -47,9 +46,19 @@ internal sealed class PracticeRoomChannelProtocol
     // ability plays for every client, the caster included.
     private const short GameSkillCastRequestPacketId = 152;
     private const short GameSkillCastBroadcastPacketId = 185;
-    private const byte GameSkillCastBroadcastMarker = 0x40;
     private const byte GameSkillCastBroadcastFlag = 1;
     private const int GameSkillCastBroadcastTrailingBytes = 7;
+    // In-game ability release acknowledgement. The retail server answers the client packet 152 cast
+    // with packet 155 (`0x40 00 00 00 <slot> 00`) before relaying the cast to the room.
+    private const short GameSkillCastStatePacketId = 155;
+    private const byte GameSkillCastStateTrailingByte = 0;
+    // Byte offsets inside a captured packet162 effect frame, which lays out as
+    // `A2 00 <count> <cast time (f32)> 0x40 <slot> <ability id> ...`. The retail server opens the
+    // ability (packet 155) only after that cast time has elapsed, which is why packet 155 trails
+    // packet 160/162 by roughly the cast time in the captured session.
+    private const int GameSkillEffectOpenSlotOffset = 8;
+    private const int GameSkillEffectOpenCastTimeOffset = 3;
+    private const float GameSkillAbilityOpenMaxCastSeconds = 5f;
     private const short InitialGamePlayerActionStateFlags = 0x0002;
     private const byte GamePlayerListTerminator = 0;
     private const int PlayerEnteringClearRetryCount = 3;
@@ -76,6 +85,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const double SpecialWeaponRearmMaxSeconds = 2.5;
     private static readonly bool EnableKnifeAutoRearmLoop = false;
     private const double KnifeAutoRearmInitialDelaySeconds = 0.15;
+    private const int GameMatchTimerIntervalMilliseconds = 1000;
     private const int DefaultAccuracyDivisor = 1;
     private const byte GameCharacterTrailingReservedFlag = 0;
     private const byte GameCharacterModelReadyFlag = 1;
@@ -871,6 +881,8 @@ internal sealed class PracticeRoomChannelProtocol
     private readonly Dictionary<byte, DateTimeOffset> _lastSpecialWeaponRearmBySlot = new();
     private readonly Dictionary<string, DateTimeOffset> _recentProjectileNotifyByKey = new();
     private CancellationTokenSource? _knifeAutoRearmCts;
+    private CancellationTokenSource? _gameMatchTimerCts;
+    private DateTimeOffset? _gameMatchStartedAt;
     private int _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
     private byte _lastGameMovementInputByte;
     private byte _lastGameMovementTick;
@@ -1057,7 +1069,7 @@ internal sealed class PracticeRoomChannelProtocol
                 await HandlePacket162ConfirmRefreshBornPointAsync(reader);
                 break;
             case ChannelState.InGame when packetId == 157:
-                HandlePacket157GameClientNoPayload(reader);
+                await HandlePacket157GameClientNoPayloadAsync(reader);
                 break;
             default:
                 if (_state == ChannelState.InGame)
@@ -1824,6 +1836,7 @@ internal sealed class PracticeRoomChannelProtocol
         _setBulletAmmoOneClipOverridesByItemId.Clear();
         _setWeaponFireTimeOverridesByItemId.Clear();
         StopKnifeAutoRearmLoop();
+        StopGameMatchTimerLoop();
     }
 
     private async Task HandlePacket6RoomChangeOptionAsync(PacketReader reader)
@@ -2126,6 +2139,7 @@ internal sealed class PracticeRoomChannelProtocol
         _lastGameMovementTick = 0;
         _hasLastGameMovementInputByte = false;
         StopKnifeAutoRearmLoop();
+        StopGameMatchTimerLoop();
 
         if (!UseLegacyHotbarBootstrapSequence)
         {
@@ -2741,6 +2755,12 @@ internal sealed class PracticeRoomChannelProtocol
     {
         // 先发送初始化包
         await SendPacket106GameInitAsync(room);
+        // The retail server follows packet 106 with the in-game battle state frames (packet 146
+        // and packet 165) and the packet 231 match timer before the local spawn (packet 111).
+        await SendPacket146GameBattleStateAsync(trigger);
+        await SendPacket231GameTimerAsync(trigger);
+        await SendPacket165GameBattleFlagAsync(trigger);
+        StartGameMatchTimerLoop();
 
         // 添加短暂延迟
         await Task.Delay(50);
@@ -2842,8 +2862,10 @@ internal sealed class PracticeRoomChannelProtocol
     /// <summary>
     /// In-game skill/equipment activation (`0x88 &lt;slot&gt;`). The slot matches the packet103
     /// character equipment block, so profession skills (type 1) can be activated from the in-game
-    /// skill bar. The retail server acknowledges the activation with packet 160 and passes the
-    /// activation on to the other players in the room.
+    /// skill bar. The retail server acknowledges the activation with packet 160, pushes the packet
+    /// 162 ability effect frame when the ability opens an aura/buff, opens the in-game ability state
+    /// with packet 155 so the ability actually fires, and passes the activation on to the other
+    /// players in the room.
     /// </summary>
     private async Task HandlePacket136GameSkillActivateAsync(PacketReader reader)
     {
@@ -2858,28 +2880,51 @@ internal sealed class PracticeRoomChannelProtocol
 
         var room = _currentGameRoom;
         var slotSummary = DescribeGameEquipmentSlot(room, slot);
+        var skillId = ResolveGameEquipmentSkillId(room, slot);
+        var definition = ResolveGameEquipmentSkillDefinition(room, slot);
 
-        await SendPacket160GameSkillActivateAsync(slot, "packet136-local");
+        await SendPacket160GameSkillActivateAsync(_localGameUid, slot, "packet136-local");
+        var effectOpenSent = definition is not null &&
+            await SendPacket162SkillEffectOpenAsync(definition.Id, slot, "packet136-local");
+        // Activating a quick slot only arms the ability client-side; the ability itself fires once
+        // the server opens its in-game ability state. The retail server opens it with packet 155
+        // carrying the ability ("buff") id, and it does so after the packet162 cast time, which is
+        // why the quick slot is not echoed back here.
+        var buffId = definition?.BuffId ?? -1;
+        var castSeconds = definition is null ? 0f : ResolveSkillEffectCastTimeSeconds(definition.Id);
+        var buffOpenScheduled = buffId >= 0;
+        if (buffOpenScheduled)
+        {
+            ScheduleSkillAbilityOpen((byte)buffId, castSeconds, "packet136-ability");
+        }
+
         var broadcastCount = room is null
             ? 0
             : await _practiceRoomManager.BroadcastGameSkillActivateAsync(
                 room.RoomId,
                 this,
+                _localGameUid,
                 slot,
                 "packet136");
 
         Log.Information(
-            "Channel packet136 <- {Remote}: slot={Slot} activated ({SlotSummary}); packet160 ack sent, peerBroadcastCount={BroadcastCount}",
+            "Channel packet136 <- {Remote}: slot={Slot} activated ({SlotSummary}); skillId={SkillId} buffId={BuffId} packet160 ack sent, packet162 effectOpen={EffectOpenSent}, packet155 abilityOpen={BuffOpenScheduled} castSeconds={CastSeconds}, peerBroadcastCount={BroadcastCount}",
             _remoteLabel,
             slot,
             slotSummary,
+            skillId,
+            buffId,
+            effectOpenSent,
+            buffOpenScheduled,
+            castSeconds,
             broadcastCount);
     }
 
     /// <summary>
     /// In-game ability release (`0x98 ...`). Packet 136 only starts the quick-slot ability; once the
     /// client has resolved where the ability lands it releases it with packet 152, and the retail
-    /// server relays that cast to the room as packet 185 so every client plays the same effect.
+    /// server relays that cast to the room as packet 185 so every client plays the same effect. The
+    /// ability state (packet 155) was already opened when the quick slot was activated.
     /// </summary>
     private async Task HandlePacket152GameSkillCastAsync(PacketReader reader)
     {
@@ -2898,21 +2943,27 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         var room = _currentGameRoom;
+        var castSlot = ResolveGameSkillCastSlot(payload);
         var slotSummary = room is null
             ? "no-active-room"
-            : DescribeGameEquipmentSlot(room, ResolveGameSkillCastSlot(payload));
+            : DescribeGameEquipmentSlot(room, castSlot);
+        // The retail server answers a packet152 release with the packet185 relay only; the ability
+        // state (packet155) was already opened when the quick slot was activated with packet136.
+        var castBuffId = ResolveGameEquipmentSkillBuffId(room, castSlot);
         var broadcastCount = room is null
             ? 0
             : await _practiceRoomManager.BroadcastGameSkillCastAsync(
                 room.RoomId,
+                _localGameUid,
                 payload,
                 "packet152");
 
         Log.Information(
-            "Channel packet152 <- {Remote}: skill cast slot={Slot} ({SlotSummary}) payloadBytes={PayloadBytes} hex={PayloadHex}; packet185 relayed to {BroadcastCount} channel(s)",
+            "Channel packet152 <- {Remote}: skill release slot={Slot} ({SlotSummary}) buffId={BuffId} payloadBytes={PayloadBytes} hex={PayloadHex}; packet185 relayed to {BroadcastCount} channel(s)",
             _remoteLabel,
-            ResolveGameSkillCastSlot(payload),
+            castSlot,
             slotSummary,
+            castBuffId,
             payload.Length,
             Convert.ToHexString(payload),
             broadcastCount);
@@ -2925,6 +2976,54 @@ internal sealed class PracticeRoomChannelProtocol
     private static byte ResolveGameSkillCastSlot(byte[] payload)
     {
         return payload.Length >= 2 ? payload[1] : payload[0];
+    }
+
+    /// <summary>
+    /// Reads the cast time carried by a captured packet162 effect frame, or 0 when the skill has no
+    /// captured frame (the retail server sends no packet162 for placed abilities such as Trap).
+    /// </summary>
+    private static float ResolveSkillEffectCastTimeSeconds(int skillId)
+    {
+        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var template) ||
+            template.Length < GameSkillEffectOpenCastTimeOffset + sizeof(float))
+        {
+            return 0f;
+        }
+
+        return BitConverter.ToSingle(template, GameSkillEffectOpenCastTimeOffset);
+    }
+
+    /// <summary>
+    /// Opens the in-game ability state (packet 155) of an activated quick slot the way the retail
+    /// server does: right away for abilities without a cast time, otherwise once the packet162 cast
+    /// time has elapsed.
+    /// </summary>
+    private void ScheduleSkillAbilityOpen(byte abilityId, float castSeconds, string trigger)
+    {
+        var delay = TimeSpan.FromSeconds(Math.Clamp(castSeconds, 0f, GameSkillAbilityOpenMaxCastSeconds));
+        _ = RunSkillAbilityOpenAsync(abilityId, delay, trigger);
+    }
+
+    private async Task RunSkillAbilityOpenAsync(byte abilityId, TimeSpan delay, string trigger)
+    {
+        try
+        {
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay);
+            }
+
+            await SendPacket155SkillCastStateAsync(abilityId, trigger);
+        }
+        catch (Exception ex)
+        {
+            Log.Verbose(
+                ex,
+                "Channel packet155 -> {Remote}: ability state id={AbilityId} trigger={Trigger} failed",
+                _remoteLabel,
+                abilityId,
+                trigger);
+        }
     }
 
     /// <summary>Describes an equipment-block slot of the local player for logging purposes.</summary>
@@ -2956,6 +3055,63 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         return "unknown-slot";
+    }
+
+    /// <summary>Resolves the profession skill id held by a character equipment block slot (0 when the
+    /// slot holds a weapon or is empty).</summary>
+    private int ResolveGameEquipmentSkillId(PracticeRoomManager.PracticeRoomSession? room, byte slot)
+    {
+        if (room is null)
+        {
+            return 0;
+        }
+
+        var playerState = GetLocalPlayerState(room);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ??
+            Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        foreach (var item in GetSupportedGameEquipmentBlockItems(loadoutItems))
+        {
+            if (item.Slot == slot && item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+            {
+                return item.SkillId;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>Resolves the in-game ability ("buff") id opened by the skill held in a quick slot (-1 when unknown).</summary>
+    private int ResolveGameEquipmentSkillBuffId(PracticeRoomManager.PracticeRoomSession? room, byte slot)
+    {
+        return ResolveGameEquipmentSkillDefinition(room, slot)?.BuffId ?? -1;
+    }
+
+    /// <summary>
+    /// Resolves the profession skill held by a character equipment block slot, or null when the slot
+    /// holds a weapon or is empty. Unlike <see cref="ResolveGameEquipmentSkillId"/> this can tell the
+    /// guardian's Battlefield Heal (skill id 0) apart from an empty slot.
+    /// </summary>
+    private SkillDefinition? ResolveGameEquipmentSkillDefinition(
+        PracticeRoomManager.PracticeRoomSession? room,
+        byte slot)
+    {
+        if (room is null)
+        {
+            return null;
+        }
+
+        var playerState = GetLocalPlayerState(room);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ??
+            Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        foreach (var item in GetSupportedGameEquipmentBlockItems(loadoutItems))
+        {
+            if (item.Slot == slot && item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+            {
+                return SkillCatalog.FindSkill(item.SkillId);
+            }
+        }
+
+        return null;
     }
 
     private async Task HandlePacket137GameClientReadyAsync(PacketReader reader)
@@ -3193,7 +3349,7 @@ internal sealed class PracticeRoomChannelProtocol
             broadcastCount);
     }
 
-    private void HandlePacket157GameClientNoPayload(PacketReader reader)
+    private async Task HandlePacket157GameClientNoPayloadAsync(PacketReader reader)
     {
         if (reader.Remaining > 0)
         {
@@ -3204,7 +3360,10 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
-        Log.Verbose("Channel packet157 <- {Remote}: game-info overlay close/no-payload notify", _remoteLabel);
+        // The retail server answers the loading-complete notify with the player-entering overlay
+        // clear (packet151, float 0.0), which is what hands control over to the in-game HUD.
+        Log.Information("Channel packet157 <- {Remote}: loading complete; packet151 overlay clear sent", _remoteLabel);
+        await SendPacket151PlayerEnteringCompleteAsync("packet157", _playerEnteringClearRetriesRemaining);
     }
 
     private async Task HandlePacket121LeaveGameAsync(PacketReader reader)
@@ -3304,6 +3463,14 @@ internal sealed class PracticeRoomChannelProtocol
             _currentGameRoom.RoomId,
             this,
             movement);
+        // The retail server echoes a movement tick straight back to the sender: packet110 carries the
+        // packet105 payload verbatim behind the actor uid. The client waits for that echo before it
+        // advances its own tick, and heartbeat-only ticks (flags 0, no optional payload) are never
+        // echoed, so the echo is gated on the packet actually carrying movement data.
+        if (movement.Flags != 0)
+        {
+            await SendPacket110GameMovementAsync(movement);
+        }
 
         var hasRollOrDirectionInput =
             movementSample.InputByte.HasValue &&
@@ -4972,12 +5139,14 @@ internal sealed class PracticeRoomChannelProtocol
     /// <summary>
     /// Packet 160: in-game skill/equipment activation state (`0x40 &lt;slot&gt; 01 01`), matching the
     /// retail server reply to the client packet 136 activation request.
+    /// The byte right after the opcode is the activating player in-game uid, exactly like packet
+    /// 106/110/111/128/155/185.
     /// </summary>
-    internal Task SendPacket160GameSkillActivateAsync(byte slot, string trigger)
+    internal Task SendPacket160GameSkillActivateAsync(byte actorUid, byte slot, string trigger)
     {
         using var writer = new PacketWriter();
         writer.WriteShort(GameSkillActivateStatePacketId);
-        writer.WriteByte(GameSkillActivateStateMarker);
+        writer.WriteByte(actorUid);
         writer.WriteByte(slot);
         writer.WriteByte(GameSkillActivateStateFlag);
         writer.WriteByte(GameSkillActivateStateFlag);
@@ -4985,6 +5154,7 @@ internal sealed class PracticeRoomChannelProtocol
         Log.Debug(
             "Channel packet160 -> {Remote}: slot={Slot} trigger={Trigger}",
             _remoteLabel,
+            actorUid,
             slot,
             trigger);
         return SendPacketAsync(writer);
@@ -4993,13 +5163,14 @@ internal sealed class PracticeRoomChannelProtocol
     /// <summary>
     /// Packet 185: relays an in-game ability release (client packet 152) to a room client. The
     /// layout matches the retail server: `0x40 01 &lt;payload&gt; 00 00 00 00 00 00 00`.
+    /// layout matches the retail server: `&lt;caster uid&gt; 01 &lt;payload&gt; 00 00 00 00 00 00 00`.
     /// </summary>
-    internal Task SendPacket185GameSkillCastAsync(byte[] payload, string trigger)
+    internal Task SendPacket185GameSkillCastAsync(byte actorUid, byte[] payload, string trigger)
     {
         using var writer = new PacketWriter();
 
         writer.WriteShort(GameSkillCastBroadcastPacketId);
-        writer.WriteByte(GameSkillCastBroadcastMarker);
+        writer.WriteByte(actorUid);
         writer.WriteByte(GameSkillCastBroadcastFlag);
         writer.WriteRaw(payload);
         for (var i = 0; i < GameSkillCastBroadcastTrailingBytes; i++)
@@ -5014,6 +5185,73 @@ internal sealed class PracticeRoomChannelProtocol
             payload.Length,
             Convert.ToHexString(payload));
         return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 155: opens/acknowledges an in-game ability state (`0x40 00 00 00 &lt;abilityId&gt; 00`). The
+    /// retail server sends it when an activated ability takes effect, i.e. once the packet162 cast
+    /// time of the quick slot has elapsed; the payload byte is the ability ("buff") id, not the quick
+    /// slot.
+    /// </summary>
+    internal Task SendPacket155SkillCastStateAsync(byte abilityId, string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(GameSkillCastStatePacketId);
+        writer.WriteByte(_localGameUid);
+        writer.WriteByte(0);
+        writer.WriteByte(0);
+        writer.WriteByte(0);
+        writer.WriteByte(abilityId);
+        writer.WriteByte(GameSkillCastStateTrailingByte);
+
+        Log.Debug(
+            "Channel packet155 -> {Remote}: ability state id={AbilityId} trigger={Trigger}",
+            _remoteLabel,
+            abilityId,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 162: opens the in-game effect of a quick-slot ability right after packet 160. The
+    /// payload carries the ability parameters the client applies to the caster and the retail server
+    /// fills it from its own skill tables. The frames below were captured verbatim from the retail
+    /// server; the only byte the client correlates with the packet136 request is the quick slot, so
+    /// the captured frame is replayed with that byte substituted. Abilities without a captured frame
+    /// (placed abilities such as Trap travel through the packet152/185 path instead) still receive the
+    /// packet160 acknowledgement plus the packet 155 ability state.
+    /// </summary>
+    private static readonly Dictionary<int, byte[]> CapturedSkillEffectFrames = new()
+    {
+        [2] = Convert.FromHexString("A2000101800B4040040F000000A0410000C040"),
+        [5] = Convert.FromHexString("A2000100000B40400E1000"),
+        [8] = Convert.FromHexString("A2000100000B40400D1100"),
+        [11] = Convert.FromHexString("A200010080034040060000000040"),
+    };
+
+    internal async Task<bool> SendPacket162SkillEffectOpenAsync(int skillId, byte slot, string trigger)
+    {
+        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var template) ||
+            template.Length <= GameSkillEffectOpenSlotOffset)
+        {
+            return false;
+        }
+
+        var frame = (byte[])template.Clone();
+        frame[GameSkillEffectOpenSlotOffset] = slot;
+
+        using var writer = new PacketWriter();
+        writer.WriteRaw(frame);
+
+        Log.Debug(
+            "Channel packet162 -> {Remote}: skill effect open skillId={SkillId} slot={Slot} trigger={Trigger} hex={Hex}",
+            _remoteLabel,
+            skillId,
+            slot,
+            trigger,
+            Convert.ToHexString(frame));
+        await SendPacketAsync(writer);
+        return true;
     }
 
     internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
@@ -5326,6 +5564,122 @@ internal sealed class PracticeRoomChannelProtocol
         _knownGamePlayerUids.Add(_localGameUid);
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, trigger);
         return SendPacket111GameSpawnAsync(room, trigger);
+    }
+
+    /// <summary>
+    /// Packet 146: empty in-game battle state frame the retail server sends right after packet 106.
+    /// </summary>
+    private Task SendPacket146GameBattleStateAsync(string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(146);
+        writer.WriteShort(0);
+        writer.WriteShort(0);
+
+        Log.Debug(
+            "Channel packet146 -> {Remote}: battle state trigger={Trigger}",
+            _remoteLabel,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 165: in-game battle flag frame the retail server pairs with the player-entering overlay
+    /// clear.
+    /// </summary>
+    private Task SendPacket165GameBattleFlagAsync(string trigger)
+    {
+        using var writer = new PacketWriter();
+        writer.WriteShort(165);
+        writer.WriteShort(100);
+        writer.WriteInt(0);
+
+        Log.Debug(
+            "Channel packet165 -> {Remote}: battle flag trigger={Trigger}",
+            _remoteLabel,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 231: in-game match timer (&lt;float elapsed seconds&gt;). The retail server sends it once per
+    /// second for the whole match and the client renders it as the in-game clock.
+    /// </summary>
+    private Task SendPacket231GameTimerAsync(string trigger)
+    {
+        using var writer = new PacketWriter();
+        var elapsedSeconds = ResolveGameMatchElapsedSeconds();
+        writer.WriteShort(231);
+        writer.WriteFloat(elapsedSeconds);
+
+        Log.Verbose(
+            "Channel packet231 -> {Remote}: match timer seconds={Seconds} trigger={Trigger}",
+            _remoteLabel,
+            elapsedSeconds,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    private float ResolveGameMatchElapsedSeconds()
+    {
+        var startedAt = _gameMatchStartedAt;
+        if (startedAt is null)
+        {
+            return 0f;
+        }
+
+        return (float)Math.Max(0d, (DateTimeOffset.UtcNow - startedAt.Value).TotalSeconds);
+    }
+
+    private void StartGameMatchTimerLoop()
+    {
+        if (_gameMatchTimerCts is not null)
+        {
+            return;
+        }
+
+        _gameMatchStartedAt = DateTimeOffset.UtcNow;
+        var cts = new CancellationTokenSource();
+        _gameMatchTimerCts = cts;
+        _ = RunGameMatchTimerLoopAsync(cts.Token);
+
+        Log.Information("Channel match timer loop started -> {Remote}", _remoteLabel);
+    }
+
+    private void StopGameMatchTimerLoop()
+    {
+        var cts = _gameMatchTimerCts;
+        if (cts is null)
+        {
+            return;
+        }
+
+        _gameMatchTimerCts = null;
+        _gameMatchStartedAt = null;
+        cts.Cancel();
+    }
+
+    private async Task RunGameMatchTimerLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // The retail server starts the match clock one second after the local player enters.
+            await Task.Delay(GameMatchTimerIntervalMilliseconds, cancellationToken);
+            while (!cancellationToken.IsCancellationRequested &&
+                   _state == ChannelState.InGame &&
+                   _currentGameRoom is not null)
+            {
+                await SendPacket231GameTimerAsync("match-timer");
+                await Task.Delay(GameMatchTimerIntervalMilliseconds, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Channel match timer loop stopped -> {Remote}", _remoteLabel);
+        }
     }
 
     private Task SendPacket151PlayerEnteringCompleteAsync(string trigger, int retriesRemaining)
@@ -5824,8 +6178,12 @@ internal sealed class PracticeRoomChannelProtocol
 
     private static bool IsSkillGameEquipmentItem(PlayerStore.PlayerState.GameLoadoutItem item)
     {
+        // The retail character equipment block lists every profession skill placed on the quick bar,
+        // including skills with no invested points yet (level 0); the client needs those type-1
+        // entries to build the in-game skill bar. Skill id 0 is the guardian's Battlefield Heal, so
+        // the definition lookup (not a positive-id test) decides whether the entry is a skill.
         return item.ItemType == (byte)ShopItemDatabase.ItemType.Skill &&
-               item.SkillLevel > 0 &&
+               SkillCatalog.FindSkill(item.SkillId) is not null &&
                !string.IsNullOrWhiteSpace(item.Resource);
     }
 
@@ -5967,7 +6325,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteString(TrimProtocolString(display, 255));
         writer.WriteFloat(definition?.ResolveCooldown(item.SkillLevel) ?? 0f);
         writer.WriteFloat(definition?.ResolveDistance(item.SkillLevel) ?? 0f);
-        writer.WriteByte(GameSkillEquipmentUsableFlag);
+        // The retail equipment block reports 1 only for skills the player can really cast and 0 for
+        // passive ones, so mirror the skill's active flag instead of always writing the usable flag.
+        writer.WriteByte(definition is null || definition.IsActive
+            ? GameSkillEquipmentUsableFlag
+            : (byte)0);
     }
 
     private void WriteGameEquipmentCommonPayload(
