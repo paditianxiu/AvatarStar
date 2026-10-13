@@ -22,6 +22,7 @@ internal sealed class PlayerStateSnapshot
     public Dictionary<string, int> ShopPurchasedCounts { get; set; } = new();
     public Dictionary<int, Dictionary<int, InventoryItem>> Storages { get; set; } = new();
     public Dictionary<int, string> EquippedItemsByType { get; set; } = new();
+    public Dictionary<int, int> SkillLevels { get; set; } = new();
     public Dictionary<int, HotKeySlotSnapshot> HotKeySlots { get; set; } = new();
 }
 
@@ -35,4 +36,5 @@ internal sealed record HotKeySlotSnapshot(
     int UnitType,
     int Unit,
     int Subtype,
-    int Sid);
+    int Sid,
+    int SkillId = 0);

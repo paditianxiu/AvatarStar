@@ -1,1 +1,1 @@
-"D:\Game\AvatarStar\client.exe" -ip 127.0.0.1 -port 9532 -token as_local_test_token -title AvatarStar -local zh_cn
+""C:\Users\33735\AppData\Local\Programs\AvatarStar\client.exe"" -ip 127.0.0.1 -port 9532 -token as_local_test_token -title AvatarStar -local zh_cn

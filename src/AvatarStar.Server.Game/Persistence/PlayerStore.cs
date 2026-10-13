@@ -319,7 +319,8 @@ internal sealed class PlayerStore
             int UnitType,
             int Unit,
             int Subtype,
-            int Sid);
+            int Sid,
+            int SkillId = 0);
 
         public sealed record GameLoadoutItem(
             byte Slot,
@@ -337,8 +338,8 @@ internal sealed class PlayerStore
 
         public CharacterInfo Character { get; set; }
         public int Gp { get; set; } = 100000;
-        public int Mb { get; set; } = 0;
-        public int Tb { get; set; } = 0;
+        public int Mb { get; set; } = 100000;
+        public int Tb { get; set; } = 100000;
         public Dictionary<int, int> BoxPoints { get; } = new();
         public Dictionary<int, Dictionary<int, int>> BoxPointClaimCounts { get; } = new();
         public string CheckinMonthKey { get; private set; } = string.Empty;
@@ -351,16 +352,68 @@ internal sealed class PlayerStore
         // storageType(t) -> slot -> item
         public Dictionary<int, Dictionary<int, InventoryItem>> Storages { get; } = new();
         public Dictionary<int, string> EquippedItemsByType { get; } = new();
+        // skillId -> invested level (0..MaxSkillLevel); absent means unlearned.
+        public Dictionary<int, int> SkillLevels { get; } = new();
         public string? EquippedAvatarPid { get; set; }
         private readonly Dictionary<int, HotKeySlot> _hotKeySlots = new();
         private const int HotKeySlotCount = 12;
         private const int MaxWeaponHotKeyCount = 3;
+        private const long SkillLoadoutItemIdBase = 1_110_210_000_000_000_000L;
         public int NextPid { get; set; } = 1;
         private bool _ensuringStarterInventory;
 
         public PlayerState(CharacterInfo character)
         {
             Character = character;
+        }
+
+        public int GetSkillLevel(int skillId)
+        {
+            return SkillLevels.TryGetValue(skillId, out var level) ? level : 0;
+        }
+
+        /// <summary>
+        /// Stores an invested skill level, clamping to the legal range and dropping
+        /// unlearned (level &lt;= 0) entries so snapshots stay compact.
+        /// </summary>
+        public int SetSkillLevel(int skillId, int level)
+        {
+            var clamped = Math.Clamp(level, 0, SkillCatalog.MaxSkillLevel);
+            if (clamped <= 0)
+            {
+                SkillLevels.Remove(skillId);
+            }
+            else
+            {
+                SkillLevels[skillId] = clamped;
+            }
+
+            return clamped;
+        }
+
+        /// <summary>Total skill points earned from character level: floor((level + 1) / 2).</summary>
+        public int GetTotalSkillPoints()
+        {
+            return Math.Max(0, (Character.Level + 1) / 2);
+        }
+
+        public int GetSpentSkillPoints()
+        {
+            var spent = 0;
+            foreach (var level in SkillLevels.Values)
+            {
+                if (level > 0)
+                {
+                    spent += level;
+                }
+            }
+
+            return spent;
+        }
+
+        public int GetLeftSkillPoints()
+        {
+            return Math.Max(0, GetTotalSkillPoints() - GetSpentSkillPoints());
         }
 
         public PlayerStateSnapshot ToSnapshot()
@@ -387,6 +440,7 @@ internal sealed class PlayerStore
                     pair => pair.Key,
                     pair => pair.Value.ToDictionary(slot => slot.Key, slot => slot.Value)),
                 EquippedItemsByType = new Dictionary<int, string>(EquippedItemsByType),
+                SkillLevels = new Dictionary<int, int>(SkillLevels),
                 HotKeySlots = _hotKeySlots.ToDictionary(
                     pair => pair.Key,
                     pair => new HotKeySlotSnapshot(
@@ -399,7 +453,8 @@ internal sealed class PlayerStore
                         pair.Value.UnitType,
                         pair.Value.Unit,
                         pair.Value.Subtype,
-                        pair.Value.Sid))
+                        pair.Value.Sid,
+                        pair.Value.SkillId))
             };
         }
 
@@ -462,6 +517,11 @@ internal sealed class PlayerStore
                 player.EquippedItemsByType[equipType] = pid;
             }
 
+            foreach (var (skillId, level) in snapshot.SkillLevels)
+            {
+                player.SetSkillLevel(skillId, level);
+            }
+
             foreach (var (slot, hotKey) in snapshot.HotKeySlots)
             {
                 player._hotKeySlots[slot] = new HotKeySlot(
@@ -474,7 +534,8 @@ internal sealed class PlayerStore
                     hotKey.UnitType,
                     hotKey.Unit,
                     hotKey.Subtype,
-                    hotKey.Sid);
+                    hotKey.Sid,
+                    hotKey.SkillId);
             }
 
             return player;
@@ -1351,8 +1412,20 @@ internal sealed class PlayerStore
             }
 
             var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
+            var seenSkillIds = new HashSet<int>();
             foreach (var pair in _hotKeySlots.OrderBy(x => x.Key).ToArray())
             {
+                if (pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
+                {
+                    // Skill slots are keyed by skill id rather than an inventory pid.
+                    if (pair.Value.SkillId <= 0 || !seenSkillIds.Add(pair.Value.SkillId))
+                    {
+                        _hotKeySlots.Remove(pair.Key);
+                    }
+
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(pair.Value.ItemId) || !seenItemIds.Add(pair.Value.ItemId))
                 {
                     _hotKeySlots.Remove(pair.Key);
@@ -1483,6 +1556,26 @@ internal sealed class PlayerStore
             {
                 if (_hotKeySlots.TryGetValue(i, out var entry))
                 {
+                    if (entry.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    {
+                        var definition = FindSkill(entry.SkillId);
+                        result[i - 1] = new
+                        {
+                            slot = entry.Slot,
+                            type = entry.Type,
+                            itemid = string.Empty,
+                            display = definition?.ResolveDisplay(GetSkillLevel(entry.SkillId)) ?? string.Empty,
+                            resource = entry.Resource,
+                            grade = 0,
+                            quantity = 0,
+                            unitType = 0,
+                            unit = 0,
+                            subtype = 0,
+                            sid = 0
+                        };
+                        continue;
+                    }
+
                     result[i - 1] = new
                     {
                         slot = entry.Slot,
@@ -1504,6 +1597,63 @@ internal sealed class PlayerStore
             }
 
             return result;
+        }
+
+        private SkillDefinition? FindSkill(int skillId)
+        {
+            var occupation = Math.Clamp(Character.Occupation, 0, 3);
+            foreach (var definition in SkillCatalog.GetSkills(occupation))
+            {
+                if (definition.Id == skillId)
+                {
+                    return definition;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Equips an active profession skill onto a hotkey slot. Any other slot holding the
+        /// same skill is cleared, mirroring how the client drags a skill onto the hotbar.
+        /// </summary>
+        public bool TrySetSkillHotKeySlot(int slot, int skillId)
+        {
+            if (slot <= 0 || slot > HotKeySlotCount)
+            {
+                return false;
+            }
+
+            var definition = FindSkill(skillId);
+            if (definition is null)
+            {
+                return false;
+            }
+
+            var duplicates = _hotKeySlots
+                .Where(x => x.Key != slot &&
+                            x.Value.Type == (int)ShopItemDatabase.ItemType.Skill &&
+                            x.Value.SkillId == skillId)
+                .Select(x => x.Key)
+                .ToArray();
+            foreach (var duplicate in duplicates)
+            {
+                _hotKeySlots.Remove(duplicate);
+            }
+
+            _hotKeySlots[slot] = new HotKeySlot(
+                Slot: slot,
+                Type: (int)ShopItemDatabase.ItemType.Skill,
+                ItemId: string.Empty,
+                Resource: definition.Resource,
+                Grade: 0,
+                Quantity: 0,
+                UnitType: 0,
+                Unit: 0,
+                Subtype: 0,
+                Sid: 0,
+                SkillId: skillId);
+            return true;
         }
 
         public bool TrySetHotKeySlot(int slot, string? pid, out string? errorKey)
@@ -1652,9 +1802,7 @@ internal sealed class PlayerStore
             EnsureDefaultWeaponHotKeySlots();
 
             var hotKeyLoadout = _hotKeySlots.Values
-                .Where(slot =>
-                    slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
-                    IsBattleLoadoutResource(slot.Resource))
+                .Where(IsBattleLoadoutHotKeySlot)
                 .OrderBy(slot => slot.Slot)
                 .Select(CreateHotKeyLoadoutItem)
                 .ToList();
@@ -1678,6 +1826,20 @@ internal sealed class PlayerStore
 
         private GameLoadoutItem CreateHotKeyLoadoutItem(HotKeySlot slot)
         {
+            if (slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+            {
+                var definition = FindSkill(slot.SkillId);
+                var skillResource = string.IsNullOrWhiteSpace(definition?.Resource) ? slot.Resource : definition!.Resource;
+                return new GameLoadoutItem(
+                    Slot: (byte)Math.Clamp(slot.Slot, 0, byte.MaxValue),
+                    ItemType: (byte)ShopItemDatabase.ItemType.Skill,
+                    ItemId: ResolveSkillLoadoutItemId(slot.SkillId),
+                    Resource: skillResource,
+                    Grade: 0,
+                    DisplayName: definition?.ResolveDisplay(GetSkillLevel(slot.SkillId)) ?? skillResource,
+                    Subtype: 1);
+            }
+
             var backpackItem = FindBackpackItemForHotKeySlot(slot);
             var item = backpackItem ?? FindItemByPid(slot.ItemId);
             var resource = string.IsNullOrWhiteSpace(item?.Resource) ? slot.Resource : item!.Resource;
@@ -1752,6 +1914,17 @@ internal sealed class PlayerStore
             return IsBattleLoadoutResource(item.Resource);
         }
 
+        private bool IsBattleLoadoutHotKeySlot(HotKeySlot slot)
+        {
+            if (slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+            {
+                return slot.SkillId > 0 && FindSkill(slot.SkillId) is not null;
+            }
+
+            return slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                   IsBattleLoadoutResource(slot.Resource);
+        }
+
         private static bool IsBattleLoadoutResource(string? resource)
         {
             if (string.IsNullOrWhiteSpace(resource))
@@ -1776,6 +1949,15 @@ internal sealed class PlayerStore
             return long.TryParse(pid, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
                 ? value
                 : 0;
+        }
+
+        /// <summary>
+        /// Deterministic synthetic item id for an equipped skill. Skills are not inventory
+        /// items, so the in-match loadout carries an id derived from the skill id instead.
+        /// </summary>
+        private static long ResolveSkillLoadoutItemId(int skillId)
+        {
+            return SkillLoadoutItemIdBase + skillId;
         }
 
         public InventoryItem? FindAvatarItemByAvatarId(string? avatarId)

@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.10.12224.181 stable
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvatarStar.Server.Login", "AvatarStar.Server.Login\AvatarStar.Server.Login.csproj", "{FAD7B06A-412C-4206-9519-349C0741B23C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "root", "root", "{91AD91ED-08B1-47F7-A81D-4C52FFBD11AD}"
@@ -10,8 +13,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvatarStar.Server.Game", "AvatarStar.Server.Game\AvatarStar.Server.Game.csproj", "{83458EA8-A252-487A-9D29-4C20C8327F53}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvatarStar.Server", "AvatarStar.Server\AvatarStar.Server.csproj", "{83D4465F-7D21-47B1-BAC9-AA30EED9B17F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AvatarStar.Tools.PdeUnpacker", "AvatarStar.Tools.PdeUnpacker\AvatarStar.Tools.PdeUnpacker.csproj", "{BCB716C5-FEA1-46D9-A664-6CEEE8EA020D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,9 +32,11 @@ Global
 		{83D4465F-7D21-47B1-BAC9-AA30EED9B17F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{83D4465F-7D21-47B1-BAC9-AA30EED9B17F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{83D4465F-7D21-47B1-BAC9-AA30EED9B17F}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BCB716C5-FEA1-46D9-A664-6CEEE8EA020D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BCB716C5-FEA1-46D9-A664-6CEEE8EA020D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BCB716C5-FEA1-46D9-A664-6CEEE8EA020D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BCB716C5-FEA1-46D9-A664-6CEEE8EA020D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {17B7BC6D-5DAE-485B-807E-8F3EFB167BE9}
 	EndGlobalSection
 EndGlobal

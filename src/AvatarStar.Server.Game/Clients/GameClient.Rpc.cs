@@ -237,11 +237,7 @@ internal partial class GameClient
         "shop_buy",
         "shop_give",
         "shop_item_list",
-        "skill_adjust",
-        "skill_equip",
-        "skill_list",
         "skill_reset",
-        "skill_unequip",
         "slot_drag",
         "slot_equip",
         "slot_get",
@@ -1586,6 +1582,44 @@ internal partial class GameClient
             "gestures = {}";
     }
 
+    /// <summary>
+    /// Applies the client `skill_adjust` payload, e.g. "0,1;3,1;": one "&lt;skillId&gt;,&lt;delta&gt;;"
+    /// entry per changed skill (delta may be negative). Levels are clamped to the legal range
+    /// and the total invested points can never exceed the points the character has earned.
+    /// </summary>
+    private static void ApplySkillAdjustments(string? adjustSkills, PlayerStore.PlayerState player, int occupation)
+    {
+        if (string.IsNullOrWhiteSpace(adjustSkills))
+        {
+            return;
+        }
+
+        var validSkillIds = new HashSet<int>();
+        foreach (var definition in SkillCatalog.GetSkills(occupation))
+        {
+            validSkillIds.Add(definition.Id);
+        }
+
+        foreach (var entry in adjustSkills.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = entry.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 ||
+                !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var skillId) ||
+                !int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var delta) ||
+                !validSkillIds.Contains(skillId))
+            {
+                continue;
+            }
+
+            var current = player.GetSkillLevel(skillId);
+            var desired = Math.Clamp(current + delta, 0, SkillCatalog.MaxSkillLevel);
+
+            // Never let the total invested points exceed the points the character has earned.
+            var affordableDelta = Math.Min(desired - current, player.GetLeftSkillPoints());
+            player.SetSkillLevel(skillId, current + affordableDelta);
+        }
+    }
+
     private static string StageQuitPayload(
         PlayerStore.PlayerState player,
         PracticeRoomManager.PracticeRoomSession? room)
@@ -1763,6 +1797,54 @@ internal partial class GameClient
                     new { description = Desc(3) }
                 });
                 writer.WriteString("characterList = " + characterList);
+                await SendAsync(writer);
+                return;
+            }
+
+            case "skill_adjust":
+            {
+                var player = GetActivePlayerStateOrDefault();
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                ApplySkillAdjustments(rpcArgs.GetValueOrDefault("adjustSkills"), player, occupation);
+                writer.WriteString("ok = 1");
+                await SendAsync(writer);
+                return;
+            }
+
+            case "skill_list":
+            {
+                var player = GetActivePlayerStateOrDefault();
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                var definitions = SkillCatalog.GetSkills(occupation);
+
+                var skills = new object[definitions.Count];
+                for (var i = 0; i < definitions.Count; i++)
+                {
+                    var definition = definitions[i];
+                    var level = player.GetSkillLevel(definition.Id);
+                    skills[i] = new
+                    {
+                        id = definition.Id,
+                        display = definition.ResolveDisplay(level),
+                        level,
+                        resource = definition.Resource,
+                        type = definition.Type,
+                        subType = definition.SubType,
+                        isActive = definition.IsActive ? "Y" : "N"
+                    };
+                }
+
+                var costMap = SkillCatalog.GetResetCosts(occupation)
+                    .Select(cost => new { currency = cost.Currency, cost = cost.Cost })
+                    .ToArray();
+
+                writer.WriteString(
+                    "ok = 1\n" +
+                    $"leftpoints = {player.GetLeftSkillPoints()}\n" +
+                    $"resetMaxLevel = {SkillCatalog.ResetMaxLevel}\n" +
+                    "costMap = " + LuaSerializer.Serialize(costMap) + "\n" +
+                    "skills = " + LuaSerializer.Serialize(skills) + "\n" +
+                    "bossList = {}");
                 await SendAsync(writer);
                 return;
             }
@@ -2497,6 +2579,27 @@ internal partial class GameClient
                 var toSlot = GetIntArg(rpcArgs, "toSlot", 0);
                 var player = GetActivePlayerStateOrDefault();
                 var ok = player.TrySwapHotKeySlots(fromSlot, toSlot);
+                writer.WriteString(ok ? "ok = 1" : "ok = 0");
+                await SendAsync(writer);
+                return;
+            }
+
+            case "skill_equip":
+            {
+                var player = GetActivePlayerStateOrDefault();
+                var skillId = GetIntArg(rpcArgs, "skillId", 0);
+                var slot = GetIntArg(rpcArgs, "slot", 0);
+                var ok = player.TrySetSkillHotKeySlot(slot, skillId);
+                writer.WriteString(ok ? "ok = 1" : "ok = 0");
+                await SendAsync(writer);
+                return;
+            }
+
+            case "skill_unequip":
+            {
+                var player = GetActivePlayerStateOrDefault();
+                var slot = GetIntArg(rpcArgs, "slot", 0);
+                var ok = player.TryClearHotKeySlot(slot);
                 writer.WriteString(ok ? "ok = 1" : "ok = 0");
                 await SendAsync(writer);
                 return;

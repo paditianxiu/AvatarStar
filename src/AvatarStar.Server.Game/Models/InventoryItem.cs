@@ -1,5 +1,7 @@
 namespace AvatarStar.Server.Game;
 
+
+//背包物品
 internal sealed record InventoryItem
 {
     public InventoryItem()

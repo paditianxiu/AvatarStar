@@ -9,6 +9,10 @@
 *.sln.iml
 *.iml
 
+
+AvatarStar_cache/
+AvatarStar_zh_cn_cache/
+
 # Visual Studio / .NET build outputs
 **/[Bb]in/
 **/[Oo]bj/
