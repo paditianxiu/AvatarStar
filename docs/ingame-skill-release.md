@@ -23,6 +23,9 @@ byte   usable      # 1=主动技能（可释放），0=被动
 
 - `usable` 必须按技能的主动/被动标记写。台服对被动技能（如突击的 piercing/poison）写 `0`。
 - 技能 id `0`（护卫的 Battlefield Heal）是合法技能，任何 `skillId > 0` 的过滤都会把治疗丢掉。
+- 武器条目（`type = 2`）在 `resource` / `display` 之后是一段定长 payload（subtype 1 = 8 + 12 + 15 字节，
+  subtype 2 再加 8，subtype 6/13 是 8 + 4 + 4 字节……），其中**尾部 15 字节的最后两个字节是
+  `refitLevel`（强化等级）+ `grade`（品质）**，见「第 27 轮」。
 
 ## 释放流程（按台服抓包逐帧还原）
 
@@ -1025,3 +1028,63 @@ PracticeRoomChannelProtocol.SendGameInitSpawnHandshakeFallbackAsync 行 2906
 - 技能 39（瘟疫传播）在装备块里是 `usable=0`，和重装的 transfer、突击的 fatal shot 一样不会自动上快捷栏
   （`EnsureDefaultSkillHotKeySlots` 只排主动技能），要按 13 得先在大厅把它拖到快捷栏（`skill_equip`）。
 - 按 4 时台服还回了一条 `packet159`（`9f 00 04 02`），语义未定，也没实现。
+
+## 第 27 轮：把「有等级的武器」带进局内 + 强化面板分页（材料页签）
+
+### 一、局内要带的东西：武器尾部的 `refitLevel` / `grade`
+
+`log-2026-10-14.txt` 里 19:47:06 那段进局抓包的 packet103（1561 字节）与本仓库 10-13 的旧抓包逐字节
+相同，把装备块按 subtype 定长解开后可以确认：武器条目尾部 15 字节的最后两个字节是
+
+```text
+byte   ?            # 台服恒为 1；我们一直写 0，客户端表现正常，本轮不动
+4 字节 ?            # 台服对 sniperrifle_07 写 0.25，其余武器写 0（我们写 0）
+4 字节 ?            # 0
+4 字节 ?            # 0
+byte   refitLevel   # 强化等级（0 = 未强化）
+byte   grade        # 品质（1..5）
+```
+
+同一段抓包里三把武器正好覆盖了所有情况：
+
+- `sniperrifle_07`（品质 3、未强化，快捷栏 1 号）→ 尾部 `01 00 00 80 3e ... 00 03`
+- `sniperrifle_07`（品质 3、**强化 +1**，快捷栏 3 号，pid 与 `slot_get` 里 `refitLevel=1` 的那件相同）
+  → 尾部 `01 00 00 80 3e ... 01 03`（**只差这一个字节**）
+- `knives_05`（subtype 6 紧凑布局，品质 3）→ 尾部 `00 03`；旧抓包里 1 级新手武器
+  `smg_01` / `shotgun_01` / `bow_01` → 尾部 `00 01`
+
+结论：强化只改装备块里的这两个字节，**不改冷却/射程/射速/弹夹/散布**（同一把枪强化前后 payload 除该
+字节外完全一致），所以「把有等级武器带进局」= 如实下发强化等级与品质，客户端据此画等级角标。
+
+### 二、修改
+
+- `Persistence/PlayerStore.cs`
+  - `PlayerState.GameLoadoutItem` 新增 `RefitLevel`（默认 0）。
+  - `CreateHotKeyLoadoutItem` / `CreateBattleLoadoutItem` 从背包实物（`InventoryItem.RefitLevel`）填值，
+    快捷栏快照兜底。
+- `PracticeRooms/PracticeRoomChannelProtocol.cs`
+  - `WriteBasicWeaponEquipmentPayload`（subtype 1/2/4/10/11/12/14/16）与
+    `WriteCompactGameEquipmentPayload`（subtype 6/13）尾部原本写死的 `0 + 0` 改成 `refitLevel + grade`。
+    这两条路径覆盖 packet103 的装备块、玩家列表里的装备块重发。
+
+### 三、强化面板分页（武器页签 + 材料页签）
+
+抓包里 19:47:19 / 19:47:22 / 19:47:23 三次 `storage_item_filter {p=1/2/3, s=12, t=2}` 分别回
+`page=1/2/3`、`pages=3`；材料页签是 `t=3, s=36`（19:47:17）→ `page=1, pages=1`。两者走同一个
+`GetStorageItems(..., pageBySlot: false)`：按件数分页（`pages = ceil(件数 / s)`），`t=2` 时按
+`grade` 降序 → 槽位升序，`slot = 绝对槽位 - 页偏移`（第 2 页因此出现 `-1 / 0 / 4 / 9` 这种值）。
+
+本轮只补了一条自检日志，方便核对回包：
+
+```text
+storage_item_filter: t=2 page=2/3 size=12 items=12 subtype=1,2,3,4,5,6,11,12,13,14,15,16 grade=- excludePid=-
+```
+
+### 四、复现验证
+
+1. `dotnet build src\AvatarStar.Server.Game\AvatarStar.Server.Game.csproj`（0 警告 0 错误）后重启服务端。
+2. 大厅把一把 3 级枪强化到 +1 → 进练习房：服务端日志里 packet103 的装备块不再全是 0，武器尾部能看到
+   `01 03`（强化 +1、品质 3），未强化的武器是 `00 03`。
+3. 强化面板武器页签翻页：日志应出现 `storage_item_filter: t=2 page=1/3 ...`、`page=2/3`、`page=3/3`，
+   items 数与抓包一致（12 / 12 / 剩余）。
+4. 切到材料页签：`storage_item_filter: t=3 page=1/1 ...`。

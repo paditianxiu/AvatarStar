@@ -199,3 +199,11 @@ newLevel    = 由累计经验表换算
 1. 重启服务端。2. 大厅 → 角色 → 物品栏（仓库）：翻页条应是 5 页，第 1 页显示槽位 1..24 的物品，
    强化过的武器带等级角标。3. 强化 → 强化武器页签：列表按品质从高到低排列、可翻页（件数 > 12 时
    `pages` > 1）。4. 把强化过的武器拖到快捷栏（`slot_equip`）：快捷栏图标右上角出现等级角标。
+
+## 强化等级带进局内（第 27 轮补充）
+
+强化过的武器进局时，等级信息走 packet103 装备块里武器尾部的两个字节：`refitLevel`（强化等级）与
+`grade`（品质）。`GameLoadoutItem` 新增 `RefitLevel`，由 `CreateHotKeyLoadoutItem` /
+`CreateBattleLoadoutItem` 从背包实物读取，`WriteBasicWeaponEquipmentPayload`（subtype 1/2/4/10/11/12/14/16）
+与 `WriteCompactGameEquipmentPayload`（subtype 6/13）写出。抓包证据、改动位置与验证步骤见
+`docs/ingame-skill-release.md` 的「第 27 轮」。

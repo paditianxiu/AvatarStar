@@ -3006,6 +3006,18 @@ internal partial class GameClient
                 // 强化武器面板会带上 refitFilterItemId（被强化的武器），需要从材料列表里剔除。
                 var excludePid = rpcArgs.GetValueOrDefault("refitFilterItemId");
                 var result = GetStorageItems(storageType, page, pageSize, subtypeFilter, gradeFilter, pageBySlot: false, excludePid: excludePid);
+                // 强化武器（t=2）/ 强化材料（t=3）面板的分页回包：官方按件数分页，page1 的 slot
+                // 是绝对槽位，page2 起是「绝对槽位 - 页偏移」（抓包第 2 页出现 -1/0/4 这样的值）。
+                Log.Debug(
+                    "storage_item_filter: t={T} page={Page}/{Pages} size={Size} items={Count} subtype={Subtype} grade={Grade} excludePid={ExcludePid}",
+                    storageType,
+                    result.CurrentPage,
+                    result.TotalPages,
+                    pageSize,
+                    result.Items.Length,
+                    string.Join(",", subtypeFilter.OrderBy(value => value)),
+                    string.Join(",", gradeFilter.OrderBy(value => value)),
+                    excludePid ?? "-");
                 writer.WriteString(
                     "ok = 1\n" +
                     $"t = {storageType}\n" +

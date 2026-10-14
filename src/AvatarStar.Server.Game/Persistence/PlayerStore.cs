@@ -334,7 +334,10 @@ internal sealed class PlayerStore
             string DisplayName,
             byte Subtype,
             int SkillId = 0,
-            int SkillLevel = 0);
+            int SkillLevel = 0,
+            // 强化等级：官方局内 103 装备块里每把武器尾部倒数第二个字节就是它，强化过的武器
+            // 进局后仍然要按等级显示角标。
+            int RefitLevel = 0);
 
         public sealed record GameIndependentTrinketItem(
             int Slot,
@@ -2366,7 +2369,8 @@ internal sealed class PlayerStore
                 Resource: resource,
                 Grade: (byte)Math.Clamp(item?.Grade ?? slot.Grade, 0, byte.MaxValue),
                 DisplayName: string.IsNullOrWhiteSpace(item?.Display) ? resource : item!.Display,
-                Subtype: (byte)Math.Clamp(item?.Subtype ?? slot.Subtype, 0, byte.MaxValue));
+                Subtype: (byte)Math.Clamp(item?.Subtype ?? slot.Subtype, 0, byte.MaxValue),
+                RefitLevel: Math.Max(0, item?.RefitLevel ?? slot.RefitLevel));
         }
 
         private InventoryItem? FindBackpackItemForHotKeySlot(HotKeySlot slot)
@@ -2417,7 +2421,8 @@ internal sealed class PlayerStore
                 Resource: resource,
                 Grade: (byte)Math.Clamp(item.Grade, 0, byte.MaxValue),
                 DisplayName: string.IsNullOrWhiteSpace(item.Display) ? resource : item.Display,
-                Subtype: (byte)Math.Clamp(item.Subtype, 0, byte.MaxValue));
+                Subtype: (byte)Math.Clamp(item.Subtype, 0, byte.MaxValue),
+                RefitLevel: Math.Max(0, item.RefitLevel));
         }
 
         private static bool IsBattleLoadoutItem(InventoryItem? item)

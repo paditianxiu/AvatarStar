@@ -7347,8 +7347,11 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteInt(0);
         writer.WriteInt(0);
         writer.WriteFloat(0f);
-        writer.WriteByte(0);
-        writer.WriteByte(0);
+        // 官方装备块尾部这两个字节依次是「强化等级」与「品质」：抓包 2026-10-14 局内 103 里
+        // 未强化的 3 级狙击枪 = 00 03，同一把强化到 +1 的 = 01 03，1 级 AK74 = 00 01。
+        // 少了它们，客户端在局内就不知道武器已经强化过，等级角标（强化等级 + 品质）就画不出来。
+        writer.WriteByte((byte)Math.Clamp(item.RefitLevel, 0, byte.MaxValue));
+        writer.WriteByte(item.Grade);
     }
 
     private void WriteSniperWeaponEquipmentPayload(
@@ -7422,8 +7425,10 @@ internal sealed class PracticeRoomChannelProtocol
         WriteGameEquipmentCommonPayload(writer, item);
         writer.WriteFloat(stats.FireTime);
         writer.WriteInt(DefaultAccuracyDivisor);
-        writer.WriteByte(0);
-        writer.WriteByte(0);
+        // 近战/紧凑武器（subtype 6/13）的尾部同样是「强化等级 + 品质」（抓包：knives_05
+        // 强化等级 0、品质 3 → 00 03）。
+        writer.WriteByte((byte)Math.Clamp(item.RefitLevel, 0, byte.MaxValue));
+        writer.WriteByte(item.Grade);
     }
 
     private static void WriteZeroInts(PacketWriter writer, int count)
