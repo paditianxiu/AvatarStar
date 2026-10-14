@@ -40,4 +40,7 @@ internal sealed record HotKeySlotSnapshot(
     int Unit,
     int Subtype,
     int Sid,
-    int SkillId = 0);
+    int SkillId = 0,
+    int RefitLevel = 0,
+    int PlusLevel = 0,
+    int RefitTotalExp = 0);

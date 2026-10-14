@@ -320,7 +320,10 @@ internal sealed class PlayerStore
             int Unit,
             int Subtype,
             int Sid,
-            int SkillId = 0);
+            int SkillId = 0,
+            int RefitLevel = 0,
+            int PlusLevel = 0,
+            int RefitTotalExp = 0);
 
         public sealed record GameLoadoutItem(
             byte Slot,
@@ -562,7 +565,10 @@ internal sealed class PlayerStore
                             pair.Value.Unit,
                             pair.Value.Subtype,
                             pair.Value.Sid,
-                            pair.Value.SkillId));
+                            pair.Value.SkillId,
+                            pair.Value.RefitLevel,
+                            pair.Value.PlusLevel,
+                            pair.Value.RefitTotalExp));
             }
         }
 
@@ -658,7 +664,10 @@ internal sealed class PlayerStore
                     hotKey.Unit,
                     hotKey.Subtype,
                     hotKey.Sid,
-                    hotKey.SkillId);
+                    hotKey.SkillId,
+                    hotKey.RefitLevel,
+                    hotKey.PlusLevel,
+                    hotKey.RefitTotalExp);
             }
 
             return player;
@@ -1613,7 +1622,10 @@ internal sealed class PlayerStore
                         UnitType: item.UnitType,
                         Unit: item.Unit,
                         Subtype: item.Subtype,
-                        Sid: item.Sid);
+                        Sid: item.Sid,
+                        RefitLevel: item.RefitLevel,
+                        PlusLevel: item.PlusLevel,
+                        RefitTotalExp: item.RefitTotalExp);
                     slot++;
                 }
             }
@@ -1786,18 +1798,26 @@ internal sealed class PlayerStore
                             continue;
                         }
 
+                        // 强化等级跟背包里的实物走（强化成功后快捷栏的等级角标要立刻更新），
+                        // 读不到实物时再退回快捷栏缓存的快照字段。官方 slot_get 也会下发
+                        // display/refitLevel（抓包：type=2 的武器带 refitLevel）。
+                        var hotKeyItem = FindBackpackItemForHotKeySlot(entry);
                         result[i - 1] = new
                         {
                             slot = entry.Slot,
                             type = entry.Type,
                             itemid = entry.ItemId,
+                            display = string.IsNullOrWhiteSpace(hotKeyItem?.Display) ? entry.Resource : hotKeyItem!.Display,
                             resource = entry.Resource,
-                            grade = entry.Grade,
+                            grade = hotKeyItem?.Grade ?? entry.Grade,
                             quantity = entry.Quantity,
-                            unitType = entry.UnitType,
-                            unit = entry.Unit,
-                            subtype = entry.Subtype,
-                            sid = entry.Sid
+                            unitType = hotKeyItem?.UnitType ?? entry.UnitType,
+                            unit = hotKeyItem?.Unit ?? entry.Unit,
+                            subtype = hotKeyItem?.Subtype ?? entry.Subtype,
+                            sid = hotKeyItem?.Sid ?? entry.Sid,
+                            refitLevel = hotKeyItem?.RefitLevel ?? entry.RefitLevel,
+                            plusLevel = hotKeyItem?.PlusLevel ?? entry.PlusLevel,
+                            refitTotalExp = hotKeyItem?.RefitTotalExp ?? entry.RefitTotalExp
                         };
                     }
                     else
@@ -1925,7 +1945,10 @@ internal sealed class PlayerStore
                     UnitType: item.UnitType,
                     Unit: item.Unit,
                     Subtype: item.Subtype,
-                    Sid: item.Sid);
+                    Sid: item.Sid,
+                    RefitLevel: item.RefitLevel,
+                    PlusLevel: item.PlusLevel,
+                    RefitTotalExp: item.RefitTotalExp);
                 SyncEquipmentEquipFlags();
                 return true;
             }

@@ -443,13 +443,57 @@ internal partial class GameClient
         }
 
         var materialRefitExp = Math.Max(0, material.RefitTotalExp);
-        // 官方还会按「传承」精确度结算材料自身的强化经验（与 baseRank 有关）；
-        // 服务端没有 baseRank 数据，这里按等级相同/不同的两档近似，材料通常没有强化经验。
-        support += useHeirloom
-            ? materialRefitExp * RefitUseHeirloomRate
-            : materialRefitExp * RefitNoHeirloomRate;
+        // 「传承」折算材料自身的强化经验，公式与客户端预览 (personalInfo.lua:1888-1907) 完全一致：
+        // 同品质时按双方 baseRank 决定折算率（材料评分不低于目标 → 全额继承），不同品质固定
+        // useHeirloomRate；不勾选传承固定 noHeirloomRate。两边用同一个 ResolveBaseRank，
+        // 「面板预览」与「实际结算」不会打架。
+        if (!useHeirloom)
+        {
+            support += materialRefitExp * RefitNoHeirloomRate;
+        }
+        else if (material.Grade != target.Grade)
+        {
+            support += materialRefitExp * RefitUseHeirloomRate;
+        }
+        else
+        {
+            var targetRank = ResolveBaseRank(target);
+            var materialRank = ResolveBaseRank(material);
+            if (targetRank <= materialRank)
+            {
+                support += materialRefitExp;
+            }
+            else
+            {
+                var heirloomRatio = Math.Max(
+                    RefitMinHeirloomRate,
+                    RefitMaxHeirloomRate - 0.01d * (targetRank - materialRank));
+                support += materialRefitExp * heirloomRatio;
+            }
+        }
 
         return (int)Math.Round(support, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>
+    /// 装备评分（baseRank）。官方列表里每件装备都带这个字段：1 级新手武器 270/300、2 级 300、
+    /// 3 级强化版 315、4 级 386，宝石按 grade×6。它只影响「传承」折算率，服务端没有真实评分数据，
+    /// 这里按单位类型/品质给稳定近似值，并保证 storage_item_filter 下发的值与结算用的是同一个函数。
+    /// </summary>
+    private static int ResolveBaseRank(InventoryItem item)
+    {
+        if (item.UnitType == 3 || item.Type == 3)
+        {
+            return Math.Max(1, item.Grade) * 6;
+        }
+
+        return item.Grade switch
+        {
+            <= 1 => 270,
+            2 => 300,
+            3 => 315,
+            _ => 386,
+        };
     }
 
     private async Task SendRefitFinishResultAsync(PacketWriter writer, int result)

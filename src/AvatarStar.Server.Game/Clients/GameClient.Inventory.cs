@@ -7,6 +7,9 @@ internal partial class GameClient
 {
     private sealed record StorageListResult(object[] Items, int CurrentPage, int TotalPages);
 
+    // 仓库每个页签固定 5 页（官方抓包 t=2 s=24 pages=5）。
+    private const int DepotPageCount = 5;
+
     private StorageListResult GetStorageItems(
         int storageType,
         int page,
@@ -21,7 +24,11 @@ internal partial class GameClient
 
         if (!player.Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
         {
-            return new StorageListResult(Array.Empty<object>(), CurrentPage: 1, TotalPages: 1);
+            // 空仓库同样要把 5 页报给客户端的翻页条（槽位网格）；过滤列表按件数分页，空即 1 页。
+            return new StorageListResult(
+                Array.Empty<object>(),
+                CurrentPage: 1,
+                TotalPages: pageBySlot ? DepotPageCount : 1);
         }
 
         pageSize = pageSize <= 0 ? 24 : pageSize;
@@ -63,15 +70,12 @@ internal partial class GameClient
 
         if (pageBySlot)
         {
-            // PersonalInfo UI treats `slot` as the on-page slot index (1..pageSize) and will
-            // index UI controls by it (weapon_p_1..weapon_p_24, person_card_p_1..10, etc).
-            // Therefore we must page by absolute storage slot ranges, not by item count.
-            var defaultCapacity = storageType switch
-            {
-                5 => 10, // avatar cards in PersonalInfo
-                _ => 36
-            };
-            var capacity = Math.Max(Math.Max(defaultCapacity, pageSize), filtered.Max(x => x.Slot));
+            // 仓库是「槽位网格」：客户端 DealDepotList 用 dptDt[v.slot] 索引页内图标
+            // （weapon_p_1..weapon_p_{pageSize}），页数直接取服务端下发的 pages，所以页数由槽位
+            // 容量决定。官方抓包（t=2, s=24）是 pages=5，即每个仓库固定 5 页；槽位超出容量
+            // （发放/扩容）时再按已用槽位扩容。
+            var maxUsedSlot = filtered.Count == 0 ? 0 : filtered.Max(x => x.Slot);
+            var capacity = Math.Max(Math.Max(pageSize * DepotPageCount, pageSize), maxUsedSlot);
             totalPages = Math.Max(1, (int)Math.Ceiling(capacity / (double)pageSize));
             currentPage = Math.Clamp(page <= 0 ? 1 : page, 1, totalPages);
             pageSlotStart = (currentPage - 1) * pageSize + 1;
@@ -87,9 +91,15 @@ internal partial class GameClient
 
         var pageOffset = (currentPage - 1) * pageSize;
 
-        var items = filtered
+        // 强化武器/材料列表（storage_item_filter, t=2）官方按 grade 降序 → 槽位升序下发
+        // （抓包 page1 顺序：槽位 1,2,3,10,13,18,19,20[3 级] → 8,22[2 级] → 6,9[1 级]）；
+        // 道具/宝石列表（t=3）与仓库列表一样是槽位升序。
+        var ordered = !pageBySlot && storageType == 2
+            ? filtered.OrderByDescending(x => x.Grade).ThenBy(x => x.Slot)
+            : filtered.OrderBy(x => x.Slot);
+
+        var items = ordered
             .Where(x => !pageBySlot || (x.Slot >= pageSlotStart && x.Slot <= pageSlotEnd))
-            .OrderBy(x => x.Slot)
             .Select(x =>
             {
                 var shopItem = ShopItemDatabase.GetShopItem(x.Sid);
@@ -118,13 +128,17 @@ internal partial class GameClient
                 return (object)new
                 {
                     pid = int.TryParse(x.Pid, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pidNum) ? pidNum : 0,
-                    // Normalize to on-page slot index (1..pageSize) so Lua UI doesn't index missing controls.
-                    slot = pageBySlot ? (x.Slot - pageOffset) : x.Slot,
+                    // 官方下发的 slot 是「绝对槽位 - 页偏移」（抓包：过滤列表第 2 页出现 -1/0/16），
+                    // 仓库列表里它正好等于页内槽位 1..pageSize，Lua 侧用 dptDt[v.slot] 索引图标。
+                    slot = x.Slot - pageOffset,
                     storageSlot = x.Slot,
                     resource = clientResource,
                     subtype = payloadSubtype,
                     subType = payloadSubType, // several client helpers read camel-case subType even for equipment
                     grade = x.Grade,
+                    // 客户端的「传承」加成预览会拿 menDt/menDt2.baseRank 比较（personalInfo.lua:1893），
+                    // 官方列表里每件装备都带这个字段，缺了 Lua 会拿 nil 比数字直接报错。
+                    baseRank = ResolveBaseRank(x),
                     level = shopItem?.Level ?? 0,
                     occupation,
                     avatarLevel = shopItem?.AvatarLevel ?? 0,
