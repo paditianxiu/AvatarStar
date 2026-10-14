@@ -1071,6 +1071,372 @@ internal sealed class PracticeRoomManager
         }
     }
 
+    /// <summary>
+    /// Heals the caster and the teammates around them (the guardian Battlefield Heal). Every client
+    /// draws the health bar from the health the server publishes (packet 184), so the heal has to be
+    /// applied here and published: a heal the client resolved on its own only moved the local copy
+    /// and the next server frame put the bar back.
+    /// </summary>
+    public async Task<GameHealBroadcastResult> HealGamePlayersAsync(
+        int roomId,
+        byte healerUid,
+        int healAmount,
+        float radius,
+        bool includeSelf,
+        string trigger)
+    {
+        (float X, float Y, float Z)? origin = null;
+        lock (_lock)
+        {
+            if (_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) &&
+                playersByUid.TryGetValue(healerUid, out var healer) &&
+                TryResolveProximityWorldPosition(healer, preferShoot: false, out var healerPosition))
+            {
+                origin = healerPosition;
+            }
+        }
+
+        return await HealGamePlayersAroundAsync(roomId, healerUid, origin, healAmount, radius, includeSelf, trigger);
+    }
+
+    /// <summary>
+    /// Heals every living teammate inside <paramref name="radius"/> of a world position - the
+    /// caster for the Battlefield Heal, the landing spot of the device for the Healing Beacon. A
+    /// null position can only heal the caster, because nothing else can be proven to be in range.
+    /// Wounded players only: a full bar has nothing to show, and a dead player gets its health
+    /// back from the respawn frame.
+    /// </summary>
+    public async Task<GameHealBroadcastResult> HealGamePlayersAroundAsync(
+        int roomId,
+        byte healerUid,
+        (float X, float Y, float Z)? origin,
+        int healAmount,
+        float radius,
+        bool includeSelf,
+        string trigger)
+    {
+        GameHealAction[] heals;
+        KeyValuePair<PracticeRoomChannelProtocol, byte>[] targets;
+        var healerHealth = 0;
+        var healerMaxHealth = 0;
+        lock (_lock)
+        {
+            heals = [];
+            targets = [];
+            if (healAmount <= 0)
+            {
+                return GameHealBroadcastResult.NotApplied("invalid-heal-amount");
+            }
+
+            if (!_roomsById.TryGetValue(roomId, out var room) ||
+                !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(healerUid, out var healer))
+            {
+                return GameHealBroadcastResult.NotApplied("healer-not-found");
+            }
+
+            var healerTeamId = ResolveGamePlayerTeamId(room, healer);
+            if (healerTeamId == GameTeamSpectator)
+            {
+                return GameHealBroadcastResult.NotApplied("healer-spectator");
+            }
+
+            // The health the server thinks the caster has is what decides whether a heal does
+            // anything at all (only a wounded bar is healed), so it is logged with the result: a
+            // "no-wounded-ally-in-range" line whose healerHealth already equals healerMaxHealth
+            // means the caster pressed the heal while the server still had them at full health.
+            healerHealth = healer.CurrentHealth;
+            healerMaxHealth = healer.MaxHealth;
+
+            var radiusSquared = radius > 0f ? radius * radius : 0f;
+            var healed = new List<GameHealAction>();
+            foreach (var player in playersByUid.Values.OrderBy(candidate => candidate.Uid))
+            {
+                if (player.CurrentHealth <= 0)
+                {
+                    continue;
+                }
+
+                if (player.Uid == healerUid)
+                {
+                    if (!includeSelf)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (!IsSameGameTeam(healerTeamId, ResolveGamePlayerTeamId(room, player)))
+                    {
+                        continue;
+                    }
+
+                    if (radiusSquared <= 0f ||
+                        origin is not { } originPosition ||
+                        !TryResolveProximityWorldPosition(player, preferShoot: false, out var playerPosition) ||
+                        DistanceSquared(
+                            originPosition.X,
+                            originPosition.Y,
+                            originPosition.Z,
+                            playerPosition.X,
+                            playerPosition.Y,
+                            playerPosition.Z) > radiusSquared)
+                    {
+                        continue;
+                    }
+                }
+
+                if (player.CurrentHealth >= player.MaxHealth)
+                {
+                    continue;
+                }
+
+                var previousHealth = player.CurrentHealth;
+                player.CurrentHealth = Math.Min(player.MaxHealth, player.CurrentHealth + healAmount);
+                healed.Add(new GameHealAction(
+                    HealerUid: healerUid,
+                    HealedUid: player.Uid,
+                    HealAmount: player.CurrentHealth - previousHealth,
+                    HealedHealth: player.CurrentHealth,
+                    HealedMaxHealth: player.MaxHealth));
+            }
+
+            if (healed.Count == 0)
+            {
+                Log.Warning(
+                    "Practice room skill heal skipped: roomId={RoomId} healerUid={HealerUid} amount={Amount} radius={Radius} trigger={Trigger} healerHealth={HealerHealth}/{HealerMaxHealth} reason={Reason}",
+                    roomId,
+                    healerUid,
+                    healAmount,
+                    radius,
+                    trigger,
+                    healerHealth,
+                    healerMaxHealth,
+                    "no-wounded-ally-in-range");
+                return GameHealBroadcastResult.NotApplied("no-wounded-ally-in-range");
+            }
+
+            heals = healed.ToArray();
+            targets = _gameChannelsByRoomId.TryGetValue(roomId, out var channels)
+                ? channels.ToArray()
+                : Array.Empty<KeyValuePair<PracticeRoomChannelProtocol, byte>>();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                foreach (var heal in heals)
+                {
+                    await target.Key.SendPacket184GameHealthAsync(heal.HealerUid, heal.HealedUid, heal.HealedHealth, trigger);
+                    // The healed player also gets its own state frame republished with the health the
+                    // server applied: packet111 is the frame the in-game /set health command uses to
+                    // publish the health the local client shows, so a heal that only travels as
+                    // packet184 can leave the healed client HUD on the old value.
+                    if (target.Value == heal.HealedUid)
+                    {
+                        await target.Key.SendLocalHealthRefreshAsync(heal.HealedHealth, trigger);
+                    }
+                }
+
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target.Key, out _);
+            }
+        }
+
+        Log.Information(
+            "Practice room skill heal: roomId={RoomId} healerUid={HealerUid} amount={Amount} radius={Radius} trigger={Trigger} healerHealth={HealerHealth}/{HealerMaxHealth} healed={Healed} broadcastCount={BroadcastCount}",
+            roomId,
+            healerUid,
+            healAmount,
+            radius,
+            trigger,
+            healerHealth,
+            healerMaxHealth,
+            FormatGameHealSummary(heals),
+            sent);
+
+        return new GameHealBroadcastResult(
+            Applied: true,
+            HealCount: heals.Length,
+            BroadcastCount: sent,
+            Reason: "applied");
+    }
+
+    /// <summary>
+    /// The guardian Shockwave: pushes every living enemy inside <paramref name="radius"/> of the
+    /// caster away from them. Packet 162 is the knockback frame the projectile path already uses
+    /// (its subtype is the shock ability, so the pushed client plays the shock reaction), and the
+    /// whole room receives it so every client corrects the pushed player.
+    /// <para>
+    /// Every pushed player is also sent the ability-open frame of the shock reaction (ability 4,
+    /// `buff/4.lua` = `s_shock_receive`), because the retail Shockwave ships no packet162 at all and a
+    /// client that drops the knockback frame would otherwise see nothing happen. The ability is
+    /// opened with the quick slot the cast came from, the same way the retail Battlefield Heal frame
+    /// carries its slot.
+    /// </para>
+    /// </summary>
+    /// <param name="reactionParameter">Quick slot the Shockwave was cast from (packet162 parameter).</param>
+    /// <param name="reactionAbilityId">Ability the pushed players open for the shock reaction.</param>
+    public async Task<GameKnockbackBroadcastResult> KnockbackGamePlayersInRadiusAsync(
+        int roomId,
+        byte attackerUid,
+        float radius,
+        float distance,
+        float lift,
+        byte reactionParameter,
+        byte reactionAbilityId,
+        string trigger)
+    {
+        GameKnockbackHit[] hits;
+        PracticeRoomChannelProtocol[] targets;
+        var teammateFallback = false;
+        lock (_lock)
+        {
+            hits = [];
+            targets = [];
+            if (distance <= 0f ||
+                !_roomsById.TryGetValue(roomId, out var room) ||
+                !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
+                !playersByUid.TryGetValue(attackerUid, out var attacker) ||
+                !TryResolveProximityWorldPosition(attacker, preferShoot: false, out var source))
+            {
+                return GameKnockbackBroadcastResult.NotApplied("attacker-position-missing");
+            }
+
+            var attackerTeamId = ResolveGamePlayerTeamId(room, attacker);
+            if (attackerTeamId == GameTeamSpectator)
+            {
+                return GameKnockbackBroadcastResult.NotApplied("attacker-spectator");
+            }
+
+            var radiusSquared = radius > 0f ? radius * radius : 0f;
+            var pushed = new List<GameKnockbackHit>();
+            // The retail Shockwave only pushes the nearby enemies. A practice room however puts
+            // every member on the same team (join slots 1-8 all resolve to the red team), so an
+            // enemy-only push is never observable there and the skill looks like it does nothing.
+            // The first pass therefore keeps the retail behaviour, and the second one - only used
+            // when the enemy pass found nobody - pushes the other nearby players of the caster own
+            // team. That is what makes the cast visible in a practice room; a room that really has
+            // an enemy in range still gets the retail enemy-only push.
+            for (var pass = 0; pass < 2 && pushed.Count == 0; pass++)
+            {
+                var allowTeammates = pass == 1;
+                foreach (var player in playersByUid.Values.OrderBy(candidate => candidate.Uid))
+                {
+                    if (player.Uid == attackerUid ||
+                        player.CurrentHealth <= 0 ||
+                        !IsGameKnockbackTarget(room, attackerTeamId, player, allowTeammates) ||
+                        !TryResolveProximityWorldPosition(player, preferShoot: false, out var target))
+                    {
+                        continue;
+                    }
+
+                    var directionX = target.X - source.X;
+                    var directionZ = target.Z - source.Z;
+                    var lengthSquared = (directionX * directionX) + (directionZ * directionZ);
+                    if (radiusSquared > 0f && lengthSquared > radiusSquared)
+                    {
+                        continue;
+                    }
+
+                    // A victim standing exactly on the caster has no direction to be pushed to,
+                    // and the knockback frame always carries a vector, so that degenerate case is
+                    // skipped.
+                    if (lengthSquared <= KnockbackMinDirectionLengthSquared)
+                    {
+                        continue;
+                    }
+
+                    var length = MathF.Sqrt(lengthSquared);
+                    pushed.Add(new GameKnockbackHit(
+                        VictimUid: player.Uid,
+                        Knockback: new GameKnockbackAction(
+                            BuffType: GameKnockbackAction.BlowUpBuffType,
+                            X: directionX / length * distance,
+                            Y: MathF.Max(0f, lift),
+                            Z: directionZ / length * distance)));
+                }
+
+                teammateFallback = pushed.Count > 0 && allowTeammates;
+            }
+
+            if (pushed.Count == 0)
+            {
+                return GameKnockbackBroadcastResult.NotApplied("no-enemy-in-range");
+            }
+
+            hits = pushed.ToArray();
+            targets = _gameChannelsByRoomId.TryGetValue(roomId, out var channels)
+                ? channels.Keys.ToArray()
+                : Array.Empty<PracticeRoomChannelProtocol>();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                foreach (var hit in hits)
+                {
+                    await target.SendPacket162RemoteKnockbackAsync(attackerUid, hit.VictimUid, hit.Knockback, trigger);
+                    // The push is the only frame the retail Shockwave never shows, so the reaction is
+                    // published on top of it with the ability-open family the client applies.
+                    await target.SendPacket162RemoteAbilityOpenAsync(
+                        attackerUid,
+                        hit.VictimUid,
+                        reactionParameter,
+                        reactionAbilityId,
+                        trigger);
+                }
+
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        Log.Information(
+            "Practice room skill knockback: roomId={RoomId} attackerUid={AttackerUid} radius={Radius} distance={Distance} lift={Lift} reactionParameter={ReactionParameter} trigger={Trigger} teammateFallback={TeammateFallback} pushed={Pushed} broadcastCount={BroadcastCount}",
+            roomId,
+            attackerUid,
+            radius,
+            distance,
+            lift,
+            reactionParameter,
+            trigger,
+            teammateFallback,
+            FormatGameKnockbackSummary(hits),
+            sent);
+
+        return new GameKnockbackBroadcastResult(
+            Applied: true,
+            HitCount: hits.Length,
+            BroadcastCount: sent,
+            Reason: teammateFallback ? "applied-teammate-fallback" : "applied",
+            VictimUids: hits.Select(hit => hit.VictimUid).ToArray());
+    }
+
+    private static string FormatGameHealSummary(IReadOnlyList<GameHealAction> heals)
+    {
+        return heals.Count == 0
+            ? "none"
+            : string.Join(",", heals.Select(heal => $"{heal.HealedUid}:{heal.HealAmount}"));
+    }
+
+    private static string FormatGameKnockbackSummary(IReadOnlyList<GameKnockbackHit> hits)
+    {
+        return hits.Count == 0
+            ? "none"
+            : string.Join(",", hits.Select(hit => $"{hit.VictimUid}:{hit.Knockback.X:F1}/{hit.Knockback.Z:F1}"));
+    }
+
     public bool TryFindGamePlayerPositionByName(
         int roomId,
         string characterName,
@@ -1677,13 +2043,23 @@ internal sealed class PracticeRoomManager
 
     /// <summary>
     /// Relays an in-game skill/equipment activation (packet 136 -&gt; packet 160) to the other
-    /// players of the room.
+    /// players of the room, followed by the packet 162 ability frame the activation opens. Packet162
+    /// is what actually turns a self-buff (Stealth, Deadly Sprint, the guardian heals) on, so
+    /// relaying packet 160 alone left every teammate blind to the effect: the caster opened the
+    /// ability from its own local frame, but no other client ever received one. The relay anchors
+    /// the frame on the caster uid (see
+    /// <see cref="PracticeRoomChannelProtocol.SendPacket162RemoteSkillEffectOpenAsync"/>), and a
+    /// skill without a captured frame (placed abilities such as Trap) relays nothing. The caster is
+    /// skipped on purpose: it already sent its own packet 160 / packet 162 before this relay runs.
     /// </summary>
     public async Task<int> BroadcastGameSkillActivateAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
         byte actorUid,
         byte slot,
+        int skillId,
+        int buffId,
+        int skillLevel,
         string trigger)
     {
         PracticeRoomChannelProtocol[] targets;
@@ -1706,6 +2082,20 @@ internal sealed class PracticeRoomManager
             try
             {
                 await target.SendPacket160GameSkillActivateAsync(actorUid, slot, trigger);
+                // A negative ability id means the slot holds no skill (a weapon, an empty slot), so
+                // there is no ability frame to relay. The guardian Battlefield Heal really is ability
+                // 0, which is why the gate is "at least 0" and not "greater than 0".
+                if (buffId >= 0)
+                {
+                    await target.SendPacket162RemoteSkillEffectOpenAsync(
+                        skillId,
+                        actorUid,
+                        slot,
+                        buffId,
+                        skillLevel,
+                        trigger);
+                }
+
                 sent++;
             }
             catch
@@ -1726,6 +2116,8 @@ internal sealed class PracticeRoomManager
         int roomId,
         byte actorUid,
         byte[] payload,
+        int skillId,
+        int skillLevel,
         string trigger)
     {
         PracticeRoomChannelProtocol[] targets;
@@ -1745,7 +2137,52 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket185GameSkillCastAsync(actorUid, payload, trigger);
+                await target.SendPacket185GameSkillCastAsync(actorUid, payload, skillId, skillLevel, trigger);
+                sent++;
+            }
+            catch
+            {
+                UnregisterGameChannel(roomId, target, out _);
+            }
+        }
+
+        return sent;
+    }
+
+    /// <summary>
+    /// Relays a packet155 ability state (open or close) to the other players of the room. Packet155
+    /// carries the caster uid and the ability ("buff") id, so a teammate closes exactly the ability
+    /// the relayed packet162 frame opened on the caster - without it a teammate keeps rendering the
+    /// caster Stealth/Sprint aura for the rest of the match. The caster is skipped on purpose: it
+    /// already sent its own packet155 before this relay runs.
+    /// </summary>
+    public async Task<int> BroadcastGameSkillCastStateAsync(
+        int roomId,
+        PracticeRoomChannelProtocol source,
+        byte actorUid,
+        byte abilityId,
+        string trigger)
+    {
+        PracticeRoomChannelProtocol[] targets;
+
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            {
+                return 0;
+            }
+
+            targets = channels.Keys
+                .Where(channel => !ReferenceEquals(channel, source))
+                .ToArray();
+        }
+
+        var sent = 0;
+        foreach (var target in targets)
+        {
+            try
+            {
+                await target.SendPacket155SkillCastStateAsync(actorUid, abilityId, trigger);
                 sent++;
             }
             catch
@@ -2294,6 +2731,32 @@ internal sealed class PracticeRoomManager
                sourceTeamId != targetTeamId;
     }
 
+    private static bool IsSameGameTeam(byte sourceTeamId, byte targetTeamId)
+    {
+        return sourceTeamId != GameTeamSpectator && sourceTeamId == targetTeamId;
+    }
+
+    /// <summary>
+    /// Who a Shockwave push may hit: the nearby enemies on the retail pass, the nearby teammates of
+    /// the caster on the practice-room fallback pass (see
+    /// <see cref="KnockbackGamePlayersInRadiusAsync"/>).</summary>
+    private static bool IsGameKnockbackTarget(
+        PracticeRoomSession room,
+        byte attackerTeamId,
+        GamePlayerRuntime player,
+        bool allowTeammates)
+    {
+        var targetTeamId = ResolveGamePlayerTeamId(room, player);
+        if (targetTeamId == GameTeamSpectator)
+        {
+            return false;
+        }
+
+        return allowTeammates
+            ? IsSameGameTeam(attackerTeamId, targetTeamId)
+            : IsEnemyTeam(attackerTeamId, targetTeamId);
+    }
+
     private static GamePlayerRuntime SelectDamageVictim(
         GamePlayerRuntime attacker,
         IReadOnlyList<GamePlayerRuntime> candidates,
@@ -2788,6 +3251,40 @@ internal sealed class PracticeRoomManager
             0,
             GameTeamSpectator,
             float.MaxValue);
+    }
+
+    /// <summary>One health bar the server moved, with the amount that was actually restored.</summary>
+    internal readonly record struct GameHealAction(
+        byte HealerUid,
+        byte HealedUid,
+        int HealAmount,
+        int HealedHealth,
+        int HealedMaxHealth);
+
+    internal readonly record struct GameHealBroadcastResult(
+        bool Applied,
+        int HealCount,
+        int BroadcastCount,
+        string Reason)
+    {
+        public static GameHealBroadcastResult NotApplied(string reason) => new(false, 0, 0, reason);
+    }
+
+    /// <summary>One pushed player and the knockback vector its clients have to play.</summary>
+    internal readonly record struct GameKnockbackHit(
+        byte VictimUid,
+        GameKnockbackAction Knockback);
+
+    /// <summary>One Shockwave push result, including the players every client has to react on.</summary>
+    internal readonly record struct GameKnockbackBroadcastResult(
+        bool Applied,
+        int HitCount,
+        int BroadcastCount,
+        string Reason,
+        byte[] VictimUids)
+    {
+        public static GameKnockbackBroadcastResult NotApplied(string reason) =>
+            new(false, 0, 0, reason, Array.Empty<byte>());
     }
 
     internal readonly record struct GamePlayerSnapshot(

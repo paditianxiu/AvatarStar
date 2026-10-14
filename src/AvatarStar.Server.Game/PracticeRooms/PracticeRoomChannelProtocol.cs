@@ -42,24 +42,154 @@ internal sealed class PracticeRoomChannelProtocol
     private const byte GameSkillActivateStateFlag = 1;
     // In-game ability release. Packet 136 (above) only starts the quick-slot ability; the client
     // follows up with packet 152 (`0x98 ...`) carrying the resolved cast payload, and the retail
-    // server relays it to the room as packet 185 (`0x40 01 <payload> 00 00 00 00 00 00 00`) so the
-    // ability plays for every client, the caster included.
+    // server relays it to the room as packet 185 so the ability plays for every client, the caster
+    // included. The relay frame is `<caster uid> <kind> <packet152 payload> <param u32> <00 00 00>`
+    // and the kind / param pair belongs to the placed ability (see CapturedSkillCastFrames): the
+    // Assault Trap ships `<uid> 01 <payload> 00 00 00 00 00 00 00`, the Guardian Healing Beacon
+    // ships `<uid> 02 <payload> B8 0B 00 00 00 00 00` (kind 2, param 3000 = the mode-1 total heal).
+    // Relaying the Trap frame for every placement made the client spawn the beacon as a mine.
     private const short GameSkillCastRequestPacketId = 152;
     private const short GameSkillCastBroadcastPacketId = 185;
-    private const byte GameSkillCastBroadcastFlag = 1;
+    private const byte GameSkillCastBroadcastDefaultKind = 1;
     private const int GameSkillCastBroadcastTrailingBytes = 7;
-    // In-game ability release acknowledgement. The retail server answers the client packet 152 cast
-    // with packet 155 (`0x40 00 00 00 <slot> 00`) before relaying the cast to the room.
+    // In-game ability state. Packet 155 (`0x9B 00 <uid> 00 00 00 <abilityId> 00`) carries only the
+    // ability ("buff") id, and it is the state CLOSE, not the state open. The retail capture pairs
+    // every packet162 ability frame with exactly one packet155 for the same ability id later on: the
+    // three abilities opened by packet162 at 23:00:21 (17 and 25 from quick slot 13, 16 from quick
+    // slot 14) are closed by the three packet155 sent when the player leaves the match at 23:00:32,
+    // while the abilities opened at 23:00:24 / 23:00:26 (15 stealth, 6 spurt) are closed as soon as
+    // the player activates the next quick slot (23:00:26 / 23:00:28). Packet162 carries the ability
+    // parameters (stealth ships duration 20s and detection 6m) whereas packet155 carries the bare
+    // id, which is the wrong way round for an "open": the parameters are needed to open an ability,
+    // not to close it. Answering packet136 with packet155 right away therefore closes the ability
+    // that the packet162 frame just opened, which is the "plays the animation but has no effect"
+    // symptom on the self-buffs (Stealth/Sprint). Placed abilities such as Trap send no packet162
+    // frame and have no ability state to close, which is why only they kept working.
     private const short GameSkillCastStatePacketId = 155;
     private const byte GameSkillCastStateTrailingByte = 0;
-    // Byte offsets inside a captured packet162 effect frame, which lays out as
-    // `A2 00 <count> <cast time (f32)> 0x40 <slot> <ability id> ...`. The retail server opens the
-    // ability (packet 155) only after that cast time has elapsed, which is why packet 155 trails
-    // packet 160/162 by roughly the cast time in the captured session.
+
+    // Guardian support skills. Packets 160/162 only make the client play the ability; the effect
+    // itself has to be resolved by the server, because every client draws its health bar from the
+    // health the server publishes (packet 184, see SendPacket184GameHealthAsync). The shipped
+    // client text (AvatarStar_cache/scripts/game_text.lua) is the only authority for the numbers:
+    // tips_abilities_Battlefield_Heal_modeN = 600/700/800/900/1000 HP inside an 8m radius
+    // ("immediately heals the caster and the teammates around them"), tips_abilities_Shockwave_modeN
+    // = a 6m radius ("instantly releases the energy and pushes the nearby enemies back") and
+    // tips_abilities_Healing_Beacon_modeN = 150/200/250/300/350 HP every 2 seconds inside a 5m
+    // radius out of a 3000/4000/5000/6000/8000 HP total.
+    private const int GuardianBattlefieldHealSkillId = 0;
+    private const int GuardianShockwaveSkillId = 3;
+    private const int GuardianHealingBeaconSkillId = 14;
+    private const float GuardianBattlefieldHealRadius = 8f;
+    private const float GuardianShockwaveRadius = 6f;
+    private const float GuardianShockwaveKnockbackDistance = 6f;
+    private const float GuardianShockwaveKnockbackLift = 2.5f;
+    // The reaction the pushed client plays: `AvatarStar_cache/buff/4.lua` =
+    // `buff:AddBuffEffect("s_shock_receive")` is the receive effect of the shock ability, and it is
+    // the ability id the guardian skill table publishes for Shockwave (SkillCatalog), so it is opened
+    // on every pushed player and closed again once the reaction has played.
+    private const byte GuardianShockwaveReactionAbilityId = 4;
+    private static readonly TimeSpan GuardianShockwaveReactionCloseDelay = TimeSpan.FromSeconds(1.5f);
+    private const float GuardianHealingBeaconRadius = 5f;
+    private const int GuardianHealingBeaconMaxPulses = 32;
+    private static readonly TimeSpan GuardianHealingBeaconPulseInterval = TimeSpan.FromSeconds(2);
+    private static readonly int[] GuardianBattlefieldHealAmounts = [600, 700, 800, 900, 1000];
+    private static readonly int[] GuardianHealingBeaconPulseAmounts = [150, 200, 250, 300, 350];
+    // Kept in sync with CapturedSkillCastFrames[14]: the packet185 frame ships the same total.
+    private static readonly int[] GuardianHealingBeaconTotals = [3000, 4000, 5000, 6000, 8000];
+
+    // Byte offsets inside a captured packet162 effect frame. Packet162 belongs to the same "remote
+    // object delta" family as packet113/184 (the knockback/damage frames this file already writes):
+    // `A2 00 <delta flags u32> <actor uid> <target uid> <subtype> <ability id> ...`. The five frames
+    // captured from the retail server carry 0x0101800B / 0x01008003 / 0x0100000B as their flags word,
+    // whose low byte always has GameObjectDeltaActorUidFlag (0x01) and GameObjectDeltaTargetUidFlag
+    // (0x02) set - that is what makes the two uid bytes follow - and the capture session ran with uid
+    // 0x40, which is exactly the value both identity bytes hold. A self-buff ships actor == target, so
+    // both bytes have to be rewritten with the local uid; everything else is replayed verbatim.
+    private const int GameSkillEffectOpenLegacyCastTimeOffset = 3;
+    private const int GameSkillEffectOpenCasterUidOffset = 6;
+    private const int GameSkillEffectOpenTargetUidOffset = 7;
     private const int GameSkillEffectOpenSlotOffset = 8;
-    private const int GameSkillEffectOpenCastTimeOffset = 3;
     private const float GameSkillAbilityOpenMaxCastSeconds = 5f;
+
+    // How an activation (packet136) is answered with the packet155 ability state:
+    //   cancel  (default) packet162 opens the ability and packet155 only closes the ability the
+    //           previous quick slot opened, exactly like the retail capture
+    //   cast    keeps sending packet155 once the packet162 cast time elapsed (patch 14 behaviour)
+    //   instant sends packet155 right after packet160/162 (patch 12/13 behaviour)
+    //   off     never answers packet136 with packet155
+    // Override with AS_SKILL_ABILITY_MODE=cancel|cast|instant|off to compare without a rebuild.
+    private const string SkillAbilityModeEnvironmentVariable = "AS_SKILL_ABILITY_MODE";
+    private const GameSkillAbilityMode DefaultSkillAbilityMode = GameSkillAbilityMode.Cancel;
+    private static readonly GameSkillAbilityMode SkillAbilityMode = ResolveSkillAbilityMode();
+
+    private enum GameSkillAbilityMode
+    {
+        Cancel,
+        CastTime,
+        Instant,
+        Off,
+    }
+
+    private static GameSkillAbilityMode ResolveSkillAbilityMode()
+    {
+        var raw = Environment.GetEnvironmentVariable(SkillAbilityModeEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return DefaultSkillAbilityMode;
+        }
+
+        return raw.Trim().ToLowerInvariant() switch
+        {
+            "cancel" or "close" => GameSkillAbilityMode.Cancel,
+            "cast" or "casttime" => GameSkillAbilityMode.CastTime,
+            "instant" or "immediate" => GameSkillAbilityMode.Instant,
+            "off" or "none" => GameSkillAbilityMode.Off,
+            _ => DefaultSkillAbilityMode,
+        };
+    }
+
+    // Which packet162 identity bytes are rewritten with the local player uid. The retail capture
+    // carried uid 0x40 in both of them, and the client discards an effect frame whose caster is not
+    // one of the players in the match, which shows up as "the quick slot animates but nothing is
+    // applied", so both are rewritten by default.
+    // Override with AS_SKILL_UID_MODE=both|actor|target|none to compare without a rebuild.
+    private const string SkillEffectUidModeEnvironmentVariable = "AS_SKILL_UID_MODE";
+    private const SkillEffectUidMode DefaultSkillEffectUidMode = SkillEffectUidMode.Both;
+    private static readonly SkillEffectUidMode SkillEffectUid = ResolveSkillEffectUidMode();
+
+    private enum SkillEffectUidMode
+    {
+        Both,
+        Actor,
+        Target,
+        None,
+    }
+
+    private static SkillEffectUidMode ResolveSkillEffectUidMode()
+    {
+        var raw = Environment.GetEnvironmentVariable(SkillEffectUidModeEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return DefaultSkillEffectUidMode;
+        }
+
+        return raw.Trim().ToLowerInvariant() switch
+        {
+            "both" or "all" => SkillEffectUidMode.Both,
+            "actor" or "head" or "first" => SkillEffectUidMode.Actor,
+            "target" or "tail" or "last" => SkillEffectUidMode.Target,
+            "none" or "off" or "verbatim" => SkillEffectUidMode.None,
+            _ => DefaultSkillEffectUidMode,
+        };
+    }
+
     private const short InitialGamePlayerActionStateFlags = 0x0002;
+    // Every captured packet111 (the Assault and the Guardian session alike) is 35 bytes long: the
+    // field list this file writes (opcode + uid + health + state + five floats) is 29 bytes, and the
+    // retail frame carries six more zero bytes after the yaw. The local state frame is written with
+    // the same field count so the client parses the health the server publishes.
+    private const int GameLocalStateTrailingBytes = 6;
     private const byte GamePlayerListTerminator = 0;
     private const int PlayerEnteringClearRetryCount = 3;
     private const int GameActionAlternateWeaponCode = 0x0F;
@@ -127,6 +257,17 @@ internal sealed class PracticeRoomChannelProtocol
         GameObjectDeltaTargetUidFlag |
         GameObjectDeltaSubtypeFlag |
         GameObjectDeltaOriginFlag;
+
+    // The ability-open frames packet162 is replayed from (Battlefield Heal `A2 00 01 00 00 0B .. .. 04
+    // 00 00`, Stealth `A2 00 01 01 80 0B ..`) all carry ActorUid + TargetUid + Action + Subtype, so
+    // the two identity bytes follow the flags word in every one of them. An ability that is opened on
+    // another player (the Shockwave reaction, see SendPacket162RemoteAbilityOpenAsync) needs the same
+    // word, only with a different target uid.
+    private const int GameRemoteAbilityOpenObjectDeltaFlags =
+        GameObjectDeltaActorUidFlag |
+        GameObjectDeltaTargetUidFlag |
+        GameObjectDeltaActionFlag |
+        GameObjectDeltaSubtypeFlag;
     private const byte GameRemoteShootActionByte = 1;
     private const byte GameRemoteShootSkipTargetMarker = 0xFE;
     private const int DefaultGameHurtDamage = 100;
@@ -862,6 +1003,10 @@ internal sealed class PracticeRoomChannelProtocol
 
     private ChannelState _state = ChannelState.AwaitClientSeed;
     private int _currentRoomId;
+    // Set when the socket is gone, so deferred sends scheduled by a skill activation (the packet155
+    // ability state reply, and the retries that follow the in-game init) are skipped instead of
+    // throwing ObjectDisposedException on a dead socket.
+    private volatile bool _clientDisconnected;
     private uint _xorInState;
     private uint _xorOutState;
     private int _playerEnteringClearRetriesRemaining;
@@ -878,6 +1023,14 @@ internal sealed class PracticeRoomChannelProtocol
     private byte _previousWeaponSlot;
     private PracticeRoomManager.PracticeRoomSession? _currentGameRoom;
     private readonly HashSet<byte> _knownGamePlayerUids = new();
+    // Ability ids the local player currently has open on the client (opened by the packet162
+    // ability frame of a quick slot). Packet 155 closes them, so they are sent when another quick
+    // slot is activated, the way the retail server does.
+    private readonly HashSet<byte> _openSkillAbilityIds = new();
+
+    // Live Healing Beacon pulse loops (one per placed device). Each loop heals the teammates
+    // around the device every two seconds until the level's total heal is used up.
+    private readonly HashSet<CancellationTokenSource> _healingBeaconLoops = new();
     private readonly Dictionary<byte, DateTimeOffset> _lastSpecialWeaponRearmBySlot = new();
     private readonly Dictionary<string, DateTimeOffset> _recentProjectileNotifyByKey = new();
     private CancellationTokenSource? _knifeAutoRearmCts;
@@ -920,6 +1073,7 @@ internal sealed class PracticeRoomChannelProtocol
 
     public void OnClientDisconnected()
     {
+        _clientDisconnected = true;
         _ = CleanupAfterDisconnectAsync();
     }
 
@@ -1825,6 +1979,7 @@ internal sealed class PracticeRoomChannelProtocol
         _currentWeaponSlot = 0;
         _previousWeaponSlot = 0;
         _knownGamePlayerUids.Clear();
+        _openSkillAbilityIds.Clear();
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -1837,6 +1992,7 @@ internal sealed class PracticeRoomChannelProtocol
         _setWeaponFireTimeOverridesByItemId.Clear();
         StopKnifeAutoRearmLoop();
         StopGameMatchTimerLoop();
+        StopHealingBeaconLoops();
     }
 
     private async Task HandlePacket6RoomChangeOptionAsync(PacketReader reader)
@@ -2133,6 +2289,7 @@ internal sealed class PracticeRoomChannelProtocol
         _currentWeaponSlot = 0;
         _previousWeaponSlot = 0;
         _knownGamePlayerUids.Clear();
+        _openSkillAbilityIds.Clear();
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -2140,6 +2297,7 @@ internal sealed class PracticeRoomChannelProtocol
         _hasLastGameMovementInputByte = false;
         StopKnifeAutoRearmLoop();
         StopGameMatchTimerLoop();
+        StopHealingBeaconLoops();
 
         if (!UseLegacyHotbarBootstrapSequence)
         {
@@ -2586,7 +2744,9 @@ internal sealed class PracticeRoomChannelProtocol
             broadcastCount);
     }
 
-    private async Task SendLocalStateUiRefreshAsync(string trigger, int? healthOverride = null)
+    private async Task SendLocalStateUiRefreshAsync(
+        string trigger,
+        int? healthOverride = null)
     {
         if (_currentGameRoom is null)
         {
@@ -2626,6 +2786,16 @@ internal sealed class PracticeRoomChannelProtocol
             position.XRaw,
             position.YRaw,
             position.ZRaw);
+    }
+
+    /// <summary>
+    /// Publishes the health the server just gave the local player (the guardian heals) through the
+    /// frame that drives the local health bar: packet111 carries the health word the client shows, so a
+    /// heal that only travels as packet184 can leave the local HUD on the old value.
+    /// </summary>
+    internal Task SendLocalHealthRefreshAsync(int health, string trigger)
+    {
+        return SendLocalStateUiRefreshAsync(trigger, health);
     }
 
     private async Task RefreshLocalCharacterCreateAsync(string trigger)
@@ -2863,9 +3033,9 @@ internal sealed class PracticeRoomChannelProtocol
     /// In-game skill/equipment activation (`0x88 &lt;slot&gt;`). The slot matches the packet103
     /// character equipment block, so profession skills (type 1) can be activated from the in-game
     /// skill bar. The retail server acknowledges the activation with packet 160, pushes the packet
-    /// 162 ability effect frame when the ability opens an aura/buff, opens the in-game ability state
-    /// with packet 155 so the ability actually fires, and passes the activation on to the other
-    /// players in the room.
+    /// 162 ability effect frame when the ability opens an aura/buff (that frame is what opens the
+    /// ability on the client) and closes the ability the previous quick slot opened with packet
+    /// 155, then passes the activation on to the other players in the room.
     /// </summary>
     private async Task HandlePacket136GameSkillActivateAsync(PacketReader reader)
     {
@@ -2883,18 +3053,47 @@ internal sealed class PracticeRoomChannelProtocol
         var skillId = ResolveGameEquipmentSkillId(room, slot);
         var definition = ResolveGameEquipmentSkillDefinition(room, slot);
 
+        // Packet155 closes ability states, so whatever the previous quick slot left open is closed
+        // first, exactly like the retail server (its packet155 for the old ability id arrives right
+        // before the packet160 acknowledgement of the new slot).
+        var closedAbilityCount = await CloseOpenSkillAbilitiesAsync("packet136");
         await SendPacket160GameSkillActivateAsync(_localGameUid, slot, "packet136-local");
-        var effectOpenSent = definition is not null &&
-            await SendPacket162SkillEffectOpenAsync(definition.Id, slot, "packet136-local");
-        // Activating a quick slot only arms the ability client-side; the ability itself fires once
-        // the server opens its in-game ability state. The retail server opens it with packet 155
-        // carrying the ability ("buff") id, and it does so after the packet162 cast time, which is
-        // why the quick slot is not echoed back here.
         var buffId = definition?.BuffId ?? -1;
-        var castSeconds = definition is null ? 0f : ResolveSkillEffectCastTimeSeconds(definition.Id);
-        var buffOpenScheduled = buffId >= 0;
-        if (buffOpenScheduled)
+        var skillLevel = ResolveGameEquipmentSkillLevel(room, slot);
+        var effectOpenSent = definition is not null &&
+            await SendPacket162SkillEffectOpenAsync(definition.Id, slot, buffId, skillLevel, "packet136-local");
+        // The packet162 frame carries the ability parameters and is what opens the ability on the
+        // client, so the ability id it opened is remembered and closed when a later activation
+        // replaces it - but only for the abilities the retail server really replaces (see
+        // CapturedSkillEffectFrame.ClosedOnReplace). The ability-id-only frames (Fatal Shot, Poison
+        // Pierce, Trap and the guardian Battlefield Heal / Achilles Heel) and Arrow Shower stay open
+        // until the match ends, so closing them on the next press would end an effect the retail
+        // server keeps running.
+        var abilityOpened = effectOpenSent && buffId >= 0;
+        if (abilityOpened && definition is not null && SkillAbilityReplacedOnNextActivation(definition.Id))
         {
+            _openSkillAbilityIds.Add((byte)buffId);
+        }
+        // The retail server never answers an activation with packet155: the capture presses
+        // Battlefield Heal, Shockwave, Arrow Shower, Healing Beacon and Achilles Heel back to back
+        // and only the Arrow Shower ever gets a packet155, seconds later, once its volley is done.
+        // Packet155 closes an ability state (see CloseOpenSkillAbilitiesAsync), it does not open one,
+        // so answering the press with a 155 killed the state the placement had just established: the
+        // Healing Beacon stopped emitting its heal pulses and the enemy device occupying the same
+        // small ability id (Healing Beacon ships ability 1) was torn down with it. Only the legacy
+        // modes still answer the activation.
+        var abilityStateReply = SkillAbilityMode switch
+        {
+            GameSkillAbilityMode.Off => false,
+            GameSkillAbilityMode.Cancel => false,
+            _ => true,
+        };
+        var castSeconds = 0f;
+        if (abilityStateReply && buffId >= 0)
+        {
+            castSeconds = SkillAbilityMode == GameSkillAbilityMode.CastTime && definition is not null
+                ? ResolveSkillEffectCastTimeSeconds(definition.Id)
+                : 0f;
             ScheduleSkillAbilityOpen((byte)buffId, castSeconds, "packet136-ability");
         }
 
@@ -2905,17 +3104,40 @@ internal sealed class PracticeRoomChannelProtocol
                 this,
                 _localGameUid,
                 slot,
+                skillId,
+                buffId,
+                skillLevel,
                 "packet136");
+        // Packet 160/162 only drive the client animation; the effect (the guardian heal amount,
+        // the Shockwave push) is resolved and published by the server, exactly like the damage of
+        // the shooting path. It is only resolved for a slot that really holds a profession skill: a
+        // weapon or empty slot resolves to skill id 0 as well, and skill 0 is also the guardian
+        // Battlefield Heal, so acting on the raw id fired a heal for every weapon key press.
+        if (definition is not null)
+        {
+            await ApplyGameSkillActivationEffectAsync(room, definition.Id, slot, skillLevel, "packet136-effect");
+        }
+        else
+        {
+            Log.Debug(
+                "Channel packet136 <- {Remote}: slot={Slot} holds no profession skill, no server effect applied ({SlotSummary})",
+                _remoteLabel,
+                slot,
+                slotSummary);
+        }
 
         Log.Information(
-            "Channel packet136 <- {Remote}: slot={Slot} activated ({SlotSummary}); skillId={SkillId} buffId={BuffId} packet160 ack sent, packet162 effectOpen={EffectOpenSent}, packet155 abilityOpen={BuffOpenScheduled} castSeconds={CastSeconds}, peerBroadcastCount={BroadcastCount}",
+            "Channel packet136 <- {Remote}: slot={Slot} activated ({SlotSummary}); skillId={SkillId} level={SkillLevel} buffId={BuffId} mode={Mode} packet160 ack sent, packet162 effectOpen={EffectOpenSent}, closedAbilities={ClosedAbilityCount}, packet155 abilityStateReply={AbilityStateReply} replyDelaySeconds={CastSeconds}, peerBroadcastCount={BroadcastCount}",
             _remoteLabel,
             slot,
             slotSummary,
             skillId,
+            skillLevel,
             buffId,
+            SkillAbilityMode,
             effectOpenSent,
-            buffOpenScheduled,
+            closedAbilityCount,
+            abilityStateReply,
             castSeconds,
             broadcastCount);
     }
@@ -2924,7 +3146,8 @@ internal sealed class PracticeRoomChannelProtocol
     /// In-game ability release (`0x98 ...`). Packet 136 only starts the quick-slot ability; once the
     /// client has resolved where the ability lands it releases it with packet 152, and the retail
     /// server relays that cast to the room as packet 185 so every client plays the same effect. The
-    /// ability state (packet 155) was already opened when the quick slot was activated.
+    /// ability state of a self-buff (packet 155) is closed when the quick slot that opened it is
+    /// replaced, so a release only has to be relayed.
     /// </summary>
     private async Task HandlePacket152GameSkillCastAsync(PacketReader reader)
     {
@@ -2947,22 +3170,41 @@ internal sealed class PracticeRoomChannelProtocol
         var slotSummary = room is null
             ? "no-active-room"
             : DescribeGameEquipmentSlot(room, castSlot);
-        // The retail server answers a packet152 release with the packet185 relay only; the ability
-        // state (packet155) was already opened when the quick slot was activated with packet136.
+        // The retail server answers a packet152 release with the packet185 relay only: placed
+        // abilities such as Trap and the guardian Healing Beacon carry their effect in the packet152
+        // payload, and their quick slot opened no packet162/155 ability state at all. The packet185
+        // frame itself is per ability (kind + parameter), so the skill and its invested level travel
+        // with the relay instead of every placement reusing the Trap frame.
         var castBuffId = ResolveGameEquipmentSkillBuffId(room, castSlot);
+        var castSkillId = ResolveGameEquipmentSkillId(room, castSlot);
+        var castSkillLevel = ResolveGameEquipmentSkillLevel(room, castSlot);
         var broadcastCount = room is null
             ? 0
             : await _practiceRoomManager.BroadcastGameSkillCastAsync(
                 room.RoomId,
                 _localGameUid,
                 payload,
+                castSkillId,
+                castSkillLevel,
                 "packet152");
+        if (room is not null && castSkillId == GuardianHealingBeaconSkillId)
+        {
+            // The device pulses where it landed, not where the caster stands, so the landing
+            // position travels with the release payload.
+            StartHealingBeaconLoop(
+                castSkillId,
+                castSkillLevel,
+                ResolveGameSkillCastWorldPosition(payload),
+                "packet152");
+        }
 
         Log.Information(
-            "Channel packet152 <- {Remote}: skill release slot={Slot} ({SlotSummary}) buffId={BuffId} payloadBytes={PayloadBytes} hex={PayloadHex}; packet185 relayed to {BroadcastCount} channel(s)",
+            "Channel packet152 <- {Remote}: skill release slot={Slot} ({SlotSummary}) skillId={SkillId} level={Level} buffId={BuffId} payloadBytes={PayloadBytes} hex={PayloadHex}; packet185 relayed to {BroadcastCount} channel(s)",
             _remoteLabel,
             castSlot,
             slotSummary,
+            castSkillId,
+            castSkillLevel,
             castBuffId,
             payload.Length,
             Convert.ToHexString(payload),
@@ -2979,24 +3221,82 @@ internal sealed class PracticeRoomChannelProtocol
     }
 
     /// <summary>
-    /// Reads the cast time carried by a captured packet162 effect frame, or 0 when the skill has no
-    /// captured frame (the retail server sends no packet162 for placed abilities such as Trap).
+    /// Whether the retail server closes the ability a packet162 frame opened as soon as another
+    /// quick slot is activated. The capture only shows that for Stealth and Deadly Sprint; every
+    /// other frame stays open until the player leaves the match.
+    /// </summary>
+    private static bool SkillAbilityReplacedOnNextActivation(int skillId)
+    {
+        return CapturedSkillEffectFrames.TryGetValue(skillId, out var captured) && captured.ClosedOnReplace;
+    }
+
+    /// <summary>
+    /// Reads the float patch 14 mistook for the packet162 cast time (it is really the delta flags
+    /// word), or 0 when the skill has no captured frame (the retail server sends no packet162 for
+    /// placed abilities such as Trap). Only the legacy <see cref="GameSkillAbilityMode.CastTime"/>
+    /// mode still uses it, to keep sending packet155 the way patch 14 did.
     /// </summary>
     private static float ResolveSkillEffectCastTimeSeconds(int skillId)
     {
-        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var template) ||
-            template.Length < GameSkillEffectOpenCastTimeOffset + sizeof(float))
+        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var captured) ||
+            captured.Template.Length < GameSkillEffectOpenLegacyCastTimeOffset + sizeof(float))
         {
             return 0f;
         }
 
-        return BitConverter.ToSingle(template, GameSkillEffectOpenCastTimeOffset);
+        return BitConverter.ToSingle(captured.Template, GameSkillEffectOpenLegacyCastTimeOffset);
     }
 
     /// <summary>
-    /// Opens the in-game ability state (packet 155) of an activated quick slot the way the retail
-    /// server does: right away for abilities without a cast time, otherwise once the packet162 cast
-    /// time has elapsed.
+    /// Sends packet 155 for every ability the local player currently has open and forgets them. The
+    /// retail server sends it when another quick slot is activated (and, at match end, for every
+    /// ability still open), so this is what actually ends a self-buff such as Stealth or Sprint.
+    /// </summary>
+    private async Task<int> CloseOpenSkillAbilitiesAsync(string trigger)
+    {
+        if (_openSkillAbilityIds.Count == 0)
+        {
+            return 0;
+        }
+
+        var abilityIds = _openSkillAbilityIds.ToArray();
+        _openSkillAbilityIds.Clear();
+        foreach (var abilityId in abilityIds)
+        {
+            await SendPacket155SkillCastStateAsync(_localGameUid, abilityId, trigger + "-close");
+            // The other players opened the same ability from the relayed packet162 frame, so they
+            // need the same state close or a teammate keeps showing the caster's Stealth/Sprint aura
+            // for the rest of the match.
+            await BroadcastSkillCastStateToPeersAsync(abilityId, trigger + "-close");
+        }
+
+        return abilityIds.Length;
+    }
+
+    /// <summary>
+    /// Relays one packet155 ability state to the other players of the room, anchored on the local
+    /// player, so an ability the caster opened or ended looks the same on every client.
+    /// </summary>
+    private async Task BroadcastSkillCastStateToPeersAsync(byte abilityId, string trigger)
+    {
+        var room = _currentGameRoom;
+        if (room is null)
+        {
+            return;
+        }
+
+        await _practiceRoomManager.BroadcastGameSkillCastStateAsync(
+            room.RoomId,
+            this,
+            _localGameUid,
+            abilityId,
+            trigger);
+    }
+
+    /// <summary>
+    /// Answers a quick-slot activation with the packet 155 ability state. Only abilities that
+    /// opened no ability state take this path in the default <see cref="GameSkillAbilityMode.Cancel"/>
+    /// mode (placed abilities such as Trap); the legacy modes keep sending it for their reply.
     /// </summary>
     private void ScheduleSkillAbilityOpen(byte abilityId, float castSeconds, string trigger)
     {
@@ -3013,15 +3313,76 @@ internal sealed class PracticeRoomChannelProtocol
                 await Task.Delay(delay);
             }
 
-            await SendPacket155SkillCastStateAsync(abilityId, trigger);
+            // The reply can be scheduled seconds into the future, so the room may already be gone
+            // by the time it fires: drop it instead of writing to a disposed socket.
+            if (_clientDisconnected)
+            {
+                return;
+            }
+
+            await SendPacket155SkillCastStateAsync(_localGameUid, abilityId, trigger);
+            await BroadcastSkillCastStateToPeersAsync(abilityId, trigger);
         }
         catch (Exception ex)
         {
-            Log.Verbose(
+            Log.Debug(
                 ex,
-                "Channel packet155 -> {Remote}: ability state id={AbilityId} trigger={Trigger} failed",
+                "Channel packet155 -> {Remote}: ability state uid={Uid} id={AbilityId} trigger={Trigger} failed",
                 _remoteLabel,
                 abilityId,
+                trigger);
+        }
+    }
+
+    /// <summary>
+    /// The Shockwave reaction ability is opened on the pushed clients by the knockback broadcast, so
+    /// it is closed again once the reaction has played: the retail server ends a queued ability state
+    /// the same way (its Arrow Shower ability 3 gets a packet155 once the volley is done), and a state
+    /// nobody ever closes keeps the receive effect attached to the pushed player for the whole match.
+    /// </summary>
+    private void ScheduleShockwaveReactionClose(byte[] victimUids, string trigger)
+    {
+        _ = RunShockwaveReactionCloseAsync(victimUids, GuardianShockwaveReactionCloseDelay, trigger);
+    }
+
+    private async Task RunShockwaveReactionCloseAsync(byte[] victimUids, TimeSpan delay, string trigger)
+    {
+        try
+        {
+            await Task.Delay(delay);
+            if (_clientDisconnected)
+            {
+                return;
+            }
+
+            var room = _currentGameRoom;
+            if (room is null)
+            {
+                return;
+            }
+
+            foreach (var victimUid in victimUids)
+            {
+                await _practiceRoomManager.BroadcastGameSkillCastStateAsync(
+                    room.RoomId,
+                    this,
+                    victimUid,
+                    GuardianShockwaveReactionAbilityId,
+                    trigger + "-reaction");
+            }
+
+            Log.Debug(
+                "Channel packet155 -> {Remote}: shockwave reaction state closed victims={Victims} trigger={Trigger}",
+                _remoteLabel,
+                Convert.ToHexString(victimUids),
+                trigger);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(
+                ex,
+                "Channel packet155 -> {Remote}: shockwave reaction state close failed trigger={Trigger}",
+                _remoteLabel,
                 trigger);
         }
     }
@@ -3112,6 +3473,35 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Resolves the invested level of the profession skill held by a character equipment block slot (0
+    /// when the slot holds a weapon, an empty slot or an unlearned skill). Leveled skill data such as
+    /// the Arrow Shower volley size is picked with this level, so it follows the points the player
+    /// actually spent.
+    /// </summary>
+    private int ResolveGameEquipmentSkillLevel(
+        PracticeRoomManager.PracticeRoomSession? room,
+        byte slot)
+    {
+        if (room is null)
+        {
+            return 0;
+        }
+
+        var playerState = GetLocalPlayerState(room);
+        var loadoutItems = playerState?.GetGameLoadoutItems() ??
+            Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
+        foreach (var item in GetSupportedGameEquipmentBlockItems(loadoutItems))
+        {
+            if (item.Slot == slot && item.ItemType == (byte)ShopItemDatabase.ItemType.Skill)
+            {
+                return item.SkillLevel;
+            }
+        }
+
+        return 0;
     }
 
     private async Task HandlePacket137GameClientReadyAsync(PacketReader reader)
@@ -5161,43 +5551,95 @@ internal sealed class PracticeRoomChannelProtocol
     }
 
     /// <summary>
-    /// Packet 185: relays an in-game ability release (client packet 152) to a room client. The
-    /// layout matches the retail server: `0x40 01 &lt;payload&gt; 00 00 00 00 00 00 00`.
-    /// layout matches the retail server: `&lt;caster uid&gt; 01 &lt;payload&gt; 00 00 00 00 00 00 00`.
+    /// Per placed ability packet185 relay frame, captured from the retail sessions: the byte right
+    /// after the caster uid (the kind the client keys the spawned object on) plus the u32 parameter
+    /// the trailing bytes carry. The Assault Trap (quick slot 6) relays `01 &lt;payload&gt; 00 00 00 00
+    /// 00 00 00` and the Guardian Healing Beacon (quick slot 7) relays `02 &lt;payload&gt; B8 0B 00 00 00
+    /// 00 00`. Abilities without a capture fall back to the Trap layout, which is the frame the retail
+    /// server sends for an unparameterised placement.
     /// </summary>
-    internal Task SendPacket185GameSkillCastAsync(byte actorUid, byte[] payload, string trigger)
+    /// <param name="Kind">Byte the client keys the placed object on (1 = trap/mine, 2 = device).</param>
+    /// <param name="Parameters">
+    /// Ability parameter per invested level (index 0 = level 1), written into the trailing u32; null
+    /// when the frame carries no parameter and the trailing bytes stay zero.
+    /// </param>
+    private sealed record CapturedSkillCastFrame(byte Kind, int[]? Parameters = null);
+
+    private static readonly Dictionary<int, CapturedSkillCastFrame> CapturedSkillCastFrames = new()
     {
+        // Assault Trap: kind 1 with no parameter. Keep it explicit so a placement that is not in the
+        // table cannot silently inherit the beacon kind.
+        [13] = new(Kind: 1),
+        // Guardian Healing Beacon: kind 2 and the total heal the retail server reports for the
+        // invested level (`tips_abilities_Healing_Beacon_modeN` = 3000/4000/5000/6000/8000).
+        [14] = new(Kind: 2, Parameters: [3000, 4000, 5000, 6000, 8000])
+    };
+
+    private static int ResolveSkillCastParameter(int[]? parameters, int level)
+    {
+        if (parameters is null || parameters.Length == 0)
+        {
+            return 0;
+        }
+
+        return parameters[Math.Clamp(level, 1, parameters.Length) - 1];
+    }
+
+    /// <summary>
+    /// Packet 185: relays an in-game ability release (client packet 152) to a room client. The layout
+    /// matches the retail server: `&lt;caster uid&gt; &lt;kind&gt; &lt;payload&gt; &lt;param u32&gt; 00 00 00`, with the
+    /// kind / parameter pair taken from <see cref="CapturedSkillCastFrames"/> so each placed ability
+    /// spawns the object the retail server spawns (the beacon used to come out as a mine because the
+    /// Trap frame was replayed for it).
+    /// </summary>
+    internal Task SendPacket185GameSkillCastAsync(
+        byte actorUid,
+        byte[] payload,
+        int skillId,
+        int skillLevel,
+        string trigger)
+    {
+        var captured = CapturedSkillCastFrames.TryGetValue(skillId, out var frame)
+            ? frame
+            : new CapturedSkillCastFrame(GameSkillCastBroadcastDefaultKind);
+        var parameter = ResolveSkillCastParameter(captured.Parameters, skillLevel);
+
         using var writer = new PacketWriter();
 
         writer.WriteShort(GameSkillCastBroadcastPacketId);
         writer.WriteByte(actorUid);
-        writer.WriteByte(GameSkillCastBroadcastFlag);
+        writer.WriteByte(captured.Kind);
         writer.WriteRaw(payload);
-        for (var i = 0; i < GameSkillCastBroadcastTrailingBytes; i++)
+        writer.WriteInt(parameter);
+        for (var i = 0; i < GameSkillCastBroadcastTrailingBytes - sizeof(int); i++)
         {
             writer.WriteByte(0);
         }
 
         Log.Debug(
-            "Channel packet185 -> {Remote}: skill cast relay trigger={Trigger} payloadBytes={PayloadBytes} hex={PayloadHex}",
+            "Channel packet185 -> {Remote}: skill cast relay trigger={Trigger} skillId={SkillId} level={Level} kind={Kind} parameter={Parameter} payloadBytes={PayloadBytes} hex={PayloadHex}",
             _remoteLabel,
             trigger,
+            skillId,
+            skillLevel,
+            captured.Kind,
+            parameter,
             payload.Length,
             Convert.ToHexString(payload));
         return SendPacketAsync(writer);
     }
 
     /// <summary>
-    /// Packet 155: opens/acknowledges an in-game ability state (`0x40 00 00 00 &lt;abilityId&gt; 00`). The
-    /// retail server sends it when an activated ability takes effect, i.e. once the packet162 cast
-    /// time of the quick slot has elapsed; the payload byte is the ability ("buff") id, not the quick
-    /// slot.
+    /// Packet 155: closes an in-game ability state (`0x40 00 00 00 &lt;abilityId&gt; 00`). The payload byte
+    /// is the ability ("buff") id, not the quick slot. See <see cref="CloseOpenSkillAbilitiesAsync"/>:
+    /// the retail server sends it when the ability the packet162 frame opened has to end, not to
+    /// open it.
     /// </summary>
-    internal Task SendPacket155SkillCastStateAsync(byte abilityId, string trigger)
+    internal Task SendPacket155SkillCastStateAsync(byte actorUid, byte abilityId, string trigger)
     {
         using var writer = new PacketWriter();
         writer.WriteShort(GameSkillCastStatePacketId);
-        writer.WriteByte(_localGameUid);
+        writer.WriteByte(actorUid);
         writer.WriteByte(0);
         writer.WriteByte(0);
         writer.WriteByte(0);
@@ -5205,53 +5647,456 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(GameSkillCastStateTrailingByte);
 
         Log.Debug(
-            "Channel packet155 -> {Remote}: ability state id={AbilityId} trigger={Trigger}",
+            "Channel packet155 -> {Remote}: ability state uid={Uid} id={AbilityId} trigger={Trigger}",
             _remoteLabel,
+            actorUid,
             abilityId,
             trigger);
         return SendPacketAsync(writer);
     }
 
     /// <summary>
-    /// Packet 162: opens the in-game effect of a quick-slot ability right after packet 160. The
+    /// Packet 162: opens the in-game ability of a quick-slot ability right after packet 160. The
     /// payload carries the ability parameters the client applies to the caster and the retail server
-    /// fills it from its own skill tables. The frames below were captured verbatim from the retail
-    /// server; the only byte the client correlates with the packet136 request is the quick slot, so
-    /// the captured frame is replayed with that byte substituted. Abilities without a captured frame
-    /// (placed abilities such as Trap travel through the packet152/185 path instead) still receive the
-    /// packet160 acknowledgement plus the packet 155 ability state.
+    /// fills it from its own skill tables; the frame is what actually turns the ability on, which is
+    /// why the ability id it opened goes into the open-ability set closed later by packet155. The
+    /// frames below were captured verbatim from the retail server and are replayed byte for byte,
+    /// except for the identity bytes the client correlates with the packet136 request: the actor uid,
+    /// plus the quick slot and ability id whenever the captured frame actually stores them.
+    /// Abilities without a captured frame (placed abilities such as Trap travel through the
+    /// packet152/185 path instead) send no packet162 and have no ability state to open or close.
     /// </summary>
-    private static readonly Dictionary<int, byte[]> CapturedSkillEffectFrames = new()
+    /// <param name="Template">Captured frame, replayed verbatim.</param>
+    /// <param name="Slot">Quick slot the captured frame was produced for.</param>
+    /// <param name="BuffId">In-game ability ("buff") id the captured frame opens.</param>
+    /// <param name="ClosedOnReplace">
+    /// True when the retail server closes this ability again as soon as another quick slot is
+    /// activated (Stealth and Deadly Sprint); false for the abilities that stay open until the
+    /// player leaves the match.
+    /// </param>
+    /// <param name="VolleyCounts">
+    /// Number of projectiles the ability fires per invested level (index 0 = level 1) for the
+    /// abilities whose captured frame stores that count in the slot-shaped byte instead of a quick
+    /// slot (Arrow Shower); null for every other ability.
+    /// </param>
+    private sealed record CapturedSkillEffectFrame(
+        byte[] Template,
+        byte Slot,
+        byte BuffId,
+        bool ClosedOnReplace = false,
+        int[]? VolleyCounts = null);
+
+    private static readonly Dictionary<int, CapturedSkillEffectFrame> CapturedSkillEffectFrames = new()
     {
-        [2] = Convert.FromHexString("A2000101800B4040040F000000A0410000C040"),
-        [5] = Convert.FromHexString("A2000100000B40400E1000"),
-        [8] = Convert.FromHexString("A2000100000B40400D1100"),
-        [11] = Convert.FromHexString("A200010080034040060000000040"),
+        // Assault session (retail capture log-2026-10-13.txt): both self-buff frames carry ability
+        // parameters and the retail server replaces them on the next activation (the Sprint press
+        // closes Stealth, the Trap press closes Deadly Sprint).
+        [2] = new(Convert.FromHexString("A2000101800B4040040F000000A0410000C040"), Slot: 4, BuffId: 15, ClosedOnReplace: true),
+        [5] = new(Convert.FromHexString("A2000100000B40400E1000"), Slot: 14, BuffId: 16),
+        [8] = new(Convert.FromHexString("A2000100000B40400D1100"), Slot: 13, BuffId: 17),
+        [11] = new(Convert.FromHexString("A200010080034040060000000040"), Slot: 5, BuffId: 6, ClosedOnReplace: true),
+        // Guardian session (retail capture log-2026-10-14.txt, quick slots 4/5/6/7/13): Battlefield
+        // Heal, Achilles Heel and Arrow Shower are the only guardian slots the retail server answers
+        // with a packet162 frame, and none of them is replaced on the next activation. Shockwave
+        // ships no frame at all (its cast effect plays locally once the packet160 ack arrives) and
+        // Healing Beacon resolves through the packet152/185 placement path exactly like Trap.
+        // Battlefield Heal ships the shortest frame of the family: `A2 00 <flags> 40 40 <slot>
+        // <ability> 00` (11 bytes), nothing after the ability byte because the heal amount lives in
+        // the client tables (game_text `tips_abilities_Battlefield_Heal_modeN` = 600..2000). An
+        // earlier revision stored a 12th byte by mistake; the frame is a delta block whose field
+        // count has to match the flags word, so the client dropped the whole frame and the ability
+        // never opened - the heal animation played (local cast effect) but nothing was ever healed.
+        [0] = new(Convert.FromHexString("A2000100000B4040040000"), Slot: 4, BuffId: 0),
+        [6] = new(Convert.FromHexString("A2000100000B40400D0D00"), Slot: 13, BuffId: 13),
+        // Arrow Shower packs the volley size where the other frames carry the quick slot - the retail
+        // frame ships 02 on quick slot 6 and the shipped game_text agrees (`tips_abilities_
+        // Arrow_Shower_modeN` = 箭矢数 2/3/4/5/6 for modes 1-5, 9 for mode 6) - so the frame is not
+        // slot-rewritten and the client instead fires the volley the invested level buys. The client
+        // shoots those arrows itself (one packet106 action pose per arrow, which the server relays as
+        // packet113), so this byte is what makes the count follow the skill level.
+        [9] = new(
+            Convert.FromHexString("A200010000134040020300"),
+            Slot: 6,
+            BuffId: 3,
+            VolleyCounts: [2, 3, 4, 5, 6, 9]),
     };
 
-    internal async Task<bool> SendPacket162SkillEffectOpenAsync(int skillId, byte slot, string trigger)
+    /// <summary>
+    /// Builds the packet162 ability frame for a skill, or null when the skill has no captured frame
+    /// (placed abilities such as Trap and the guardian Shockwave, whose cast effect the client plays
+    /// locally). Everything is replayed verbatim, exactly like the retail frames: after the flags
+    /// word and the uid pair the frame carries the ability parameter byte, the ability id and, for
+    /// the abilities that ship parameters, the parameter floats (Stealth carries 20.0s of
+    /// invisibility and a 6m detection radius). The parameter / ability bytes are only rewritten
+    /// when the captured frame actually stores them, so a frame that packs the ability id in the
+    /// slot-shaped byte (Deadly Sprint ships 06, the spurt ability, on quick slot 5) is not
+    /// corrupted by a blind slot write. The identity bytes are left as captured: the senders stamp
+    /// them, because the uid they need differs between the caster and every other room client.
+    /// </summary>
+    private static byte[]? BuildSkillEffectFrame(int skillId, byte slot, int buffId, int level)
     {
-        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var template) ||
-            template.Length <= GameSkillEffectOpenSlotOffset)
+        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var captured) ||
+            captured.Template.Length <= GameSkillEffectOpenSlotOffset)
+        {
+            return null;
+        }
+
+        var frame = (byte[])captured.Template.Clone();
+        if (captured.VolleyCounts is { Length: > 0 } volleyCounts)
+        {
+            // Arrow Shower: the byte carries the volley size the invested level buys, so the retail
+            // frame's constant 2 (mode 1) is replaced by the captured table.
+            frame[GameSkillEffectOpenSlotOffset] = (byte)ResolveSkillVolleyCount(volleyCounts, level);
+        }
+        else if (frame[GameSkillEffectOpenSlotOffset] == captured.Slot)
+        {
+            frame[GameSkillEffectOpenSlotOffset] = slot;
+        }
+
+        var abilityOffset = GameSkillEffectOpenSlotOffset + 1;
+        if (buffId is > 0 and <= byte.MaxValue && frame[abilityOffset] == captured.BuffId)
+        {
+            frame[abilityOffset] = (byte)buffId;
+        }
+
+        return frame;
+    }
+
+    internal async Task<bool> SendPacket162SkillEffectOpenAsync(
+        int skillId,
+        byte slot,
+        int buffId,
+        int level,
+        string trigger)
+    {
+        var frame = BuildSkillEffectFrame(skillId, slot, buffId, level);
+        if (frame is null)
         {
             return false;
         }
 
-        var frame = (byte[])template.Clone();
-        frame[GameSkillEffectOpenSlotOffset] = slot;
+        // Every in-game packet (160/155/185/...) carries the actor uid right after its opcode, and the
+        // captured frames still hold the retail player's uid (0x40 in the capture session) in BOTH
+        // identity bytes. Leaving them in place makes the client drop the frame as another player's
+        // effect, so the ability never opens locally: the quick slot plays its wind-up, but no aura,
+        // no invisibility and no movement buff is ever applied.
+        if (SkillEffectUid != SkillEffectUidMode.None &&
+            frame.Length > GameSkillEffectOpenTargetUidOffset)
+        {
+            if (SkillEffectUid != SkillEffectUidMode.Target)
+            {
+                frame[GameSkillEffectOpenCasterUidOffset] = _localGameUid;
+            }
+
+            if (SkillEffectUid != SkillEffectUidMode.Actor)
+            {
+                frame[GameSkillEffectOpenTargetUidOffset] = _localGameUid;
+            }
+        }
 
         using var writer = new PacketWriter();
         writer.WriteRaw(frame);
 
         Log.Debug(
-            "Channel packet162 -> {Remote}: skill effect open skillId={SkillId} slot={Slot} trigger={Trigger} hex={Hex}",
+            "Channel packet162 -> {Remote}: skill effect open skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} uidMode={UidMode} hex={Hex}",
             _remoteLabel,
             skillId,
             slot,
+            level,
+            trigger,
+            SkillEffectUid,
+            Convert.ToHexString(frame));
+        await SendPacketAsync(writer);
+        return true;
+    }
+
+    /// <summary>
+    /// Relays the packet162 ability frame to another room client. The frame is what turns the ability
+    /// on for whoever reads it, so it has to be anchored on the CASTER: both identity bytes carry the
+    /// caster's in-game uid, exactly like the captured self-frames do. Stamping the receiver's own
+    /// uid would apply the aura/invisibility to the wrong player, which is why the relay needs its
+    /// own sender instead of reusing the local one.
+    /// </summary>
+    internal async Task<bool> SendPacket162RemoteSkillEffectOpenAsync(
+        int skillId,
+        byte actorUid,
+        byte slot,
+        int buffId,
+        int level,
+        string trigger)
+    {
+        var frame = BuildSkillEffectFrame(skillId, slot, buffId, level);
+        if (frame is null)
+        {
+            return false;
+        }
+
+        if (frame.Length > GameSkillEffectOpenTargetUidOffset)
+        {
+            frame[GameSkillEffectOpenCasterUidOffset] = actorUid;
+            frame[GameSkillEffectOpenTargetUidOffset] = actorUid;
+        }
+
+        using var writer = new PacketWriter();
+        writer.WriteRaw(frame);
+
+        Log.Debug(
+            "Channel packet162 -> {Remote}: remote skill effect open actorUid={ActorUid} skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} hex={Hex}",
+            _remoteLabel,
+            actorUid,
+            skillId,
+            slot,
+            level,
             trigger,
             Convert.ToHexString(frame));
         await SendPacketAsync(writer);
         return true;
+    }
+
+    /// <summary>
+    /// Picks the volley size the captured Arrow Shower table buys for the invested level, clamped to
+    /// the captured range (an unlearned skill fires the mode-1 volley, exactly like the retail frame
+    /// that ships 2 arrows).
+    /// </summary>
+    private static int ResolveSkillVolleyCount(int[] counts, int level)
+    {
+        return counts[Math.Clamp(level, 1, counts.Length) - 1];
+    }
+    /// <summary>
+    /// Picks the value the invested level buys from a per-level table (index 0 = level 1), clamped
+    /// to the table, so an unlearned skill resolves the mode-1 value exactly like the retail frames.
+    /// </summary>
+    private static int ResolveSkillLevelValue(int[] values, int level)
+    {
+        return values[Math.Clamp(level, 1, values.Length) - 1];
+    }
+
+    /// <summary>
+    /// Applies what a quick-slot activation really does on the server. Packet 160/162 only make the
+    /// client play the animation: the health bars every client renders come from the health the
+    /// server publishes (packet 184), so the guardian heals and the Shockwave push have to be
+    /// resolved here exactly like the shooting path resolves its damage. Without this the ability
+    /// opened on the client - aura, icon and animation - but nothing ever changed on the bars.
+    /// </summary>
+    private async Task ApplyGameSkillActivationEffectAsync(
+        PracticeRoomManager.PracticeRoomSession? room,
+        int skillId,
+        byte slot,
+        int skillLevel,
+        string trigger)
+    {
+        if (room is null)
+        {
+            return;
+        }
+
+        switch (skillId)
+        {
+            case GuardianBattlefieldHealSkillId:
+            {
+                var amount = ResolveSkillLevelValue(GuardianBattlefieldHealAmounts, skillLevel);
+                var result = await _practiceRoomManager.HealGamePlayersAsync(
+                    room.RoomId,
+                    _localGameUid,
+                    amount,
+                    GuardianBattlefieldHealRadius,
+                    includeSelf: true,
+                    trigger);
+
+                Log.Information(
+                    "Channel skill effect -> {Remote}: trigger={Trigger} skillId={SkillId} level={Level} battlefield-heal amount={Amount} radius={Radius} applied={Applied} healCount={HealCount} broadcastCount={BroadcastCount} reason={Reason}",
+                    _remoteLabel,
+                    trigger,
+                    skillId,
+                    skillLevel,
+                    amount,
+                    GuardianBattlefieldHealRadius,
+                    result.Applied,
+                    result.HealCount,
+                    result.BroadcastCount,
+                    result.Reason);
+                break;
+            }
+
+            case GuardianShockwaveSkillId:
+            {
+                var result = await _practiceRoomManager.KnockbackGamePlayersInRadiusAsync(
+                    room.RoomId,
+                    _localGameUid,
+                    GuardianShockwaveRadius,
+                    GuardianShockwaveKnockbackDistance,
+                    GuardianShockwaveKnockbackLift,
+                    slot,
+                    GuardianShockwaveReactionAbilityId,
+                    trigger);
+                if (result.Applied && result.VictimUids.Length > 0)
+                {
+                    ScheduleShockwaveReactionClose(result.VictimUids, trigger);
+                }
+
+                Log.Information(
+                    "Channel skill effect -> {Remote}: trigger={Trigger} skillId={SkillId} level={Level} shockwave radius={Radius} applied={Applied} hitCount={HitCount} broadcastCount={BroadcastCount} reason={Reason}",
+                    _remoteLabel,
+                    trigger,
+                    skillId,
+                    skillLevel,
+                    GuardianShockwaveRadius,
+                    result.Applied,
+                    result.HitCount,
+                    result.BroadcastCount,
+                    result.Reason);
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Decodes the landing position of a placed ability from the packet152 payload
+    /// (`&lt;01&gt; &lt;slot&gt; &lt;x raw&gt; &lt;y raw&gt; &lt;z raw&gt; ...`). The raw shorts use the same 256-per-metre scale
+    /// as the movement position and the shoot origin, so the device can be resolved against the
+    /// server side player positions when its pulses are applied.
+    /// </summary>
+    private static (float X, float Y, float Z)? ResolveGameSkillCastWorldPosition(byte[] payload)
+    {
+        const int positionOffset = 2;
+        if (payload.Length < positionOffset + (3 * sizeof(short)))
+        {
+            return null;
+        }
+
+        var x = BitConverter.ToInt16(payload, positionOffset) / MovementRawCoordinateScale;
+        var y = BitConverter.ToInt16(payload, positionOffset + sizeof(short)) / MovementRawCoordinateScale;
+        var z = BitConverter.ToInt16(payload, positionOffset + (2 * sizeof(short))) / MovementRawCoordinateScale;
+        if (!float.IsFinite(x) || !float.IsFinite(y) || !float.IsFinite(z))
+        {
+            return null;
+        }
+
+        return (x, y, z);
+    }
+
+    /// <summary>
+    /// Starts the pulse loop of a placed Healing Beacon: every two seconds it heals the teammates
+    /// (the owner included, since the device heals whoever fights next to it) around the landing
+    /// position for the per-pulse amount the invested level buys, until the level's total heal is
+    /// spent. Every device owns its loop, so placing a second beacon does not end the first one;
+    /// the loops end with the match (see StopHealingBeaconLoops).
+    /// </summary>
+    private void StartHealingBeaconLoop(
+        int skillId,
+        int skillLevel,
+        (float X, float Y, float Z)? position,
+        string trigger)
+    {
+        var cts = new CancellationTokenSource();
+        lock (_healingBeaconLoops)
+        {
+            _healingBeaconLoops.Add(cts);
+        }
+
+        _ = RunHealingBeaconLoopAsync(skillId, skillLevel, position, trigger, cts);
+    }
+
+    private void StopHealingBeaconLoops()
+    {
+        CancellationTokenSource[] loops;
+        lock (_healingBeaconLoops)
+        {
+            loops = _healingBeaconLoops.ToArray();
+        }
+
+        // Each loop disposes its own cancellation source when it observes the cancellation.
+        foreach (var loop in loops)
+        {
+            loop.Cancel();
+        }
+    }
+
+    private async Task RunHealingBeaconLoopAsync(
+        int skillId,
+        int skillLevel,
+        (float X, float Y, float Z)? position,
+        string trigger,
+        CancellationTokenSource cts)
+    {
+        var roomId = _currentGameRoom?.RoomId ?? 0;
+        var cancellationToken = cts.Token;
+        try
+        {
+            var perPulse = ResolveSkillLevelValue(GuardianHealingBeaconPulseAmounts, skillLevel);
+            var remaining = ResolveSkillLevelValue(GuardianHealingBeaconTotals, skillLevel);
+            var pulses = 0;
+            await Task.Delay(GuardianHealingBeaconPulseInterval, cancellationToken);
+            while (!cancellationToken.IsCancellationRequested &&
+                   remaining > 0 &&
+                   pulses < GuardianHealingBeaconMaxPulses)
+            {
+                if (_clientDisconnected ||
+                    _state != ChannelState.InGame ||
+                    _currentGameRoom is not { } room ||
+                    room.RoomId != roomId)
+                {
+                    break;
+                }
+
+                pulses++;
+                var amount = Math.Min(perPulse, remaining);
+                var result = await _practiceRoomManager.HealGamePlayersAroundAsync(
+                    roomId,
+                    _localGameUid,
+                    position,
+                    amount,
+                    GuardianHealingBeaconRadius,
+                    includeSelf: true,
+                    $"{trigger}-beacon-pulse");
+
+                Log.Information(
+                    "Channel skill effect -> {Remote}: trigger={Trigger} skillId={SkillId} level={Level} beacon-pulse pulse={Pulse} amount={Amount} radius={Radius} applied={Applied} healCount={HealCount} broadcastCount={BroadcastCount} remaining={Remaining} reason={Reason}",
+                    _remoteLabel,
+                    trigger,
+                    skillId,
+                    skillLevel,
+                    pulses,
+                    amount,
+                    GuardianHealingBeaconRadius,
+                    result.Applied,
+                    result.HealCount,
+                    result.BroadcastCount,
+                    remaining,
+                    result.Reason);
+
+                if (result.Applied)
+                {
+                    // Only a pulse that really healed somebody spends the level's total heal; a
+                    // beacon pulsing at nobody keeps its budget for the next pulse.
+                    remaining -= amount;
+                }
+
+                await Task.Delay(GuardianHealingBeaconPulseInterval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(
+                ex,
+                "Channel skill effect -> {Remote}: beacon pulse loop failed trigger={Trigger} skillId={SkillId}",
+                _remoteLabel,
+                trigger,
+                skillId);
+        }
+        finally
+        {
+            lock (_healingBeaconLoops)
+            {
+                if (_healingBeaconLoops.Remove(cts))
+                {
+                    cts.Dispose();
+                }
+            }
+        }
     }
 
     internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
@@ -5290,26 +6135,108 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    /// <summary>
+    /// Packet 184: publishes the current health of a player. It is the frame the verified damage
+    /// path uses (its int32 field is the resulting health, so damage lowers the bar and a heal
+    /// raises it) and the frame the in-game /set health command already uses to move the bar.
+    /// </summary>
+    internal Task SendPacket184GameHealthAsync(byte attackerUid, byte victimUid, int health, string trigger)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(GameRemoteDamageHitPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteDamageHitObjectDeltaFlags);
+        writer.WriteByte(attackerUid);
+        writer.WriteByte(victimUid);
+        writer.WriteInt(health);
+
+        Log.Information(
+            "Channel packet184 -> {Remote}: health update attackerUid={AttackerUid} victimUid={VictimUid} health={Health} trigger={Trigger}",
+            _remoteLabel,
+            attackerUid,
+            victimUid,
+            health,
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
     internal Task SendPacket162RemoteKnockbackAsync(
         PracticeRoomManager.GameDamageAction damage,
         PracticeRoomManager.GameKnockbackAction knockback)
+    {
+        return SendPacket162RemoteKnockbackAsync(
+            damage.AttackerUid,
+            damage.VictimUid,
+            knockback,
+            "damage-knockback");
+    }
+
+    /// <summary>
+    /// Packet 162 knockback frame (the delta family sibling of the ability frame): the victim uid
+    /// pair plus the ability subtype and the push vector. Subtype 4 is the shock ability, so the
+    /// pushed client plays the shock reaction.
+    /// </summary>
+    internal Task SendPacket162RemoteKnockbackAsync(
+        byte attackerUid,
+        byte victimUid,
+        PracticeRoomManager.GameKnockbackAction knockback,
+        string trigger)
     {
         using var writer = new PacketWriter();
 
         writer.WriteShort(GameRemoteBuffOpenPacketId);
         WriteGameObjectDeltaFlags(writer, GameRemoteKnockbackObjectDeltaFlags);
-        writer.WriteByte(damage.AttackerUid);
-        writer.WriteByte(damage.VictimUid);
+        writer.WriteByte(attackerUid);
+        writer.WriteByte(victimUid);
         writer.WriteShort(knockback.BuffType);
         WriteCompressedVector3(writer, knockback.X, knockback.Y, knockback.Z);
 
         Log.Information(
-            "Channel packet162 -> {Remote}: knockback attackerUid={AttackerUid} victimUid={VictimUid} buffType={BuffType} vector={Vector}",
+            "Channel packet162 -> {Remote}: knockback attackerUid={AttackerUid} victimUid={VictimUid} buffType={BuffType} vector={Vector} trigger={Trigger}",
             _remoteLabel,
-            damage.AttackerUid,
-            damage.VictimUid,
+            attackerUid,
+            victimUid,
             knockback.BuffType,
-            FormatGameVector3(knockback.X, knockback.Y, knockback.Z));
+            FormatGameVector3(knockback.X, knockback.Y, knockback.Z),
+            trigger);
+        return SendPacketAsync(writer);
+    }
+
+    /// <summary>
+    /// Packet 162 ability-open frame addressed to another player: `<flags> <actor uid> <target uid>
+    /// <parameter> <ability> 00`. It is the exact shape of the retail Battlefield Heal frame (11
+    /// bytes, flags 0x0B000001 = actor uid + target uid + action + subtype), the only ability-open
+    /// family this client is known to apply, so it is what publishes the Shockwave reaction: the
+    /// pushed client opens ability 4 (`AvatarStar_cache/buff/4.lua` = `s_shock_receive`, the receive
+    /// effect the client plays when it is thrown back) while the rest of the room sees the same
+    /// reaction on the victim. The parameter byte is the quick slot the cast came from, exactly like
+    /// the captured Battlefield Heal frame carries its slot in that position.
+    /// </summary>
+    internal Task SendPacket162RemoteAbilityOpenAsync(
+        byte actorUid,
+        byte targetUid,
+        byte parameter,
+        byte abilityId,
+        string trigger)
+    {
+        using var writer = new PacketWriter();
+
+        writer.WriteShort(GameRemoteBuffOpenPacketId);
+        WriteGameObjectDeltaFlags(writer, GameRemoteAbilityOpenObjectDeltaFlags);
+        writer.WriteByte(actorUid);
+        writer.WriteByte(targetUid);
+        writer.WriteByte(parameter);
+        writer.WriteByte(abilityId);
+        writer.WriteByte(0);
+
+        Log.Information(
+            "Channel packet162 -> {Remote}: remote ability open actorUid={ActorUid} targetUid={TargetUid} parameter={Parameter} abilityId={AbilityId} trigger={Trigger}",
+            _remoteLabel,
+            actorUid,
+            targetUid,
+            parameter,
+            abilityId,
+            trigger);
         return SendPacketAsync(writer);
     }
 
@@ -6324,6 +7251,12 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteString(TrimProtocolString(resource, 63));
         writer.WriteString(TrimProtocolString(display, 255));
         writer.WriteFloat(definition?.ResolveCooldown(item.SkillLevel) ?? 0f);
+        // The block ships the skill's own effect radius, exactly like the retail server: the
+        // 2026-10-14 Guardian session reports 8.0 / 6.0 / 0.0 / 5.0 / 0.0 for Battlefield Heal,
+        // Shockwave, Arrow Shower, Healing Beacon and Achilles Heel, while the Assault session
+        // reports 0.0 for Stealth, Deadly Sprint and Trap (those tables carry no radius, so the
+        // field stays 0.0 for them). Writing a constant 0.0 here dropped the guardian radii the
+        // client needs to resolve those cast ranges, which is why the table value is shipped.
         writer.WriteFloat(definition?.ResolveDistance(item.SkillLevel) ?? 0f);
         // The retail equipment block reports 1 only for skills the player can really cast and 0 for
         // passive ones, so mirror the skill's active flag instead of always writing the usable flag.
@@ -7610,27 +8543,39 @@ internal sealed class PracticeRoomChannelProtocol
         }
 
         using var writer = new PacketWriter();
+        var runtimeHealth = ResolveLocalRuntimeHealth(_currentGameRoom);
         var maxHealth = ResolveLocalRuntimeMaxHealth(_currentGameRoom);
+        // Packet111 carries the health the client shows for the local player; the retail frame at
+        // spawn ships the maximum, which is where the current health equals it. It is written with the
+        // authoritative runtime health, so the bar follows the value the server holds: the in-game
+        // /set health command and the guardian heals move the same number, and a heal that only
+        // travelled as packet184 would otherwise leave the local HUD on the old value.
+        var healthWord = Math.Max(1, healthOverride ?? runtimeHealth);
         const short actorState = InitialGamePlayerActionStateFlags;
         const float actorFloat = 0f;
 
         writer.WriteShort(111);
         writer.WriteByte(_localGameUid);
-        writer.WriteInt(maxHealth);
+        writer.WriteInt(healthWord);
         writer.WriteShort(actorState);
         writer.WriteFloat(actorFloat);
         writer.WriteFloat(x);
         writer.WriteFloat(y);
         writer.WriteFloat(z);
         writer.WriteFloat(yaw);
+        for (var index = 0; index < GameLocalStateTrailingBytes; index++)
+        {
+            writer.WriteByte(0);
+        }
 
         Log.Information(
-            "Channel packet111 -> {Remote}: local teleport source={Source} localUid={LocalUid} maxHealth={MaxHealth} runtimeHealth={RuntimeHealth} actorState={ActorState} actorFloat={ActorFloat} position=({X}, {Y}, {Z}) yaw={Yaw}",
+            "Channel packet111 -> {Remote}: local teleport source={Source} localUid={LocalUid} healthWord={HealthWord} maxHealth={MaxHealth} runtimeHealth={RuntimeHealth} actorState={ActorState} actorFloat={ActorFloat} position=({X}, {Y}, {Z}) yaw={Yaw}",
             _remoteLabel,
             source,
             _localGameUid,
+            healthWord,
             maxHealth,
-            healthOverride ?? ResolveLocalRuntimeHealth(_currentGameRoom),
+            runtimeHealth,
             actorState,
             actorFloat,
             FormatProtocolFloat(x),
@@ -7703,6 +8648,10 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(spawnPositionY);
         writer.WriteFloat(spawnPositionZ);
         writer.WriteFloat(spawnYaw);
+        for (var index = 0; index < GameLocalStateTrailingBytes; index++)
+        {
+            writer.WriteByte(0);
+        }
 
         Log.Information(
             "Channel packet111 -> {Remote}: trigger={Trigger} uid={Uid} health={Health} actorState={ActorState} spawnActorFloat={SpawnActorFloat} spawnPosition=({SpawnPositionX}, {SpawnPositionY}, {SpawnPositionZ}) spawnYaw={SpawnYaw}",
@@ -7949,15 +8898,36 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task SendPayloadAsync(byte[] payload, bool encrypt)
     {
+        // Deferred work (ability opens, entering-overlay retries, HUD refreshes) can outlive the
+        // socket; drop those writes instead of throwing ObjectDisposedException on a dead client.
+        if (_clientDisconnected)
+        {
+            return;
+        }
+
         await _sendLock.WaitAsync();
         try
         {
+            // Re-check under the lock: a disconnect may have landed while this sender was queued.
+            if (_clientDisconnected)
+            {
+                return;
+            }
+
             if (encrypt)
             {
                 XorNetworkCodec.EncodeInPlace(payload.AsSpan(), ref _xorOutState);
             }
 
             await _sendPayloadAsync(payload);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The socket can be torn down between the disconnect callback and a deferred send (the
+            // packet155 ability state reply, the entering-overlay retries, a HUD refresh). Treat it as
+            // a disconnect instead of letting the exception surface as a send warning.
+            _clientDisconnected = true;
+            Log.Debug("Channel send skipped from {Remote}: socket already closed", _remoteLabel);
         }
         finally
         {

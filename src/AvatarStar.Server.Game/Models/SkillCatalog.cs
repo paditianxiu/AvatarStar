@@ -90,7 +90,9 @@ internal static class SkillCatalog
             Cooldowns: [22f, 21f, 20f, 18f, 16f], Distances: [8f, 8f, 8f, 8f, 8f], BuffId: 0),
         new(3, "id_datalist_Shockwave", "shock", IsActive: true,
             Cooldowns: [18f, 17f, 15f, 13f, 10f], Distances: [6f, 6f, 6f, 6f, 6f], BuffId: 4),
-        new(6, "id_datalist_Achilles_Heel", "vitals", IsActive: false, BuffId: 5),
+        // Achilles Heel is the guardian passive; the retail in-game session opens it with ability
+        // 13 (buff/13.lua ships the VITALS.tga icon the client binds to it), not ability 5.
+        new(6, "id_datalist_Achilles_Heel", "vitals", IsActive: false, BuffId: 13),
         new(9, "id_datalist_Arrow_Shower", "rain", IsActive: true,
             Cooldowns: [12f, 12f, 12f, 12f, 12f], BuffId: 3),
         new(14, "id_datalist_Healing_Beacon", "energy", IsActive: true,
@@ -113,7 +115,9 @@ internal static class SkillCatalog
     private static readonly SkillDefinition[] AssaultSkills =
     [
         new(2, "id_datalist_Stealth", "latent", IsActive: true,
-            Cooldowns: [23f, 21f, 18f, 15f, 13f], Distances: [11f, 10f, 9f, 8f, 6f], BuffId: 15),
+            // The retail equipment block reports a 0 range for every Assault skill (Stealth, Deadly
+            // Sprint and Trap all ship 0.0), so no Assault skill publishes an effect radius.
+            Cooldowns: [23f, 21f, 18f, 15f, 13f], BuffId: 15),
         new(5, "id_datalist_Fatal_Shot", "piercing", IsActive: false, BuffId: 16),
         new(8, "id_datalist_Poison_Pierce", "poison", IsActive: false, BuffId: 17),
         new(11, "id_datalist_Deadly_Sprint", "spurt", IsActive: true,

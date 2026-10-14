@@ -13,6 +13,7 @@
 AvatarStar_cache/
 AvatarStar_zh_cn_cache/
 .tmp_tips.txt
+tmp/
 
 # Visual Studio / .NET build outputs
 **/[Bb]in/

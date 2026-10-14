@@ -358,6 +358,12 @@ internal sealed class PlayerStore
         public Dictionary<int, int> SkillLevels { get; } = new();
         public string? EquippedAvatarPid { get; set; }
         private readonly Dictionary<int, HotKeySlot> _hotKeySlots = new();
+        // PlayerState is shared by every connection of the account (lobby RPC + in-game channel) and the
+        // room protocol resolves the loadout of every snapshot from async continuations and timers. The
+        // mutable quick bar and skill levels are therefore only touched while this lock is held; without it
+        // concurrent reads/writes corrupt the dictionaries and a later read trips over a null entry (see
+        // NormalizeHotKeySlots).
+        private readonly object _stateLock = new();
         private const int HotKeySlotCount = 12;
         // The lobby quick-slot panel only lists 12 entries, but the in-game character equipment
         // block addresses the full retail quick bar (its last two profession skills sit on 0x0D and
@@ -382,7 +388,10 @@ internal sealed class PlayerStore
 
         public int GetSkillLevel(int skillId)
         {
-            return SkillLevels.TryGetValue(skillId, out var level) ? level : 0;
+            lock (_stateLock)
+            {
+                return SkillLevels.TryGetValue(skillId, out var level) ? level : 0;
+            }
         }
 
         /// <summary>
@@ -391,17 +400,20 @@ internal sealed class PlayerStore
         /// </summary>
         public int SetSkillLevel(int skillId, int level)
         {
-            var clamped = Math.Clamp(level, 0, SkillCatalog.MaxSkillLevel);
-            if (clamped <= 0)
+            lock (_stateLock)
             {
-                SkillLevels.Remove(skillId);
-            }
-            else
-            {
-                SkillLevels[skillId] = clamped;
-            }
+                var clamped = Math.Clamp(level, 0, SkillCatalog.MaxSkillLevel);
+                if (clamped <= 0)
+                {
+                    SkillLevels.Remove(skillId);
+                }
+                else
+                {
+                    SkillLevels[skillId] = clamped;
+                }
 
-            return clamped;
+                return clamped;
+            }
         }
 
         /// <summary>
@@ -415,16 +427,19 @@ internal sealed class PlayerStore
 
         public int GetSpentSkillPoints()
         {
-            var spent = 0;
-            foreach (var level in SkillLevels.Values)
+            lock (_stateLock)
             {
-                if (level > 0)
+                var spent = 0;
+                foreach (var level in SkillLevels.Values)
                 {
-                    spent += level;
+                    if (level > 0)
+                    {
+                        spent += level;
+                    }
                 }
-            }
 
-            return spent;
+                return spent;
+            }
         }
 
         public int GetLeftSkillPoints()
@@ -468,15 +483,18 @@ internal sealed class PlayerStore
         /// </summary>
         public void ResetSkillLevels()
         {
-            SkillLevels.Clear();
-
-            var skillSlots = _hotKeySlots
-                .Where(pair => pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
-                .Select(pair => pair.Key)
-                .ToArray();
-            foreach (var slot in skillSlots)
+            lock (_stateLock)
             {
-                _hotKeySlots.Remove(slot);
+                SkillLevels.Clear();
+
+                var skillSlots = _hotKeySlots
+                    .Where(pair => pair.Value is not null && pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    .Select(pair => pair.Key)
+                    .ToArray();
+                foreach (var slot in skillSlots)
+                {
+                    _hotKeySlots.Remove(slot);
+                }
             }
         }
 
@@ -504,22 +522,44 @@ internal sealed class PlayerStore
                     pair => pair.Key,
                     pair => pair.Value.ToDictionary(slot => slot.Key, slot => slot.Value)),
                 EquippedItemsByType = new Dictionary<int, string>(EquippedItemsByType),
-                SkillLevels = new Dictionary<int, int>(SkillLevels),
-                HotKeySlots = _hotKeySlots.ToDictionary(
-                    pair => pair.Key,
-                    pair => new HotKeySlotSnapshot(
-                        pair.Value.Slot,
-                        pair.Value.Type,
-                        pair.Value.ItemId,
-                        pair.Value.Resource,
-                        pair.Value.Grade,
-                        pair.Value.Quantity,
-                        pair.Value.UnitType,
-                        pair.Value.Unit,
-                        pair.Value.Subtype,
-                        pair.Value.Sid,
-                        pair.Value.SkillId))
+                SkillLevels = SnapshotSkillLevels(),
+                HotKeySlots = SnapshotHotKeySlots()
             };
+        }
+
+        private Dictionary<int, int> SnapshotSkillLevels()
+        {
+            lock (_stateLock)
+            {
+                return new Dictionary<int, int>(SkillLevels);
+            }
+        }
+
+        /// <summary>
+        /// Copies the quick bar for persistence. The save path can run on a different thread than the
+        /// connection handlers, so the copy is taken under the state lock.
+        /// </summary>
+        private Dictionary<int, HotKeySlotSnapshot> SnapshotHotKeySlots()
+        {
+            lock (_stateLock)
+            {
+                return _hotKeySlots
+                    .Where(pair => pair.Value is not null)
+                    .ToDictionary(
+                        pair => pair.Key,
+                        pair => new HotKeySlotSnapshot(
+                            pair.Value.Slot,
+                            pair.Value.Type,
+                            pair.Value.ItemId,
+                            pair.Value.Resource,
+                            pair.Value.Grade,
+                            pair.Value.Quantity,
+                            pair.Value.UnitType,
+                            pair.Value.Unit,
+                            pair.Value.Subtype,
+                            pair.Value.Sid,
+                            pair.Value.SkillId));
+            }
         }
 
         public static PlayerState FromSnapshot(PlayerStateSnapshot snapshot)
@@ -588,6 +628,13 @@ internal sealed class PlayerStore
 
             foreach (var (slot, hotKey) in snapshot.HotKeySlots)
             {
+                // A profile written by an older build can carry a null entry; skip it instead of
+                // letting the whole load fail.
+                if (hotKey is null)
+                {
+                    continue;
+                }
+
                 player._hotKeySlots[slot] = new HotKeySlot(
                     hotKey.Slot,
                     hotKey.Type,
@@ -1469,87 +1516,102 @@ internal sealed class PlayerStore
 
         private void NormalizeHotKeySlots()
         {
-            var invalidSlots = _hotKeySlots.Keys.Where(x => x <= 0 || x > HotKeySlotCapacity).ToArray();
-            foreach (var invalidSlot in invalidSlots)
+            lock (_stateLock)
             {
-                _hotKeySlots.Remove(invalidSlot);
-            }
-
-            var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
-            var seenSkillIds = new HashSet<int>();
-            foreach (var pair in _hotKeySlots.OrderBy(x => x.Key).ToArray())
-            {
-                if (pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
+                // A null entry can only come from a corrupted/legacy profile; drop it before every
+                // other pass so the rest of this method (and every caller) sees usable slots only.
+                var invalidSlots = _hotKeySlots
+                    .Where(x => x.Key <= 0 || x.Key > HotKeySlotCapacity || x.Value is null)
+                    .Select(x => x.Key)
+                    .ToArray();
+                foreach (var invalidSlot in invalidSlots)
                 {
-                    // Skill slots are keyed by skill id rather than an inventory pid.
-                    if (pair.Value.SkillId <= 0 || !seenSkillIds.Add(pair.Value.SkillId))
+                    _hotKeySlots.Remove(invalidSlot);
+                }
+
+                var seenItemIds = new HashSet<string>(StringComparer.Ordinal);
+                var seenSkillIds = new HashSet<int>();
+                foreach (var pair in _hotKeySlots.OrderBy(x => x.Key).ToArray())
+                {
+                    if (pair.Value.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    {
+                        // Skill slots are keyed by skill id rather than an inventory pid.
+                        if (pair.Value.SkillId <= 0 || !seenSkillIds.Add(pair.Value.SkillId))
+                        {
+                            _hotKeySlots.Remove(pair.Key);
+                        }
+
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(pair.Value.ItemId) || !seenItemIds.Add(pair.Value.ItemId))
                     {
                         _hotKeySlots.Remove(pair.Key);
                     }
-
-                    continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(pair.Value.ItemId) || !seenItemIds.Add(pair.Value.ItemId))
+                var weaponSlots = _hotKeySlots.Values
+                    .Where(x => x is not null && x.Type == 2)
+                    .OrderBy(x => x.Slot)
+                    .Select(x => x.Slot)
+                    .ToArray();
+                if (weaponSlots.Length <= MaxWeaponHotKeyCount)
                 {
-                    _hotKeySlots.Remove(pair.Key);
+                    return;
                 }
-            }
 
-            var weaponSlots = _hotKeySlots.Values
-                .Where(x => x.Type == 2)
-                .OrderBy(x => x.Slot)
-                .Select(x => x.Slot)
-                .ToArray();
-            if (weaponSlots.Length <= MaxWeaponHotKeyCount)
-            {
-                return;
-            }
-
-            foreach (var slot in weaponSlots.Skip(MaxWeaponHotKeyCount))
-            {
-                _hotKeySlots.Remove(slot);
+                foreach (var slot in weaponSlots.Skip(MaxWeaponHotKeyCount))
+                {
+                    _hotKeySlots.Remove(slot);
+                }
             }
         }
 
         private void EnsureDefaultWeaponHotKeySlots()
         {
-            if (_hotKeySlots.Values.Any(slot =>
-                    slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
-                    IsBattleLoadoutResource(slot.Resource)))
+            lock (_stateLock)
             {
-                return;
-            }
+                if (_hotKeySlots.Values.Any(slot =>
+                        slot is not null &&
+                        slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                        IsBattleLoadoutResource(slot.Resource)))
+                {
+                    return;
+                }
 
-            if (!Storages.TryGetValue((int)ShopItemDatabase.ItemType.Equipment, out var equipmentStorage))
-            {
-                return;
-            }
+                if (!Storages.TryGetValue((int)ShopItemDatabase.ItemType.Equipment, out var equipmentStorage))
+                {
+                    return;
+                }
 
-            var slot = 1;
-            foreach (var item in equipmentStorage.Values
-                         .Where(IsBattleLoadoutItem)
-                         .OrderBy(item => item.Slot)
-                         .Take(MaxWeaponHotKeyCount))
-            {
-                _hotKeySlots[slot] = new HotKeySlot(
-                    Slot: slot,
-                    Type: item.Type,
-                    ItemId: item.Pid,
-                    Resource: item.Resource,
-                    Grade: item.Grade,
-                    Quantity: item.Quantity,
-                    UnitType: item.UnitType,
-                    Unit: item.Unit,
-                    Subtype: item.Subtype,
-                    Sid: item.Sid);
-                slot++;
+                var slot = 1;
+                foreach (var item in equipmentStorage.Values
+                             .Where(IsBattleLoadoutItem)
+                             .OrderBy(item => item.Slot)
+                             .Take(MaxWeaponHotKeyCount))
+                {
+                    _hotKeySlots[slot] = new HotKeySlot(
+                        Slot: slot,
+                        Type: item.Type,
+                        ItemId: item.Pid,
+                        Resource: item.Resource,
+                        Grade: item.Grade,
+                        Quantity: item.Quantity,
+                        UnitType: item.UnitType,
+                        Unit: item.Unit,
+                        Subtype: item.Subtype,
+                        Sid: item.Sid);
+                    slot++;
+                }
             }
         }
 
         private int CountWeaponHotKeys()
         {
-            return _hotKeySlots.Values.Count(x => x.Type == 2);
+            lock (_stateLock)
+            {
+                return _hotKeySlots.Values.Count(x => x is not null && x.Type == 2);
+            }
         }
 
         /// <summary>
@@ -1563,63 +1625,74 @@ internal sealed class PlayerStore
         /// </summary>
         private void EnsureDefaultSkillHotKeySlots()
         {
-            var occupation = Math.Clamp(Character.Occupation, 0, 3);
-            var equippedSkillIds = new HashSet<int>(
-                _hotKeySlots.Values
-                    .Where(slot => slot.Type == (int)ShopItemDatabase.ItemType.Skill)
-                    .Select(slot => slot.SkillId));
-
-            foreach (var definition in SkillCatalog.GetSkills(occupation))
+            lock (_stateLock)
             {
-                if (!definition.IsActive || !equippedSkillIds.Add(definition.Id))
-                {
-                    continue;
-                }
+                var occupation = Math.Clamp(Character.Occupation, 0, 3);
+                var equippedSkillIds = new HashSet<int>(
+                    _hotKeySlots.Values
+                        .Where(slot => slot is not null && slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+                        .Select(slot => slot.SkillId));
 
-                var slot = FindFreeSkillHotKeySlot();
-                if (slot <= 0)
+                foreach (var definition in SkillCatalog.GetSkills(occupation))
                 {
-                    break;
-                }
+                    if (!definition.IsActive || !equippedSkillIds.Add(definition.Id))
+                    {
+                        continue;
+                    }
 
-                _hotKeySlots[slot] = new HotKeySlot(
-                    Slot: slot,
-                    Type: (int)ShopItemDatabase.ItemType.Skill,
-                    ItemId: string.Empty,
-                    Resource: definition.Resource,
-                    Grade: 0,
-                    Quantity: 0,
-                    UnitType: 0,
-                    Unit: 0,
-                    Subtype: 0,
-                    Sid: 0,
-                    SkillId: definition.Id);
+                    var slot = FindFreeSkillHotKeySlot();
+                    if (slot <= 0)
+                    {
+                        break;
+                    }
+
+                    _hotKeySlots[slot] = new HotKeySlot(
+                        Slot: slot,
+                        Type: (int)ShopItemDatabase.ItemType.Skill,
+                        ItemId: string.Empty,
+                        Resource: definition.Resource,
+                        Grade: 0,
+                        Quantity: 0,
+                        UnitType: 0,
+                        Unit: 0,
+                        Subtype: 0,
+                        Sid: 0,
+                        SkillId: definition.Id);
+                }
             }
         }
 
         private int FindFreeSkillHotKeySlot()
         {
-            for (var slot = DefaultSkillHotKeySlotStart; slot <= HotKeySlotCapacity; slot++)
+            lock (_stateLock)
             {
-                if (!_hotKeySlots.ContainsKey(slot))
+                for (var slot = DefaultSkillHotKeySlotStart; slot <= HotKeySlotCapacity; slot++)
                 {
-                    return slot;
+                    if (!_hotKeySlots.ContainsKey(slot))
+                    {
+                        return slot;
+                    }
                 }
-            }
 
-            return 0;
+                return 0;
+            }
         }
 
         private void RemoveHotKeyReferencesToItem(string itemId, int exceptSlot)
         {
-            var duplicateSlots = _hotKeySlots
-                .Where(x => x.Key != exceptSlot && string.Equals(x.Value.ItemId, itemId, StringComparison.Ordinal))
-                .Select(x => x.Key)
-                .ToArray();
-
-            foreach (var duplicateSlot in duplicateSlots)
+            lock (_stateLock)
             {
-                _hotKeySlots.Remove(duplicateSlot);
+                var duplicateSlots = _hotKeySlots
+                    .Where(x => x.Key != exceptSlot &&
+                                x.Value is not null &&
+                                string.Equals(x.Value.ItemId, itemId, StringComparison.Ordinal))
+                    .Select(x => x.Key)
+                    .ToArray();
+
+                foreach (var duplicateSlot in duplicateSlots)
+                {
+                    _hotKeySlots.Remove(duplicateSlot);
+                }
             }
         }
 
@@ -1634,12 +1707,16 @@ internal sealed class PlayerStore
                 }
             }
 
-            foreach (var hotKey in _hotKeySlots.Values)
+            lock (_stateLock)
             {
-                if (hotKey.Type == (int)ShopItemDatabase.ItemType.Equipment &&
-                    !string.IsNullOrWhiteSpace(hotKey.ItemId))
+                foreach (var hotKey in _hotKeySlots.Values)
                 {
-                    equippedPids.Add(hotKey.ItemId);
+                    if (hotKey is not null &&
+                        hotKey.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                        !string.IsNullOrWhiteSpace(hotKey.ItemId))
+                    {
+                        equippedPids.Add(hotKey.ItemId);
+                    }
                 }
             }
 
@@ -1667,62 +1744,65 @@ internal sealed class PlayerStore
 
         public object[] GetHotKeySlots(int totalSlots = HotKeySlotCount)
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-            EnsureDefaultWeaponHotKeySlots();
-            EnsureDefaultSkillHotKeySlots();
-            SyncEquipmentEquipFlags();
-
-            totalSlots = totalSlots <= 0 ? HotKeySlotCount : Math.Clamp(totalSlots, 1, HotKeySlotCount);
-            var result = new object[totalSlots];
-            for (var i = 1; i <= totalSlots; i++)
+            lock (_stateLock)
             {
-                if (_hotKeySlots.TryGetValue(i, out var entry))
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
+                EnsureDefaultWeaponHotKeySlots();
+                EnsureDefaultSkillHotKeySlots();
+                SyncEquipmentEquipFlags();
+
+                totalSlots = totalSlots <= 0 ? HotKeySlotCount : Math.Clamp(totalSlots, 1, HotKeySlotCount);
+                var result = new object[totalSlots];
+                for (var i = 1; i <= totalSlots; i++)
                 {
-                    if (entry.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    if (_hotKeySlots.TryGetValue(i, out var entry) && entry is not null)
                     {
-                        var definition = FindSkill(entry.SkillId);
+                        if (entry.Type == (int)ShopItemDatabase.ItemType.Skill)
+                        {
+                            var definition = FindSkill(entry.SkillId);
+                            result[i - 1] = new
+                            {
+                                slot = entry.Slot,
+                                type = entry.Type,
+                                itemid = ResolveSkillLoadoutItemId(entry.SkillId).ToString(CultureInfo.InvariantCulture),
+                                display = definition?.ResolveDisplay(GetSkillLevel(entry.SkillId)) ?? string.Empty,
+                                resource = string.IsNullOrWhiteSpace(definition?.Resource) ? entry.Resource : definition!.Resource,
+                                quantity = 1
+                            };
+                            continue;
+                        }
+
                         result[i - 1] = new
                         {
                             slot = entry.Slot,
                             type = entry.Type,
-                            itemid = ResolveSkillLoadoutItemId(entry.SkillId).ToString(CultureInfo.InvariantCulture),
-                            display = definition?.ResolveDisplay(GetSkillLevel(entry.SkillId)) ?? string.Empty,
-                            resource = string.IsNullOrWhiteSpace(definition?.Resource) ? entry.Resource : definition!.Resource,
-                            quantity = 1
+                            itemid = entry.ItemId,
+                            resource = entry.Resource,
+                            grade = entry.Grade,
+                            quantity = entry.Quantity,
+                            unitType = entry.UnitType,
+                            unit = entry.Unit,
+                            subtype = entry.Subtype,
+                            sid = entry.Sid
                         };
-                        continue;
                     }
+                    else
+                    {
+                        result[i - 1] = new
+                        {
+                            slot = i,
+                            type = 0,
+                            itemid = "0",
+                            display = string.Empty,
+                            resource = string.Empty,
+                            quantity = 0
+                        };
+                    }
+                }
 
-                    result[i - 1] = new
-                    {
-                        slot = entry.Slot,
-                        type = entry.Type,
-                        itemid = entry.ItemId,
-                        resource = entry.Resource,
-                        grade = entry.Grade,
-                        quantity = entry.Quantity,
-                        unitType = entry.UnitType,
-                        unit = entry.Unit,
-                        subtype = entry.Subtype,
-                        sid = entry.Sid
-                    };
-                }
-                else
-                {
-                    result[i - 1] = new
-                    {
-                        slot = i,
-                        type = 0,
-                        itemid = "0",
-                        display = string.Empty,
-                        resource = string.Empty,
-                        quantity = 0
-                    };
-                }
+                return result;
             }
-
-            return result;
         }
 
         private SkillDefinition? FindSkill(int skillId)
@@ -1745,88 +1825,97 @@ internal sealed class PlayerStore
         /// </summary>
         public bool TrySetSkillHotKeySlot(int slot, int skillId)
         {
-            if (slot <= 0 || slot > HotKeySlotCapacity)
+            lock (_stateLock)
             {
-                return false;
-            }
+                if (slot <= 0 || slot > HotKeySlotCapacity)
+                {
+                    return false;
+                }
 
-            var definition = FindSkill(skillId);
-            if (definition is null)
-            {
-                return false;
-            }
+                var definition = FindSkill(skillId);
+                if (definition is null)
+                {
+                    return false;
+                }
 
-            var duplicates = _hotKeySlots
-                .Where(x => x.Key != slot &&
-                            x.Value.Type == (int)ShopItemDatabase.ItemType.Skill &&
-                            x.Value.SkillId == skillId)
-                .Select(x => x.Key)
-                .ToArray();
-            foreach (var duplicate in duplicates)
-            {
-                _hotKeySlots.Remove(duplicate);
-            }
+                var duplicates = _hotKeySlots
+                    .Where(x => x.Key != slot &&
+                                x.Value is not null &&
+                                x.Value.Type == (int)ShopItemDatabase.ItemType.Skill &&
+                                x.Value.SkillId == skillId)
+                    .Select(x => x.Key)
+                    .ToArray();
+                foreach (var duplicate in duplicates)
+                {
+                    _hotKeySlots.Remove(duplicate);
+                }
 
-            _hotKeySlots[slot] = new HotKeySlot(
-                Slot: slot,
-                Type: (int)ShopItemDatabase.ItemType.Skill,
-                ItemId: string.Empty,
-                Resource: definition.Resource,
-                Grade: 0,
-                Quantity: 0,
-                UnitType: 0,
-                Unit: 0,
-                Subtype: 0,
-                Sid: 0,
-                SkillId: skillId);
-            return true;
+                _hotKeySlots[slot] = new HotKeySlot(
+                    Slot: slot,
+                    Type: (int)ShopItemDatabase.ItemType.Skill,
+                    ItemId: string.Empty,
+                    Resource: definition.Resource,
+                    Grade: 0,
+                    Quantity: 0,
+                    UnitType: 0,
+                    Unit: 0,
+                    Subtype: 0,
+                    Sid: 0,
+                    SkillId: skillId);
+                return true;
+            }
         }
 
         public bool TrySetHotKeySlot(int slot, string? pid, out string? errorKey)
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-            errorKey = null;
-
-            if (slot <= 0 || slot > HotKeySlotCount || string.IsNullOrWhiteSpace(pid))
+            lock (_stateLock)
             {
-                errorKey = "msgbox_common_num_1306";
-                return false;
-            }
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
+                errorKey = null;
 
-            var item = FindInventoryItemByPid(pid);
-            if (item is null)
-            {
-                errorKey = "msgbox_common_num_1005";
-                return false;
-            }
-
-            RemoveHotKeyReferencesToItem(item.Pid, slot);
-
-            if (item.Type == 2)
-            {
-                var currentIsWeapon = _hotKeySlots.TryGetValue(slot, out var currentSlot) && currentSlot.Type == 2;
-                if (!currentIsWeapon && CountWeaponHotKeys() >= MaxWeaponHotKeyCount)
+                if (slot <= 0 || slot > HotKeySlotCount || string.IsNullOrWhiteSpace(pid))
                 {
-                    // 快捷栏武器位上限�? 个）
-                    errorKey = "UI_common_Insufficient_slot";
+                    errorKey = "msgbox_common_num_1306";
                     return false;
                 }
-            }
 
-            _hotKeySlots[slot] = new HotKeySlot(
-                Slot: slot,
-                Type: item.Type,
-                ItemId: item.Pid,
-                Resource: item.Resource,
-                Grade: item.Grade,
-                Quantity: item.Quantity,
-                UnitType: item.UnitType,
-                Unit: item.Unit,
-                Subtype: item.Subtype,
-                Sid: item.Sid);
-            SyncEquipmentEquipFlags();
-            return true;
+                var item = FindInventoryItemByPid(pid);
+                if (item is null)
+                {
+                    errorKey = "msgbox_common_num_1005";
+                    return false;
+                }
+
+                RemoveHotKeyReferencesToItem(item.Pid, slot);
+
+                if (item.Type == 2)
+                {
+                    var currentIsWeapon = _hotKeySlots.TryGetValue(slot, out var currentSlot) &&
+                                          currentSlot is not null &&
+                                          currentSlot.Type == 2;
+                    if (!currentIsWeapon && CountWeaponHotKeys() >= MaxWeaponHotKeyCount)
+                    {
+                        // 快捷栏武器位上限�? 个）
+                        errorKey = "UI_common_Insufficient_slot";
+                        return false;
+                    }
+                }
+
+                _hotKeySlots[slot] = new HotKeySlot(
+                    Slot: slot,
+                    Type: item.Type,
+                    ItemId: item.Pid,
+                    Resource: item.Resource,
+                    Grade: item.Grade,
+                    Quantity: item.Quantity,
+                    UnitType: item.UnitType,
+                    Unit: item.Unit,
+                    Subtype: item.Subtype,
+                    Sid: item.Sid);
+                SyncEquipmentEquipFlags();
+                return true;
+            }
         }
 
         public bool TrySetHotKeySlot(int slot, string? pid)
@@ -1836,56 +1925,62 @@ internal sealed class PlayerStore
 
         public bool TryClearHotKeySlot(int slot)
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-
-            if (slot <= 0 || slot > HotKeySlotCount)
+            lock (_stateLock)
             {
-                return false;
-            }
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
 
-            var removed = _hotKeySlots.Remove(slot);
-            if (removed)
-            {
-                SyncEquipmentEquipFlags();
-            }
+                if (slot <= 0 || slot > HotKeySlotCount)
+                {
+                    return false;
+                }
 
-            return removed;
+                var removed = _hotKeySlots.Remove(slot);
+                if (removed)
+                {
+                    SyncEquipmentEquipFlags();
+                }
+
+                return removed;
+            }
         }
 
         public bool TrySwapHotKeySlots(int fromSlot, int toSlot)
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-
-            if (fromSlot <= 0 || toSlot <= 0 || fromSlot > HotKeySlotCount || toSlot > HotKeySlotCount || fromSlot == toSlot)
+            lock (_stateLock)
             {
-                return false;
-            }
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
 
-            var fromExists = _hotKeySlots.TryGetValue(fromSlot, out var from);
-            var toExists = _hotKeySlots.TryGetValue(toSlot, out var to);
+                if (fromSlot <= 0 || toSlot <= 0 || fromSlot > HotKeySlotCount || toSlot > HotKeySlotCount || fromSlot == toSlot)
+                {
+                    return false;
+                }
 
-            if (fromExists)
-            {
-                _hotKeySlots[toSlot] = from! with { Slot = toSlot };
-            }
-            else
-            {
-                _hotKeySlots.Remove(toSlot);
-            }
+                var fromExists = _hotKeySlots.TryGetValue(fromSlot, out var from) && from is not null;
+                var toExists = _hotKeySlots.TryGetValue(toSlot, out var to) && to is not null;
 
-            if (toExists)
-            {
-                _hotKeySlots[fromSlot] = to! with { Slot = fromSlot };
-            }
-            else
-            {
-                _hotKeySlots.Remove(fromSlot);
-            }
+                if (fromExists)
+                {
+                    _hotKeySlots[toSlot] = from! with { Slot = toSlot };
+                }
+                else
+                {
+                    _hotKeySlots.Remove(toSlot);
+                }
 
-            SyncEquipmentEquipFlags();
-            return true;
+                if (toExists)
+                {
+                    _hotKeySlots[fromSlot] = to! with { Slot = fromSlot };
+                }
+                else
+                {
+                    _hotKeySlots.Remove(fromSlot);
+                }
+
+                SyncEquipmentEquipFlags();
+                return true;
+            }
         }
 
         private InventoryItem? FindItemByPid(string? pid, params int[] storageTypes)
@@ -1923,26 +2018,30 @@ internal sealed class PlayerStore
 
         public IReadOnlyList<GameLoadoutItem> GetGameLoadoutItems()
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-            EnsureDefaultWeaponHotKeySlots();
-            EnsureDefaultSkillHotKeySlots();
+            lock (_stateLock)
+            {
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
+                EnsureDefaultWeaponHotKeySlots();
+                EnsureDefaultSkillHotKeySlots();
 
-            var hotKeyLoadout = _hotKeySlots.Values
-                .Where(IsBattleLoadoutHotKeySlot)
-                .OrderBy(slot => slot.Slot)
-                .Select(CreateHotKeyLoadoutItem)
-                .ToList();
-            // Equipment items decide whether the quick bar counts as configured: a character whose
-            // bar only holds profession skills still needs the backpack weapons merged in, but the
-            // skill entries must survive that fallback.
-            var hasEquipmentEntries = _hotKeySlots.Values.Any(slot =>
-                slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
-                IsBattleLoadoutResource(slot.Resource));
+                var hotKeyLoadout = _hotKeySlots.Values
+                    .Where(slot => slot is not null && IsBattleLoadoutHotKeySlot(slot))
+                    .OrderBy(slot => slot.Slot)
+                    .Select(CreateHotKeyLoadoutItem)
+                    .ToList();
+                // Equipment items decide whether the quick bar counts as configured: a character whose
+                // bar only holds profession skills still needs the backpack weapons merged in, but the
+                // skill entries must survive that fallback.
+                var hasEquipmentEntries = _hotKeySlots.Values.Any(slot =>
+                    slot is not null &&
+                    slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                    IsBattleLoadoutResource(slot.Resource));
 
-            return hasEquipmentEntries
-                ? hotKeyLoadout
-                : MergeSkillLoadoutIntoBackpackFallback(GetBackpackGameLoadoutItems());
+                return hasEquipmentEntries
+                    ? hotKeyLoadout
+                    : MergeSkillLoadoutIntoBackpackFallback(GetBackpackGameLoadoutItems());
+            }
         }
 
         /// <summary>
@@ -1952,34 +2051,41 @@ internal sealed class PlayerStore
         private IReadOnlyList<GameLoadoutItem> MergeSkillLoadoutIntoBackpackFallback(
             IReadOnlyList<GameLoadoutItem> backpackItems)
         {
-            var skillItems = _hotKeySlots.Values
-                .Where(slot => slot.Type == (int)ShopItemDatabase.ItemType.Skill)
-                .OrderBy(slot => slot.Slot)
-                .Select(CreateHotKeyLoadoutItem)
-                .ToArray();
-            if (skillItems.Length == 0)
+            lock (_stateLock)
             {
-                return backpackItems;
-            }
+                var skillItems = _hotKeySlots.Values
+                    .Where(slot => slot is not null && slot.Type == (int)ShopItemDatabase.ItemType.Skill)
+                    .OrderBy(slot => slot.Slot)
+                    .Select(CreateHotKeyLoadoutItem)
+                    .ToArray();
+                if (skillItems.Length == 0)
+                {
+                    return backpackItems;
+                }
 
-            var merged = new List<GameLoadoutItem>(backpackItems.Count + skillItems.Length);
-            merged.AddRange(backpackItems);
-            merged.AddRange(skillItems);
-            return merged;
+                var merged = new List<GameLoadoutItem>(backpackItems.Count + skillItems.Length);
+                merged.AddRange(backpackItems);
+                merged.AddRange(skillItems);
+                return merged;
+            }
         }
 
         public string GetGameLoadoutSource()
         {
-            EnsureStarterInventory();
-            NormalizeHotKeySlots();
-            EnsureDefaultWeaponHotKeySlots();
-            EnsureDefaultSkillHotKeySlots();
+            lock (_stateLock)
+            {
+                EnsureStarterInventory();
+                NormalizeHotKeySlots();
+                EnsureDefaultWeaponHotKeySlots();
+                EnsureDefaultSkillHotKeySlots();
 
-            return _hotKeySlots.Values.Any(slot =>
-                slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
-                IsBattleLoadoutResource(slot.Resource))
-                ? "hotkey"
-                : "backpack-fallback";
+                return _hotKeySlots.Values.Any(slot =>
+                    slot is not null &&
+                    slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
+                    IsBattleLoadoutResource(slot.Resource))
+                    ? "hotkey"
+                    : "backpack-fallback";
+            }
         }
 
         private GameLoadoutItem CreateHotKeyLoadoutItem(HotKeySlot slot)
