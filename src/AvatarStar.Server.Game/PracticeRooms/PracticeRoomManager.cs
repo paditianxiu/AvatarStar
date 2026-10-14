@@ -1229,15 +1229,11 @@ internal sealed class PracticeRoomManager
             {
                 foreach (var heal in heals)
                 {
+                    // Packet184 is the frame that moves the bar - its int32 field is the health the
+                    // victim ends the hit on - so a heal only has to be published once. Republishing
+                    // the healed player's state through packet111 also rewrote that client's maximum
+                    // health and teleported them back to the last position the server knew.
                     await target.Key.SendPacket184GameHealthAsync(heal.HealerUid, heal.HealedUid, heal.HealedHealth, trigger);
-                    // The healed player also gets its own state frame republished with the health the
-                    // server applied: packet111 is the frame the in-game /set health command uses to
-                    // publish the health the local client shows, so a heal that only travels as
-                    // packet184 can leave the healed client HUD on the old value.
-                    if (target.Value == heal.HealedUid)
-                    {
-                        await target.Key.SendLocalHealthRefreshAsync(heal.HealedHealth, trigger);
-                    }
                 }
 
                 sent++;

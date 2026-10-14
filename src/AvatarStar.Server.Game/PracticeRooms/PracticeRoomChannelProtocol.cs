@@ -2707,6 +2707,13 @@ internal sealed class PracticeRoomChannelProtocol
             bulletCount,
             ammoOneClip);
     }
+
+    /// <summary>
+    /// The in-game /set health command. The bar moves through packet184 - the damage frame whose
+    /// int32 field is the victim's resulting health - so no packet111 is sent: that frame carries the
+    /// actor's full HP plus the spawn position, and publishing a health change through it rewrote the
+    /// client's max health and snapped the player back to the last position the server knew.
+    /// </summary>
     private async Task SetLocalHealthAsync(int health, short packetId)
     {
         if (_currentGameRoom is null)
@@ -2732,8 +2739,9 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
+        // The new health travels as packet184 only (BroadcastGameDamageHitAsync above); see
+        // SendPacket111GameTeleportAsync for why packet111 must not carry a health change.
         var broadcastCount = await _practiceRoomManager.BroadcastGameDamageHitAsync(_currentGameRoom.RoomId, action);
-        await SendLocalStateUiRefreshAsync("set-health", health);
         Log.Information(
             "In-game command {Command} handled from {Remote}: packetId={PacketId} localUid={LocalUid} health={Health} broadcastCount={BroadcastCount}",
             SetCommandName,
@@ -2742,60 +2750,6 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             health,
             broadcastCount);
-    }
-
-    private async Task SendLocalStateUiRefreshAsync(
-        string trigger,
-        int? healthOverride = null)
-    {
-        if (_currentGameRoom is null)
-        {
-            return;
-        }
-
-        var hasKnownPosition = TryGetLocalGamePosition(out var position);
-        if (!hasKnownPosition)
-        {
-            var (spawnX, spawnY, spawnZ, _) = ResolveSpawnPoint(_currentGameRoom);
-            position = new PracticeRoomManager.GamePosition(
-                WorldToRawCoordinate(spawnX),
-                WorldToRawCoordinate(spawnY),
-                WorldToRawCoordinate(spawnZ),
-                null,
-                null,
-                null,
-                DateTimeOffset.UtcNow);
-            _practiceRoomManager.UpdateGamePositionIfMissing(_currentGameRoom.RoomId, _localGameUid, position);
-        }
-
-        var refreshTrigger = hasKnownPosition ? trigger : $"{trigger}-spawn-fallback";
-        var health = healthOverride ?? ResolveLocalRuntimeHealth(_currentGameRoom);
-        await SendPacket111GameTeleportAsync(
-            RawToWorldCoordinate(position.XRaw),
-            RawToWorldCoordinate(position.YRaw),
-            RawToWorldCoordinate(position.ZRaw),
-            position.YawRaw.HasValue ? RawToWorldCoordinate(position.YawRaw.Value) : 0f,
-            refreshTrigger,
-            health);
-        Log.Information(
-            "Channel packet111 state refresh -> {Remote}: trigger={Trigger} uid={Uid} health={Health} positionRaw=({X},{Y},{Z})",
-            _remoteLabel,
-            refreshTrigger,
-            _localGameUid,
-            health,
-            position.XRaw,
-            position.YRaw,
-            position.ZRaw);
-    }
-
-    /// <summary>
-    /// Publishes the health the server just gave the local player (the guardian heals) through the
-    /// frame that drives the local health bar: packet111 carries the health word the client shows, so a
-    /// heal that only travels as packet184 can leave the local HUD on the old value.
-    /// </summary>
-    internal Task SendLocalHealthRefreshAsync(int health, string trigger)
-    {
-        return SendLocalStateUiRefreshAsync(trigger, health);
     }
 
     private async Task RefreshLocalCharacterCreateAsync(string trigger)
@@ -8529,13 +8483,20 @@ internal sealed class PracticeRoomChannelProtocol
         return string.IsNullOrWhiteSpace(value) ? "{}" : value!;
     }
 
+    /// <summary>
+    /// Packet111 is the local spawn/teleport frame. Its health word is the actor's full HP - the retail
+    /// spawn frame ships the maximum (`6F 00 40 FC 08 00 00` = 2300) - and the client adopts that word
+    /// as the actor's health, so the value written here is always the maximum. Turning it into a health
+    /// update is what made the heals teleport (the frame also carries the position) and rewrote the
+    /// client's max health (the bar read 1400/1400 after a heal). Health changes travel as packet184
+    /// only, see SendPacket184GameHealthAsync.
+    /// </summary>
     private Task SendPacket111GameTeleportAsync(
         float x,
         float y,
         float z,
         float yaw,
-        string source,
-        int? healthOverride = null)
+        string source)
     {
         if (_currentGameRoom is null)
         {
@@ -8545,12 +8506,7 @@ internal sealed class PracticeRoomChannelProtocol
         using var writer = new PacketWriter();
         var runtimeHealth = ResolveLocalRuntimeHealth(_currentGameRoom);
         var maxHealth = ResolveLocalRuntimeMaxHealth(_currentGameRoom);
-        // Packet111 carries the health the client shows for the local player; the retail frame at
-        // spawn ships the maximum, which is where the current health equals it. It is written with the
-        // authoritative runtime health, so the bar follows the value the server holds: the in-game
-        // /set health command and the guardian heals move the same number, and a heal that only
-        // travelled as packet184 would otherwise leave the local HUD on the old value.
-        var healthWord = Math.Max(1, healthOverride ?? runtimeHealth);
+        var healthWord = Math.Max(1, maxHealth);
         const short actorState = InitialGamePlayerActionStateFlags;
         const float actorFloat = 0f;
 
