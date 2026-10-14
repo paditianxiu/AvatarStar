@@ -5496,7 +5496,7 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteByte(GameSkillActivateStateFlag);
 
         Log.Debug(
-            "Channel packet160 -> {Remote}: slot={Slot} trigger={Trigger}",
+            "Channel packet160 -> {Remote}: uid={ActorUid} slot={Slot} trigger={Trigger}",
             _remoteLabel,
             actorUid,
             slot,
@@ -5633,12 +5633,19 @@ internal sealed class PracticeRoomChannelProtocol
     /// abilities whose captured frame stores that count in the slot-shaped byte instead of a quick
     /// slot (Arrow Shower); null for every other ability.
     /// </param>
+    /// <param name="Extra">
+    /// Second ability frame of an activation that opens two abilities at once (the Biochemical
+    /// skills). It is stamped and sent right after the primary frame, and it carries its own ability
+    /// id: the two frames of such a skill name different abilities, so the companion is built with
+    /// <see cref="BuffId"/> of its own rather than the skill's. Null for every single-ability skill.
+    /// </param>
     private sealed record CapturedSkillEffectFrame(
         byte[] Template,
         byte Slot,
         byte BuffId,
         bool ClosedOnReplace = false,
-        int[]? VolleyCounts = null);
+        int[]? VolleyCounts = null,
+        CapturedSkillEffectFrame? Extra = null);
 
     private static readonly Dictionary<int, CapturedSkillEffectFrame> CapturedSkillEffectFrames = new()
     {
@@ -5673,24 +5680,110 @@ internal sealed class PracticeRoomChannelProtocol
             Slot: 6,
             BuffId: 3,
             VolleyCounts: [2, 3, 4, 5, 6, 9]),
+        // Heavy session (retail capture log-2026-10-14.txt, quick slots 4/5): Shield and Haste are
+        // self-buffs, so the retail server answers a press with the packet160 acknowledgement and one
+        // packet162 ability frame and nothing else. The capture presses Shield (quick slot 4) and
+        // then Haste (quick slot 5) without ever receiving a packet155, so neither ability is
+        // replaced by the next activation, and neither is a placement, so no packet152/185 is
+        // involved either.
+        // Shield ships the shortest parameter list of the family: `A2 00 <flags> 40 40 <slot>
+        // <ability> 00 <float>`, where the single float is the 10 second duration every mode shares
+        // (`tips_abilities_Shield_mode1..6` differ only in the 600..2000 absorbed points, the
+        // duration word is constant), and the absorbed points stay in the client tables.
+        [1] = new(Convert.FromHexString("A2000100800B404004080000002041"), Slot: 4, BuffId: 8),
+        // Haste reuses the two-float layout of the Assault Stealth frame, filled with the mode 5
+        // numbers the shipped client text documents (`tips_abilities_Haste_mode5` = 7 seconds of
+        // movement at +5 speed).
+        [4] = new(Convert.FromHexString("A2000101800B40400509000000E0400000A040"), Slot: 5, BuffId: 9),
+        // Biochemical session (retail capture log-2026-10-14.txt, quick slots 4/5/13): every
+        // Biochemical activation answers the press with TWO packet162 frames instead of one, so each
+        // entry carries the second one as Extra and the senders push them in the captured order. The
+        // capture (and the shipped client text) names them by the display the character equipment
+        // block carries - `id_datalist_shengmingchuandao_01` = 生命抽取 (skill 38, quick slot 4),
+        // `id_datalist_guojifanying_01` = 生命传导 (skill 42, quick slot 5) and
+        // `id_datalist_shengmingchouqu_01` = 瘟疫传播 (skill 39, quick slot 13) - which is why the
+        // resource names below read one skill off from the Chinese labels.
+        //   quick slot 13 / skill 39 (suckblood): ability 72 (`buff/72.lua` = suckBlood.tga) then
+        //   ability 63 (`buff/63.lua` = cross_first), both slot-shaped frames of the Trap family.
+        //   quick slot 4 / skill 38 (conduction): a 20 byte frame that keeps its ability id at offset
+        //   10 (61, the skill's own buff id) and trails a zero float plus the u16 1890 = 90% of the
+        //   capture character's 2100 HP, then the 14 byte frame of ability 60 (`buff/60.lua` =
+        //   biochemistry_effect_transmission1 + cureQuantityIncrement.tga, 10s).
+        //   quick slot 5 / skill 42 (overreaction): ability 67 (`buff/67.lua` = overdraft.tga) then
+        //   ability 68 (`buff/68.lua` = overreaction.tga + biochemistry_effect_excite1), each with an
+        //   8s parameter.
+        // None of the three is replaced by the next activation (the whole capture receives no
+        // packet155) and none is a placement, so the packet152/185 path is not involved either. The
+        // recorded Slot / BuffId only have to differ from the bytes the frames really store to keep
+        // them verbatim (the rewrite fires only when the byte matches): slot 13 rewrites 0D to the
+        // same 0D, and the frames of skills 38/42 store 00 where the other families store the slot.
+        // Retail also ends the second ability of skill 42 with packet163 about a second later
+        // (`A3 00 01 00 80 03 40 40 44 00 00 00 00 00`, the very same body with the parameter
+        // zeroed); the client already runs the 8s the frame parameter gives it, so packet163 is not
+        // replayed yet.
+        [38] = new(
+            Convert.FromHexString("A20001104203404000003D000000000062070000"),
+            Slot: 4,
+            BuffId: 61,
+            Extra: new(Convert.FromHexString("A2000100800340403C0000002041"), Slot: 4, BuffId: 60)),
+        [39] = new(
+            Convert.FromHexString("A2000100000B40400D4800"),
+            Slot: 13,
+            BuffId: 72,
+            Extra: new(Convert.FromHexString("A2000100000B40400D3F00"), Slot: 13, BuffId: 63)),
+        [42] = new(
+            Convert.FromHexString("A200010080034040430000000041"),
+            Slot: 5,
+            BuffId: 67,
+            Extra: new(Convert.FromHexString("A200010080034040440000000041"), Slot: 5, BuffId: 68)),
     };
 
     /// <summary>
-    /// Builds the packet162 ability frame for a skill, or null when the skill has no captured frame
-    /// (placed abilities such as Trap and the guardian Shockwave, whose cast effect the client plays
-    /// locally). Everything is replayed verbatim, exactly like the retail frames: after the flags
-    /// word and the uid pair the frame carries the ability parameter byte, the ability id and, for
-    /// the abilities that ship parameters, the parameter floats (Stealth carries 20.0s of
-    /// invisibility and a 6m detection radius). The parameter / ability bytes are only rewritten
-    /// when the captured frame actually stores them, so a frame that packs the ability id in the
-    /// slot-shaped byte (Deadly Sprint ships 06, the spurt ability, on quick slot 5) is not
+    /// Builds the packet162 ability frames an activation opens for a skill, or null when the skill
+    /// has no captured frame (placed abilities such as Trap and the guardian Shockwave, whose cast
+    /// effect the client plays locally). Almost every skill opens exactly one ability, but the
+    /// Biochemical ones answer a single press with two frames, which is what
+    /// <see cref="CapturedSkillEffectFrame.Extra"/> carries; the companion is stamped and sent right
+    /// after the primary frame, in the captured order.
+    /// </summary>
+    private static byte[][]? BuildSkillEffectFrames(int skillId, byte slot, int buffId, int level)
+    {
+        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var captured))
+        {
+            return null;
+        }
+
+        var primary = BuildSkillEffectFrame(captured, slot, buffId, level);
+        if (primary is null)
+        {
+            return null;
+        }
+
+        if (captured.Extra is null)
+        {
+            return [primary];
+        }
+
+        // The companion frame names its own ability, so it is built with that id instead of the
+        // skill's: feeding it the skill's buff id would rewrite the byte that names the second
+        // ability.
+        var extra = BuildSkillEffectFrame(captured.Extra, slot, captured.Extra.BuffId, level);
+        return extra is null ? [primary] : [primary, extra];
+    }
+
+    /// <summary>
+    /// Builds one packet162 ability frame. Everything is replayed verbatim, exactly like the retail
+    /// frames: after the flags word and the uid pair the frame carries the ability parameter byte,
+    /// the ability id and, for the abilities that ship parameters, the parameter floats (Stealth
+    /// carries 20.0s of invisibility and a 6m detection radius). The parameter / ability bytes are
+    /// only rewritten when the captured frame actually stores them, so a frame that packs the ability
+    /// id in the slot-shaped byte (Deadly Sprint ships 06, the spurt ability, on quick slot 5) is not
     /// corrupted by a blind slot write. The identity bytes are left as captured: the senders stamp
     /// them, because the uid they need differs between the caster and every other room client.
     /// </summary>
-    private static byte[]? BuildSkillEffectFrame(int skillId, byte slot, int buffId, int level)
+    private static byte[]? BuildSkillEffectFrame(CapturedSkillEffectFrame captured, byte slot, int buffId, int level)
     {
-        if (!CapturedSkillEffectFrames.TryGetValue(skillId, out var captured) ||
-            captured.Template.Length <= GameSkillEffectOpenSlotOffset)
+        if (captured.Template.Length <= GameSkillEffectOpenSlotOffset)
         {
             return null;
         }
@@ -5723,44 +5816,48 @@ internal sealed class PracticeRoomChannelProtocol
         int level,
         string trigger)
     {
-        var frame = BuildSkillEffectFrame(skillId, slot, buffId, level);
-        if (frame is null)
+        var frames = BuildSkillEffectFrames(skillId, slot, buffId, level);
+        if (frames is null)
         {
             return false;
         }
 
-        // Every in-game packet (160/155/185/...) carries the actor uid right after its opcode, and the
-        // captured frames still hold the retail player's uid (0x40 in the capture session) in BOTH
-        // identity bytes. Leaving them in place makes the client drop the frame as another player's
-        // effect, so the ability never opens locally: the quick slot plays its wind-up, but no aura,
-        // no invisibility and no movement buff is ever applied.
-        if (SkillEffectUid != SkillEffectUidMode.None &&
-            frame.Length > GameSkillEffectOpenTargetUidOffset)
+        foreach (var frame in frames)
         {
-            if (SkillEffectUid != SkillEffectUidMode.Target)
+            // Every in-game packet (160/155/185/...) carries the actor uid right after its opcode, and
+            // the captured frames still hold the retail player's uid (0x40 in the capture session) in
+            // BOTH identity bytes. Leaving them in place makes the client drop the frame as another
+            // player's effect, so the ability never opens locally: the quick slot plays its wind-up,
+            // but no aura, no invisibility and no movement buff is ever applied.
+            if (SkillEffectUid != SkillEffectUidMode.None &&
+                frame.Length > GameSkillEffectOpenTargetUidOffset)
             {
-                frame[GameSkillEffectOpenCasterUidOffset] = _localGameUid;
+                if (SkillEffectUid != SkillEffectUidMode.Target)
+                {
+                    frame[GameSkillEffectOpenCasterUidOffset] = _localGameUid;
+                }
+
+                if (SkillEffectUid != SkillEffectUidMode.Actor)
+                {
+                    frame[GameSkillEffectOpenTargetUidOffset] = _localGameUid;
+                }
             }
 
-            if (SkillEffectUid != SkillEffectUidMode.Actor)
-            {
-                frame[GameSkillEffectOpenTargetUidOffset] = _localGameUid;
-            }
+            using var writer = new PacketWriter();
+            writer.WriteRaw(frame);
+
+            Log.Debug(
+                "Channel packet162 -> {Remote}: skill effect open skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} uidMode={UidMode} hex={Hex}",
+                _remoteLabel,
+                skillId,
+                slot,
+                level,
+                trigger,
+                SkillEffectUid,
+                Convert.ToHexString(frame));
+            await SendPacketAsync(writer);
         }
 
-        using var writer = new PacketWriter();
-        writer.WriteRaw(frame);
-
-        Log.Debug(
-            "Channel packet162 -> {Remote}: skill effect open skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} uidMode={UidMode} hex={Hex}",
-            _remoteLabel,
-            skillId,
-            slot,
-            level,
-            trigger,
-            SkillEffectUid,
-            Convert.ToHexString(frame));
-        await SendPacketAsync(writer);
         return true;
     }
 
@@ -5779,31 +5876,35 @@ internal sealed class PracticeRoomChannelProtocol
         int level,
         string trigger)
     {
-        var frame = BuildSkillEffectFrame(skillId, slot, buffId, level);
-        if (frame is null)
+        var frames = BuildSkillEffectFrames(skillId, slot, buffId, level);
+        if (frames is null)
         {
             return false;
         }
 
-        if (frame.Length > GameSkillEffectOpenTargetUidOffset)
+        foreach (var frame in frames)
         {
-            frame[GameSkillEffectOpenCasterUidOffset] = actorUid;
-            frame[GameSkillEffectOpenTargetUidOffset] = actorUid;
+            if (frame.Length > GameSkillEffectOpenTargetUidOffset)
+            {
+                frame[GameSkillEffectOpenCasterUidOffset] = actorUid;
+                frame[GameSkillEffectOpenTargetUidOffset] = actorUid;
+            }
+
+            using var writer = new PacketWriter();
+            writer.WriteRaw(frame);
+
+            Log.Debug(
+                "Channel packet162 -> {Remote}: remote skill effect open actorUid={ActorUid} skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} hex={Hex}",
+                _remoteLabel,
+                actorUid,
+                skillId,
+                slot,
+                level,
+                trigger,
+                Convert.ToHexString(frame));
+            await SendPacketAsync(writer);
         }
 
-        using var writer = new PacketWriter();
-        writer.WriteRaw(frame);
-
-        Log.Debug(
-            "Channel packet162 -> {Remote}: remote skill effect open actorUid={ActorUid} skillId={SkillId} slot={Slot} level={Level} trigger={Trigger} hex={Hex}",
-            _remoteLabel,
-            actorUid,
-            skillId,
-            slot,
-            level,
-            trigger,
-            Convert.ToHexString(frame));
-        await SendPacketAsync(writer);
         return true;
     }
 
