@@ -19,6 +19,9 @@ internal sealed class PlayerStateSnapshot
     public string CheckinMonthKey { get; set; } = string.Empty;
     public HashSet<int> CheckinDays { get; set; } = new();
     public HashSet<int> CheckinClaimedRewardIds { get; set; } = new();
+
+    // 一次性发放标记（例如初始强化材料），避免重复发放。
+    public HashSet<string> RewardFlags { get; set; } = new();
     public Dictionary<string, int> ShopPurchasedCounts { get; set; } = new();
     public Dictionary<int, Dictionary<int, InventoryItem>> Storages { get; set; } = new();
     public Dictionary<int, string> EquippedItemsByType { get; set; } = new();

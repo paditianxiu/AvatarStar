@@ -229,9 +229,6 @@ internal partial class GameClient
         "rank_list",
         "rank_mine",
         "rank_playerinfo",
-        "refit_detail",
-        "refit_finish",
-        "refit_need",
         "repair_price_get",
         "set_social_detail",
         "shop_buy",
@@ -1849,6 +1846,24 @@ internal partial class GameClient
                 return;
             }
 
+            // ===== 强化武器 (weapon refit) =====
+            case "refit_detail":
+            {
+                await HandleRefitDetailAsync(writer);
+                return;
+            }
+
+            case "refit_need":
+            {
+                await HandleRefitNeedAsync(writer, rpcArgs);
+                return;
+            }
+
+            case "refit_finish":
+            {
+                await HandleRefitFinishAsync(writer, rpcArgs);
+                return;
+            }
             case "player_create":
                 {
                     var config = _sysAvatarPayloadMonitor.CurrentValue;
@@ -2987,8 +3002,10 @@ internal partial class GameClient
                 var pageSize = GetIntArg(rpcArgs, "s", 36);
                 var storageType = GetIntArg(rpcArgs, "t", 3);
                 var subtypeFilter = ParseIntSetArg(rpcArgs.GetValueOrDefault("subType"));
-                var gradeFilter = ParseIntSetArg(rpcArgs.GetValueOrDefault("grade"));
-                var result = GetStorageItems(storageType, page, pageSize, subtypeFilter, gradeFilter, pageBySlot: false);
+                var gradeFilter = ParseGradeFilterArg(rpcArgs.GetValueOrDefault("grade"));
+                // 强化武器面板会带上 refitFilterItemId（被强化的武器），需要从材料列表里剔除。
+                var excludePid = rpcArgs.GetValueOrDefault("refitFilterItemId");
+                var result = GetStorageItems(storageType, page, pageSize, subtypeFilter, gradeFilter, pageBySlot: false, excludePid: excludePid);
                 writer.WriteString(
                     "ok = 1\n" +
                     $"t = {storageType}\n" +
@@ -3635,7 +3652,11 @@ internal partial class GameClient
                         $"grade = {effectiveGrade}\n" +
                         // Fields required by `Other/tip/tip_d.lua` for weapon/item tips.
                         $"battleForce = {battleForce}\n" +
-                        $"refitedNum = 0\n" +
+                        $"refitedNum = {invItem?.RefitLevel ?? 0}\n" +
+                        $"refitLevel = {invItem?.RefitLevel ?? 0}\n" +
+                        $"refitTotalExp = {invItem?.RefitTotalExp ?? 0}\n" +
+                        $"plusLevel = {invItem?.PlusLevel ?? 0}\n" +
+                        $"refitNum = {RefitMaxLevel}\n" +
                         $"canEquip = \"Y\"\n" +
                         $"isEquip = {LuaEscape(effectiveIsEquip)}\n" +
                         $"isBind = {LuaEscape(effectiveIsBind)}\n" +

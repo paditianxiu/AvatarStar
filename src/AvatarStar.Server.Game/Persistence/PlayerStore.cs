@@ -339,14 +339,17 @@ internal sealed class PlayerStore
             InventoryItem? BackpackItem);
 
         public CharacterInfo Character { get; set; }
-        public int Gp { get; set; } = 100000;
-        public int Mb { get; set; } = 100000;
-        public int Tb { get; set; } = 100000;
+        public int Gp { get; set; } = 99999999;
+        public int Mb { get; set; } = 99999999;
+        public int Tb { get; set; } = 99999999;
         public Dictionary<int, int> BoxPoints { get; } = new();
         public Dictionary<int, Dictionary<int, int>> BoxPointClaimCounts { get; } = new();
         public string CheckinMonthKey { get; private set; } = string.Empty;
         public HashSet<int> CheckinDays { get; } = new();
         public HashSet<int> CheckinClaimedRewardIds { get; } = new();
+
+        // 一次性发放标记（例如初始强化材料），与 PlayerStateSnapshot.RewardFlags 对应。
+        public HashSet<string> RewardFlags { get; } = new();
 
         // (sid, priceId) -> purchased count (用于限购显示/校验)
         public Dictionary<(int Sid, int PriceId), int> ShopPurchasedCounts { get; } = new();
@@ -515,6 +518,7 @@ internal sealed class PlayerStore
                 CheckinMonthKey = CheckinMonthKey,
                 CheckinDays = new HashSet<int>(CheckinDays),
                 CheckinClaimedRewardIds = new HashSet<int>(CheckinClaimedRewardIds),
+                RewardFlags = new HashSet<string>(RewardFlags),
                 ShopPurchasedCounts = ShopPurchasedCounts.ToDictionary(
                     pair => $"{pair.Key.Sid}:{pair.Key.PriceId}",
                     pair => pair.Value),
@@ -596,6 +600,14 @@ internal sealed class PlayerStore
             foreach (var rewardId in snapshot.CheckinClaimedRewardIds)
             {
                 player.CheckinClaimedRewardIds.Add(rewardId);
+            }
+
+            if (snapshot.RewardFlags is { Count: > 0 })
+            {
+                foreach (var flag in snapshot.RewardFlags)
+                {
+                    player.RewardFlags.Add(flag);
+                }
             }
 
             foreach (var (key, value) in snapshot.ShopPurchasedCounts)
@@ -869,6 +881,7 @@ internal sealed class PlayerStore
 
                 NormalizeLegacyStarterAvatarCard();
                 EnsureStarterSkinCard();
+                EnsureRefitMaterials();
             }
             finally
             {
@@ -2014,6 +2027,219 @@ internal sealed class PlayerStore
         {
             EnsureStarterInventory();
             return FindItemByPid(pid);
+        }
+
+        /// <summary>
+        /// 按 pid 定位物品所在的仓库与槽位，供强化武器等需要就地改写的流程使用。
+        /// </summary>
+        public bool TryLocateInventoryItem(string? pid, out int storageType, out int slot, out InventoryItem? item)
+        {
+            storageType = 0;
+            slot = 0;
+            item = null;
+            if (string.IsNullOrWhiteSpace(pid))
+            {
+                return false;
+            }
+
+            EnsureStarterInventory();
+            foreach (var (type, slots) in Storages)
+            {
+                foreach (var (key, value) in slots)
+                {
+                    if (!string.Equals(value.Pid, pid, StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    storageType = type;
+                    slot = key;
+                    item = value;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 整件消耗物品（例如强化武器的材料武器）。已装备的物品不允许被消耗。
+        /// </summary>
+        public bool TryRemoveInventoryItemByPid(string? pid, out InventoryItem? removed)
+        {
+            removed = null;
+            if (!TryLocateInventoryItem(pid, out var storageType, out var slot, out var item) || item is null)
+            {
+                return false;
+            }
+
+            if (string.Equals(item.IsEquip, "Y", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            removed = item;
+            lock (_stateLock)
+            {
+                if (Storages.TryGetValue(storageType, out var slots))
+                {
+                    slots.Remove(slot);
+                }
+
+                // 被消耗的武器如果还挂在快捷栏上会留下悬空引用（GetGameLoadoutItems 会拿同 resource
+                // 的另一件武器顶上），这里一并摘掉，避免快捷栏悄悄换枪。
+                var hotKeySlots = _hotKeySlots
+                    .Where(x => x.Value is not null && string.Equals(x.Value.ItemId, item.Pid, StringComparison.Ordinal))
+                    .Select(x => x.Key)
+                    .ToArray();
+                foreach (var hotKeySlot in hotKeySlots)
+                {
+                    _hotKeySlots.Remove(hotKeySlot);
+                }
+
+                SyncEquipmentEquipFlags();
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 写入强化进度（累计经验 + 等级）。plusLevel 与 refitLevel 保持同值，
+        /// 因为官方客户端在物品列表里把两者一起下发。
+        /// </summary>
+        public bool TryApplyRefitProgress(string? pid, int totalExp, int level)
+        {
+            if (!TryLocateInventoryItem(pid, out var storageType, out var slot, out var item) || item is null)
+            {
+                return false;
+            }
+
+            var normalizedExp = Math.Max(0, totalExp);
+            var normalizedLevel = Math.Clamp(level, 0, 20);
+            if (Storages.TryGetValue(storageType, out var slots))
+            {
+                slots[slot] = item with
+                {
+                    RefitTotalExp = normalizedExp,
+                    RefitLevel = normalizedLevel,
+                    PlusLevel = normalizedLevel
+                };
+            }
+
+            return true;
+        }
+
+        private const string StarterRefitMaterialsFlag = "starter_refit_materials_v1";
+
+        /// <summary>
+        /// 一次性发放初始强化材料，让强化武器流程开箱即用；用持久化标记保证只发一次。
+        /// </summary>
+        private void EnsureRefitMaterials()
+        {
+            if (!RewardFlags.Add(StarterRefitMaterialsFlag))
+            {
+                return;
+            }
+
+            GrantRefitMaterialStack("wim_steel", 109, 999999, category: 108, display: "id_datalist_Alloy_Steel");
+            GrantRefitMaterialStack("wim_composite", 111, 999999, category: 110, display: "id_datalist_Composites");
+            GrantRefitMaterialStack("intensify_luck", 20628, 999999, category: 3, display: "id_datalist_intensify_luck");
+            GrantRefitMaterialStack("intensify_translation", 20631, 999999, category: 6, display: "id_datalist_intensify_translation");
+            GrantRefitMaterialWeapons();
+        }
+
+        /// <summary>
+        /// 强化武器的材料必须是 2/3 级武器（官方 refit_detail.grades 的位掩码只覆盖 2..5 级），
+        /// 而新号的初始武器全是 1 级，材料列表会空着。这里补几件 2/3 级武器，让强化面板开箱可用；
+        /// 更多材料可以去商城按 1 金币一把购买。
+        /// </summary>
+        private void GrantRefitMaterialWeapons()
+        {
+            GrantRefitWeapon("smg_02", 20002, fallbackGrade: 2, fallbackSubtype: 1, fallbackDisplay: "id_datalist_Savage_Terminator");
+            GrantRefitWeapon("sniperrifle_02", 20312, fallbackGrade: 2, fallbackSubtype: 2, fallbackDisplay: "id_datalist_Snakes_Touch");
+            GrantRefitWeapon("shotgun_02", 20449, fallbackGrade: 2, fallbackSubtype: 4, fallbackDisplay: "id_datalist_Stalker");
+            GrantRefitWeapon("smg_05", 20005, fallbackGrade: 3, fallbackSubtype: 1, fallbackDisplay: "id_datalist_Savage_Terminator_Enhanced_Edition");
+            GrantRefitWeapon("sniperrifle_05", 20315, fallbackGrade: 3, fallbackSubtype: 2, fallbackDisplay: "id_datalist_Snakes_Touch_Enhanced_Edition");
+            GrantRefitWeapon("shotgun_05", 20452, fallbackGrade: 3, fallbackSubtype: 4, fallbackDisplay: "id_datalist_Stalker_Enhanced_Edition");
+        }
+
+        private void GrantRefitWeapon(string resource, int fallbackSid, int fallbackGrade, int fallbackSubtype, string fallbackDisplay)
+        {
+            var sid = fallbackSid;
+            var grade = fallbackGrade;
+            var subtype = fallbackSubtype;
+            var display = fallbackDisplay;
+            if (ShopItemDatabase.TryGetShopItemByResource(resource, out var shopItem))
+            {
+                if (shopItem.Sid > 0)
+                {
+                    sid = shopItem.Sid;
+                }
+
+                if (shopItem.Grade > 0)
+                {
+                    grade = shopItem.Grade;
+                }
+
+                if (shopItem.Subtype > 0)
+                {
+                    subtype = shopItem.Subtype;
+                }
+
+                if (!string.IsNullOrWhiteSpace(shopItem.Display))
+                {
+                    display = shopItem.Display;
+                }
+            }
+
+            TryGrantInventoryItem(
+                type: (int)ShopItemDatabase.ItemType.Equipment,
+                subtype: subtype,
+                grade: grade,
+                sid: sid,
+                resource: resource,
+                quantity: 1,
+                unitType: 1,
+                unit: 1,
+                category: 0,
+                display: display);
+        }
+
+        private void GrantRefitMaterialStack(string resource, int fallbackSid, int count, int category, string display)
+        {
+            var sid = fallbackSid;
+            var subtype = 100;
+            var grade = 2;
+            if (ShopItemDatabase.TryGetShopItemByResource(resource, out var shopItem))
+            {
+                if (shopItem.Sid > 0)
+                {
+                    sid = shopItem.Sid;
+                }
+
+                if (shopItem.Subtype > 0)
+                {
+                    subtype = shopItem.Subtype;
+                }
+
+                if (shopItem.Grade > 0)
+                {
+                    grade = shopItem.Grade;
+                }
+            }
+
+            TryGrantInventoryItem(
+                type: (int)ShopItemDatabase.ItemType.Item,
+                subtype: subtype,
+                grade: grade,
+                sid: sid,
+                resource: resource,
+                quantity: count,
+                unitType: 1,
+                unit: count,
+                category: category,
+                display: display,
+                description: display + "_desc");
         }
 
         public IReadOnlyList<GameLoadoutItem> GetGameLoadoutItems()

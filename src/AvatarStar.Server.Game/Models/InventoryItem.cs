@@ -30,7 +30,10 @@ internal sealed record InventoryItem
         string Display = "",
         string Designer = "",
         string Description = "",
-        IReadOnlyDictionary<string, double>? Attributes = null)
+        IReadOnlyDictionary<string, double>? Attributes = null,
+        int RefitTotalExp = 0,
+        int RefitLevel = 0,
+        int PlusLevel = 0)
     {
         this.Pid = Pid;
         this.Slot = Slot;
@@ -54,6 +57,9 @@ internal sealed record InventoryItem
         this.Designer = Designer;
         this.Description = Description;
         this.Attributes = Attributes;
+        this.RefitTotalExp = RefitTotalExp;
+        this.RefitLevel = RefitLevel;
+        this.PlusLevel = PlusLevel;
     }
 
     public string Pid { get; init; } = string.Empty;
@@ -78,4 +84,11 @@ internal sealed record InventoryItem
     public string Designer { get; init; } = string.Empty;
     public string Description { get; init; } = string.Empty;
     public IReadOnlyDictionary<string, double>? Attributes { get; init; }
+
+    // 强化武器 (weapon refit) progress. RefitTotalExp is the accumulated enhancement
+    // exp, RefitLevel the resulting level (0..20) and PlusLevel the mirror value the
+    // client shows on the item payload (`plusLevel`).
+    public int RefitTotalExp { get; init; }
+    public int RefitLevel { get; init; }
+    public int PlusLevel { get; init; }
 }

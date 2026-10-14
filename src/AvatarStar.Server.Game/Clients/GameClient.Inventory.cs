@@ -13,7 +13,8 @@ internal partial class GameClient
         int pageSize,
         IReadOnlySet<int>? subtypeFilter = null,
         IReadOnlySet<int>? gradeFilter = null,
-        bool pageBySlot = true)
+        bool pageBySlot = true,
+        string? excludePid = null)
     {
         var player = GetActivePlayerStateOrDefault();
         player.EnsureStarterInventory();
@@ -39,6 +40,13 @@ internal partial class GameClient
         if (subtypeFilter is { Count: > 0 })
         {
             query = query.Where(x => subtypeFilter.Contains(x.Subtype) || subtypeFilter.Contains(x.SubType));
+        }
+
+        if (!string.IsNullOrWhiteSpace(excludePid))
+        {
+            // 强化武器面板会把「被强化的武器」pid 传进来（refitFilterItemId），
+            // 官方服务端会把它从可选材料列表里剔除。
+            query = query.Where(x => !string.Equals(x.Pid, excludePid, StringComparison.Ordinal));
         }
 
         if (gradeFilter is { Count: > 0 })
@@ -143,8 +151,10 @@ internal partial class GameClient
                         armor = 0,
                         recovery = 0
                     },
-                    // Enhancement panels probe this field (e.g. `if menDt2.refitTotalExp > 0 then ...`)
-                    refitTotalExp = 0,
+                    // 强化武器 (refit) 进度：官方客户端在物品列表里同时下发 plusLevel/refitTotalExp/refitLevel。
+                    plusLevel = x.PlusLevel,
+                    refitTotalExp = x.RefitTotalExp,
+                    refitLevel = x.RefitLevel,
                     sid = x.Sid,
                     type = x.Type,
                     avatar = LuaSerializer.NormalizeJsonElement(x.Avatar),
@@ -171,6 +181,31 @@ internal partial class GameClient
         {
             var value = part.Split(',', StringSplitOptions.TrimEntries)[0];
             if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
+            {
+                set.Add(parsed);
+            }
+        }
+
+        return set;
+    }
+
+    /// <summary>
+    /// 强化武器面板下发的 grade 是「逗号分隔 + 结尾逗号」（例如 "3,2,"），与 subType 的
+    /// "id,count;" 形式不同，所以这里同时按 ';' 与 ',' 切分，才能把 2 级和 3 级武器都当成材料。
+    /// </summary>
+    private static HashSet<int> ParseGradeFilterArg(string? raw)
+    {
+        var set = new HashSet<int>();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return set;
+        }
+
+        foreach (var part in raw.Split(
+                     new[] { ';', ',' },
+                     StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) && parsed > 0)
             {
                 set.Add(parsed);
             }

@@ -75784,6 +75784,74 @@
                     }
                 ]
             },
+            "Item_refit_material": {
+                "items": [
+                    {
+                        "sid": 109,
+                        "resource": "wim_steel",
+                        "display": "id_datalist_Alloy_Steel",
+                        "description": "",
+                        "grade": 2,
+                        "type": 3,
+                        "subtype": 100,
+                        "level": 0,
+                        "occupation": -1,
+                        "quantity": 1,
+                        "isLimited": false,
+                        "prices": [
+                            {
+                                "priceId": 1,
+                                "currency": 1,
+                                "price": 200,
+                                "rebatePrice": 0,
+                                "sellState": 2,
+                                "unitType": 1,
+                                "unit": 1,
+                                "repeatDuration": 1,
+                                "accomplishCount": 0,
+                                "isRenew": false,
+                                "isCardPrice": false,
+                                "isGive": false,
+                                "vipLevel": 0,
+                                "startDateTime": 0,
+                                "endDateTime": 0
+                            }
+                        ]
+                    },
+                    {
+                        "sid": 111,
+                        "resource": "wim_composite",
+                        "display": "id_datalist_Composites",
+                        "description": "",
+                        "grade": 2,
+                        "type": 3,
+                        "subtype": 100,
+                        "level": 0,
+                        "occupation": -1,
+                        "quantity": 1,
+                        "isLimited": false,
+                        "prices": [
+                            {
+                                "priceId": 1,
+                                "currency": 1,
+                                "price": 200,
+                                "rebatePrice": 0,
+                                "sellState": 2,
+                                "unitType": 1,
+                                "unit": 1,
+                                "repeatDuration": 1,
+                                "accomplishCount": 0,
+                                "isRenew": false,
+                                "isCardPrice": false,
+                                "isGive": false,
+                                "vipLevel": 0,
+                                "startDateTime": 0,
+                                "endDateTime": 0
+                            }
+                        ]
+                    }
+                ]
+            },
             "Item_intensify_luck": {
                 "items": [
                     {
