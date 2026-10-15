@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source": "AvatarStar official server capture log-2026-10-15.txt: shop_avatar_list (t=5, st=1, pageSize=6, 5 pages / 25 cards) + tip_sys_avatar details",
-  "slotTemplate": [
+   "slotTemplate": [
     {
       "battleForce": 0,
       "displayName": "",
@@ -1507,6 +1507,122 @@
         "immobile": "",
         "immobileUp": "{{'kuloubing_trinket06_lod0',17,0,3,85,97,130,163,131,86,97,97,97},{'kuloubing_trinket05_lod0',17,1,3,85,97,130,163,131,86,97,97,97},{'kuloubing_trinket04_lod0',17,2,1,158,130,103,0,0,0,0,0,0},{'kuloubing_trinket03_lod0',17,3,3,85,97,130,163,131,86,97,97,97},{'kuloubing_trinket01_lod0',17,4,3,134,115,91,116,130,167,97,97,97},{'kuloubing_trinket02_lod0',17,5,3,85,97,130,163,131,86,97,97,97},}",
         "immobileDown": "{{'kuloubing_trinket08_lod0',18,6,3,49,55,60,163,131,85,119,119,119},{'kuloubing_trinket07_lod0',18,7,3,49,55,60,163,131,85,119,119,119},}"
+      }
+    },
+    {
+      "sid": 100184,
+      "subtype": 1,
+      "display": "UI_lobby_avatar_langwang",
+      "resource": "",
+      "description": "",
+      "grade": 1,
+      "avatarLevel": 1,
+      "bindType": 2,
+      "isSell": "N",
+      "isSys": true,
+      "designer": "msgbox_common_conditionkey_146",
+      "level": 1,
+      "prices": [
+        {
+          "priceId": 217,
+          "currency": 2,
+          "unitType": 2,
+          "unit": 100,
+          "price": 99,
+          "rebatePrice": 0,
+          "isGive": false,
+          "isRenew": false,
+          "isCardPrice": false
+        },
+        {
+          "priceId": 219,
+          "currency": 4,
+          "unitType": 2,
+          "unit": 100,
+          "price": 99,
+          "rebatePrice": 0,
+          "isGive": false,
+          "isRenew": false,
+          "isCardPrice": false
+        }
+      ],
+      "avatar": {
+        "skin": "{'langwang_skin',1,-1,3,128,128,128,128,128,128,128,128,128}",
+        "eye": "",
+        "mouth": "",
+        "nose": "",
+        "ear": "",
+        "beard": "",
+        "hair": "",
+        "helmet": "{'langwang_helmet_lod0',8,0,3,128,128,128,128,128,128,128,128,128}",
+        "underwear": "",
+        "outerwear": "",
+        "trousers": "",
+        "glove": "",
+        "shoes": "",
+        "decal": "",
+        "movable": "",
+        "immobile": "",
+        "immobileUp": "{{'langwang01_trinket_lod0',17,0,3,128,128,128,128,128,128,128,128,128},}",
+        "immobileDown": "{{'langwang02_trinket_lod0',18,1,3,128,128,128,128,128,128,128,128,128},}"
+      }
+    },
+    {
+      "sid": 100185,
+      "subtype": 1,
+      "display": "id_avatar_name_dayuanshuai",
+      "resource": "",
+      "description": "",
+      "grade": 1,
+      "avatarLevel": 1,
+      "bindType": 2,
+      "isSell": "N",
+      "isSys": true,
+      "designer": "msgbox_common_conditionkey_146",
+      "level": 1,
+      "prices": [
+        {
+          "priceId": 218,
+          "currency": 2,
+          "unitType": 2,
+          "unit": 100,
+          "price": 99,
+          "rebatePrice": 0,
+          "isGive": false,
+          "isRenew": false,
+          "isCardPrice": false
+        },
+        {
+          "priceId": 220,
+          "currency": 4,
+          "unitType": 2,
+          "unit": 100,
+          "price": 99,
+          "rebatePrice": 0,
+          "isGive": false,
+          "isRenew": false,
+          "isCardPrice": false
+        }
+      ],
+      "avatar": {
+        "skin": "{'onecolor_skin',1,-1,1,202,165,146,0,0,0,0,0,0}",
+        "eye": "",
+        "mouth": "",
+        "nose": "",
+        "ear": "",
+        "beard": "",
+        "hair": "",
+        "helmet": "{'dayuanshuai_helmet_lod0',8,0,3,29,44,47,128,128,128,28,28,28}",
+        "underwear": "",
+        "outerwear": "{{'dayuanshuai_outerwear',10,0,3,29,44,47,153,153,153,242,124,54},}",
+        "trousers": "{{'dayuanshuai_trousers',11,1,3,29,44,47,128,128,128,61,36,16},}",
+        "glove": "{{'dayuanshuai_glove',12,2,2,24,28,30,29,44,47,0,0,0},}",
+        "shoes": "{{'dayuanshuai_shoes',13,3,2,23,39,42,11,15,17,0,0,0},}",
+        "decal": "",
+        "movable": "",
+        "immobile": "",
+        "immobileUp": "{{'dayuanshuai_trinket02_lod0',17,0,3,29,44,27,128,128,128,242,124,54},{'dayuanshuai_trinket01_lod0',17,1,3,128,128,128,242,124,54,90,108,115},}",
+        "immobileDown": ""
       }
     }
   ]

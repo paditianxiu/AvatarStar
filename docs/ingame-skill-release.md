@@ -1307,3 +1307,63 @@ private const byte PistolWeaponSubtype = 5;
 - 官方整理排序规则未知（见上），当前是自定义策略。
 - `storage_storage_list` / `storage_item_filter` 回包里的 `ok = 1` 是早先加的字段，官方没有；客户端只读 `error`，
   不读 `ok`，保持原样没有去掉。
+## 第 32 轮：造型卡商城补两张卡（狼王斯沃夫 / 龙鳞战甲）
+
+抓包来源：`E:\AvatarStar\log-2026-10-15.txt`（15:50:01 开始的一次 session）。
+
+这一份抓包很小，只有 4 条 RPC，全是 `player_info` / `player_battle_force_get`（两个玩家
+`1110000000002432924`、`1110000000000613143`）。没有商城包 —— 但两条 `player_info` 里带着
+这两个玩家**穿戴的造型**（`equipAvatar` + `avatarSubType` + `equipAvatarGrade` + `avatarSkill`），
+所以本轮就是把这个造型原样做成两张造型卡，追加到 `Resources/avatar_cards.json`，让它们出现在
+造型卡商城里。
+
+### 一、数据来源：两条 player_info
+
+| 玩家 | sid(新) | 造型部位 | 显示名 |
+| --- | --- | --- | --- |
+| `spese`（30 级，职业 3） | **100184** | `langwang_skin` / `langwang_helmet_lod0` / `langwang01_trinket_lod0` / `langwang02_trinket_lod0` | `UI_lobby_avatar_langwang` → 狼王 斯沃夫 |
+| `伏见山兮`（30 级，职业 0） | **100185** | `onecolor_skin` + `dayuanshuai_helmet/outerwear/trousers/glove/shoes` + `dayuanshuai_trinket01/02_lod0` | `id_avatar_name_dayuanshuai` → 龙鳞战甲 |
+
+两个关键判断：
+
+1. **显示名用哪把钥匙。** `UI_lobby_avatar_langwang` 在文本库里就是「狼王 斯沃夫」，
+   `id_avatar_name_dayuanshuai` 是「龙鳞战甲」（全库搜「大元帅」只有军衔 `UI_social_rank_lv_14`，
+   并没有这个造型的名字；`id_avatar_name_*` 这一族就是造型卡名字，生肖系列也是这一族）。
+2. **子类型必须是 1。** `Clients/Shop/shop.lua` 里造型卡商城（t=5）只有 `st="1"`「普通造型卡」
+   一个子页签，服务端 `ShopItemProvider.SelectShopItems` 用 `st` 去卡 `item.Subtype`，
+   所以 `subtype=2`（英雄卡）在这个页签里根本不会显示 —— 两张新卡都按 `subtype=1` 入库。
+   顺带印证：抓包里那 25 张商城卡也全是 `subtype=1`。
+
+### 二、修改
+
+只改了 `src/AvatarStar.Server.Game/Resources/avatar_cards.json`（纯追加，没有动代码）：
+
+- `cards` 追加两条（`sid 100184 / 100185`，`subtype=1`、`grade=1`、`level=1`、`avatarLevel=1`、
+  `bindType=2`、`isSell="N"`、`isSys=true`、`designer="msgbox_common_conditionkey_146"`＝官方造型师），
+  `avatar` 就是抓包里那两个 `equipAvatar` 的 18 个部位，一字未改。
+- 价格按商城里同档造型卡的写法给两条（`currency=2` 钻石 99 / `currency=4` 券 99，`unitType=2`、`unit=100`），
+  `priceId` 取没用过的 217/219 与 218/220（`TryGetPriceById` 是按 sid 查的，只要同一张卡内唯一即可）。
+- 顶部加了一个 `extraSource` 说明这两条从哪来（`AvatarCardConfigRoot` 忽略未知字段，不影响加载）。
+
+`ShopItemDatabase.ApplyOfficialAvatarCards()` 会把这两条并进 `Items`，`shop_avatar_list`（t=5, st=1）
+按 sid 升序分页，所以它们落在第 5 页末尾。
+
+### 三、复现验证
+
+`dotnet build src/AvatarStar.Server.Game/AvatarStar.Server.Game.csproj -p:BaseOutputPath=tmp/buildchk/` → 0 警告 0 错误。
+
+临时工程（直接调 public 的 `ShopItemProvider` / `ShopItemDatabase` + 反射走购买链路，跑完即删）：
+
+- `GetAvatarCardListWithPaging(1..5, 6, "1", null, "1,2,4")` → 共 27 张 / 5 页，最后两张是 100184、100185；
+- 两张新卡的 `display` / `avatar` / 两条 `price` 都对，100184 的 skin 含 `langwang`、100185 的 helmet 含 `dayuanshuai`；
+- `CanPurchaseItem` 均为 true，`TryGetPriceById(100184,217)` = 钻石 99、`(100185,220)` = 券 99；
+- 购买后进 5 号仓库（`resource=humancard`、`avatarId` 已写入），`EquipAvatarCard` 能装备成功；
+- `BuildAvatarCardTipPayload` 出的 `tip_sys_avatar` 载荷字段完整（id/type/subType/display/bindType/grade/
+  isSell/designer/isSys + avatar + slots）。
+
+### 还没做 / 待确认
+
+- 这两张卡的价格、`grade`（都给了 1，跟商城另外 25 张一致）、`designer` 都是照商城现有卡的写法套的，
+  官方这两张卡真实的定价无从考证（这份抓包里没有商城包）。
+- 抓包里两个玩家的造型 `avatarSkill` 都是 `tips_buff_langwangshichou`（狼王复仇），但造型卡本身不带技能，
+  商城卡也没有技能字段，所以没写进去。
