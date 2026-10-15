@@ -2458,7 +2458,8 @@ internal partial class GameClient
                     equipped?.Pid ?? "0",
                     equippedAvatarId,
                     equipped?.Slot ?? 0);
-                writer.WriteString(ok ? "ok = 1" : "ok = 0");
+                // 官方成功回包是 `error=nil`（log-2026-10-15.txt id=69/74，bodylen=11），不是 ok=1。
+                writer.WriteString(ok ? "error = nil" : "error = id_abilities_bufuhetiaojian");
                 await SendAsync(writer);
                 return;
             }
@@ -2976,14 +2977,7 @@ internal partial class GameClient
                             preview);
                     }
 
-                    var itemsLua = LuaSerializer.SerializeSequential(result.Items);
-                    var payload =
-                        "ok = 1\n" +
-                        $"t = {storageType}\n" +
-                        $"s = {pageSize}\n" +
-                        $"page = {result.CurrentPage}\n" +
-                        $"pages = {result.TotalPages}\n" +
-                        "items = " + itemsLua;
+                    var payload = BuildStorageListPayload(storageType, pageSize, result);
 
                     Log.Debug(
                         "storage_storage_list response len={Len} preview={Preview}",
@@ -2995,6 +2989,35 @@ internal partial class GameClient
                     return;
                 }
 
+            case "storage_neaten":
+                {
+                    // 大厅背包的「整理」按钮（ui.btn_depot_reorder）会先发 storage_neaten，
+                    // 再发 storage_storage_list(1) 刷新当前页。客户端的 rpc 是串行队列
+                    // （sys/rpc.lua：rpc_new 入队，收到回包 rpc_completed 后才发下一条），
+                    // 所以必须在回包之前就把槽位重排好，否则紧接着的 storage_storage_list
+                    // 读到的还是整理前的数据。
+                    var storageType = GetIntArg(rpcArgs, "t", 2);
+                    var page = GetIntArg(rpcArgs, "p", 1);
+                    var pageSize = GetIntArg(rpcArgs, "s", 24);
+
+                    var player = GetActivePlayerStateOrDefault();
+                    player.EnsureStarterInventory();
+                    var moved = player.NeatenStorage(storageType);
+                    var result = GetStorageItems(storageType, page, pageSize);
+
+                    Log.Debug(
+                        "storage_neaten: t={T} page={Page}/{Pages} size={Size} moved={Moved} items={Count}",
+                        storageType,
+                        result.CurrentPage,
+                        result.TotalPages,
+                        pageSize,
+                        moved,
+                        result.Items.Length);
+
+                    writer.WriteString(BuildStorageListPayload(storageType, pageSize, result));
+                    await SendAsync(writer);
+                    return;
+                }
 
             case "storage_item_filter":
             {
@@ -3111,7 +3134,7 @@ internal partial class GameClient
             case "shop_avatar_list":
             {
                 var page = GetIntArg(rpcArgs, "p", 1);
-                var pageSize = GetIntArg(rpcArgs, "pageSize", 12);
+                var pageSize = GetIntArg(rpcArgs, "pageSize", 6);
                 var st = (rpcArgs.GetValueOrDefault("st") ?? string.Empty).Trim();
                 var currency = (rpcArgs.GetValueOrDefault("currency") ?? string.Empty).Trim();
 
@@ -3122,31 +3145,21 @@ internal partial class GameClient
                     occupation = occ;
                 }
 
-                var player = GetActivePlayerStateOrDefault();
-                int GetPurchasedCount(int sid, int priceId) => player.GetShopPurchasedCount(sid, priceId);
-
-                // 获取头像卡片列表
-                var query = new ShopItemProvider.ShopListQuery(
-                    Type: (int)ShopItemDatabase.ItemType.AvatarCard,
-                    St: st,
-                    SellState: null,
-                    Occupation: occupation,
-                    Currency: currency,
-                    Page: page,
-                    PageSize: pageSize);
-
-                var (items, totalPages, currentPage) = ShopItemProvider.GetShopItemListWithPaging(query, GetPurchasedCount);
+                // 造型卡列表 (t=5)：走专属转换，字段与官方抓包 (log-2026-10-15.txt id=78) 对齐。
+                // 官方回包没有 ok/now/quantity/category/isLimited，price 里多一个 canDiscount。
+                var (items, totalPages, currentPage) = ShopItemProvider.GetAvatarCardListWithPaging(
+                    page,
+                    pageSize,
+                    st,
+                    occupation,
+                    currency);
 
                 writer.WriteString(
-                    "ok = 1\n" +
-                    $"t = {(int)ShopItemDatabase.ItemType.AvatarCard}\n" +
-                    $"st = {LuaEscape(st)}\n" +
-                    "modulus = 0\n" +
                     $"page = {currentPage}\n" +
                     $"pages = {totalPages}\n" +
-                    $"pageSize = {pageSize}\n" +
-                    $"shopRev = {ShopItemDatabase.GetConfigRevision()}\n" +
-                    (occupation is { } o ? $"occupation = {o}\n" : string.Empty) +
+                    $"t = {(int)ShopItemDatabase.ItemType.AvatarCard}\n" +
+                    $"st = {LuaEscape(st)}\n" +
+                    "modulus = 0.0\n" +
                     "items = " + LuaSerializer.Serialize(items));
                 await SendAsync(writer);
                 return;
@@ -3547,11 +3560,11 @@ internal partial class GameClient
                         effectiveDesigner = "msgbox_common_conditionkey_146";
                     }
 
-                    var effectiveIsSys =
-                        effectiveDisplay.StartsWith("id_", StringComparison.Ordinal) ||
-                        effectiveDisplay.StartsWith("msgbox_", StringComparison.Ordinal) ||
-                        effectiveDisplay.StartsWith("tips_", StringComparison.Ordinal) ||
-                        effectiveDisplay.StartsWith("UI_", StringComparison.Ordinal);
+                    var effectiveIsSys = item?.IsSys ??
+                        (effectiveDisplay.StartsWith("id_", StringComparison.Ordinal) ||
+                         effectiveDisplay.StartsWith("msgbox_", StringComparison.Ordinal) ||
+                         effectiveDisplay.StartsWith("tips_", StringComparison.Ordinal) ||
+                         effectiveDisplay.StartsWith("UI_", StringComparison.Ordinal));
 
                     // Client tooltip script (Other/tip/tip_d.lua) expects extra fields for weapons/equip (type=2).
                     // If these are missing (nil), it may index nil and crash the client when hovering items.
@@ -3640,6 +3653,28 @@ internal partial class GameClient
                         {
                             extraTipPayload += $"{k} = {LuaSerializer.Serialize(v ?? string.Empty)}\n";
                         }
+                    }
+
+                    if (effectiveType is (int)ShopItemDatabase.ItemType.AvatarCard or (int)ShopItemDatabase.ItemType.SkinCard)
+                    {
+                        // 造型卡 (t=5/t=6) 的提示界面走 tip.lua 的 tip_t[5]（tip_t[6] 直接转调），
+                        // 字段与官方抓包 (log-2026-10-15.txt 的 tip_sys_avatar / tip_player_avatar) 对齐。
+                        writer.WriteString(BuildAvatarCardTipPayload(
+                            invItem,
+                            item,
+                            invItem?.Pid ?? sid.ToString(CultureInfo.InvariantCulture),
+                            effectiveSubtype,
+                            effectiveDisplay,
+                            effectiveDesigner,
+                            effectiveResource,
+                            effectiveIsSys,
+                            effectiveGrade,
+                            effectiveLevel,
+                            effectiveAvatarLevel,
+                            avatarPayload,
+                            nowMs));
+                        await SendAsync(writer);
+                        return;
                     }
 
                     writer.WriteString(

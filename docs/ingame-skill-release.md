@@ -1088,3 +1088,222 @@ storage_item_filter: t=2 page=2/3 size=12 items=12 subtype=1,2,3,4,5,6,11,12,13,
 3. 强化面板武器页签翻页：日志应出现 `storage_item_filter: t=2 page=1/3 ...`、`page=2/3`、`page=3/3`，
    items 数与抓包一致（12 / 12 / 剩余）。
 4. 切到材料页签：`storage_item_filter: t=3 page=1/1 ...`。
+
+## 第 28 轮：武器射速（`fire_time`）整体调慢
+
+装备块里武器的 `fire_time` 是「两发之间的间隔（秒）」，**数值越大射速越慢**。官方服务端直接下发配置里的
+`fireSpeed`（抓包里 AK74/`smg_01` = 0.2、狙击 `sniperrifle_07` = 0.75、近战 `knives_05` = 1.5，三把都对得上），
+所以 `WeaponFireTimeScale = 1.0` 才是原始手感。
+
+原来 `PracticeRooms/PracticeRoomChannelProtocol.cs` 里是 `WeaponFireTimeScale = 0.1` +
+`WeaponFireTimeMinimum = 0.08`，所有带 `fireSpeed` 的枪都被压到 0.08 秒一发（12.5 发/秒），各枪之间的差异
+也被抹平了。本轮改成
+
+```csharp
+private const float WeaponFireTimeScale = 0.4f;
+private const float WeaponFireTimeMinimum = 0.12f;
+```
+
+下发值 = `max(0.12, fireSpeed × 0.4)`，几把常见武器：
+
+| 武器 | fireSpeed | 下发 fire_time | 射速 |
+| --- | --- | --- | --- |
+| `smg_01` AK74 / `smg_05` | 0.2 | 0.12 | 8.3 发/秒（原来 12.5） |
+| `machinegun_07` | 0.16 | 0.12 | 8.3 发/秒 |
+| `sprayer_06` | 0.165 | 0.12 | 8.3 发/秒 |
+| `crossbow_06` | 0.4 | 0.16 | 6.3 发/秒 |
+| `sniperrifle_03` | 0.5 | 0.2 | 5 发/秒 |
+| `sniperrifle_07` | 0.75 | 0.3 | 3.3 发/秒 |
+| `shotgun_01` M37 | 1.4 | 0.56 | 1.8 发/秒 |
+| `knives_05` 近战 | 1.5 | 0.6 | 1.7 次/秒 |
+
+调参：只改上面两个常量并重启服务端即可，`1.0` = 官方原值（最还原、最慢），越小越快；单把武器可以用局内
+指令 `set rof <秒>`（`rof` / `firetime` / `firespeed` 都认）临时覆盖。
+
+## 第 29 轮：射速再调慢 + 手枪单独调快
+
+第 28 轮的 `0.4 / 0.12` 实测「还是有点快」：`0.12` 的下限把所有 `fireSpeed ≤ 0.3`
+的武器（步枪/机枪/喷射器/快手枪）全压成了同一个 8.3 发/秒。本轮把参数拆成两套：
+
+```csharp
+private const float WeaponFireTimeScale = 0.6f;      // 普通武器（步枪/机枪/狙击/霰弹/近战等）
+private const float WeaponFireTimeMinimum = 0.18f;
+private const float PistolFireTimeScale = 0.25f;      // 手枪（装备块 subtype = 5）
+private const float PistolFireTimeMinimum = 0.09f;
+private const byte PistolWeaponSubtype = 5;
+```
+
+`ResolveTunedWeaponFireTime` 改成接收 subtype：手枪走 `max(0.09, fireSpeed × 0.25)`，
+其余走 `max(0.18, fireSpeed × 0.6)`。顺带给 `ResolveDefaultFireTime` 补了 `5 => 1.0f`
+（原来手枪没配 `fireSpeed` 时会掉到 `1.15` 的默认值）。
+
+| 武器 | fireSpeed | 第 28 轮 | 本轮 | 射速变化 |
+| --- | --- | --- | --- | --- |
+| `smg_01` AK74 / `smg_02` | 0.2 | 0.12 | 0.18 | 8.3 → 5.6 发/秒 |
+| `machinegun_08` / `machinegun_02` | 0.14 / 0.16 | 0.12 | 0.18 | 8.3 → 5.6 发/秒 |
+| `crossbow_06` | 0.4 | 0.16 | 0.24 | 6.3 → 4.2 发/秒 |
+| `sniperrifle_07` | 0.75 | 0.3 | 0.45 | 3.3 → 2.2 发/秒 |
+| `sniperrifle_01` | 1.85 | 0.74 | 1.11 | 1.4 → 0.9 发/秒 |
+| `shotgun_01` M37 | 1.4 | 0.56 | 0.84 | 1.8 → 1.2 发/秒 |
+| `knives_05` 近战 | 1.5 | 0.6 | 0.9 | 1.7 → 1.1 次/秒 |
+| `pistol_08` / `pistol_16` | 0.16 | 0.12 | 0.09 | 8.3 → 11.1 发/秒 |
+| `pistol_04` / `pistol_07` 等 | 0.31 | 0.124 | 0.09 | 8.1 → 11.1 发/秒 |
+| `pistol_01` / `pistol_10`（新手枪） | 1.25 | 0.5 | 0.31 | 2 → 3.2 发/秒 |
+
+调参：只改上面四个常量并重启服务端即可（`scale` 越大越慢，`1.0` = 官方原值）；
+单把武器可以用局内指令 `set rof <秒>`（`rof` / `firetime` / `firespeed` 都认）临时覆盖，
+覆盖值不再经过缩放。
+
+## 第 30 轮：造型卡（Avatar Card）—— 拥有列表 / 切换页 / 商城列表 / 卡片数据
+
+数据来源：`E:\AvatarStar\log-2026-10-15.txt`（官方服务端抓包），涉及 5 个 RPC：
+
+| RPC | 抓包 id | 说明 |
+| --- | --- | --- |
+| `shop_avatar_list` | 78 / 86 / 91 / 96 / 101 | 商城造型卡列表（t=5, st="1", pageSize=6, 共 5 页 25 张） |
+| `tip_sys_avatar` | 79-102 | 商城系统卡详情 |
+| `tip_player_avatar` | 68 / 73 | 玩家拥有的卡（背包实例）详情 |
+| `storage_storage_list` | 67 / 70 / 75 | 造型卡仓库列表（t=5, s=10, pages=5） |
+| `player_avatar_equip` | 69 / 74 | 切换/装备造型卡 |
+
+### 1. 新增数据文件 `Resources/avatar_cards.json`
+
+25 张卡（sid 100047-100183）连同价格与 18 个部位的外观字符串，全部按抓包原样落盘，
+由 `ShopItemDatabase.ApplyOfficialAvatarCards()` 在静态构造与 `ReloadFromJsonConfig()`
+之后合并进 `Items`（与 `shop_config.json` 解耦，重新载入商城配置不会丢）。
+
+- 分页：sid 升序，每页 6 张 → 页码 1..5，第 5 页 1 张（与官方抓包逐页 sid 顺序一致）。
+- 价格：每张卡两条（`currency=2` 钻石 / `currency=4` 券），`unitType=2`、`unit=100`、
+  `price=99`；100066/100067/100068/100182/100183 为 320。
+- 槽位模板 `slotTemplate`：5 个槽位对所有卡完全相同，只有 `num=0` 是 `isEnable="Y"`，
+  `sid` 全为 `"0"`。以 `ShopItemDatabase.AvatarCardSlotTemplate` 暴露，tip 回包直接序列化。
+
+`ShopItem` 新增 4 个提示字段：`BindType`、`IsSell`、`IsSys`、`Designer`；
+`ShopPrice` 新增 `CanDiscount`。这些都写进了 `ExportConfigJson()` / `TryLoadFromJsonConfig()`。
+
+### 2. `shop_avatar_list`（GameClient.Rpc.cs）
+
+原来的实现直接复用 `shop_item_list` 的转换，字段与官方不一致。现在：
+
+- `ShopItemProvider` 把筛选/排序抽成 `SelectShopItems()`，普通列表与造型卡列表共用；
+  新增 `GetAvatarCardListWithPaging()` + `ConvertAvatarCardToRpcFormat()`。
+- 回包去掉 `ok`，字段顺序改成 `page / pages / t / st / modulus / items`，
+  `modulus = 0.0`（官方是浮点，客户端用它判断是否打折）。
+- `items[]` 里 `sid` 是**字符串**、`price[].priceId` 是**字符串**，多一个 `canDiscount`；
+  官方不下发 `now / quantity / category / isLimited / level / occupation`，本实现也不发。
+
+### 3. `tip_sys_avatar` / `tip_player_avatar`（GameClient.Inventory.cs）
+
+`tip.lua` 的 `tip_t[5]`（`tip_t[6]` 直接转调）会读很多字段，缺字段会拿到 nil 直接报错
+（例如 `math.floor(data.stamina * 10000)`）。新增 `BuildAvatarCardTipPayload()`，按
+抓包字段逐条对齐：
+
+- 系统卡：`id / type / subType / display / bindType / grade / isSell / designer / isSys /
+  level / avatarLevel / ventureFroce（官方原拼写）/ armor / recovery / cureQuantity / stamina /
+  *Gem / isRenew / now / sysAvatarPlus / avatar / slots`。
+- 玩家卡：额外带 `isBind / isEquip / canEquip / unitType / unit / remain / quality /
+  popularity / resource / position / battleForce / isLock / lockExpireTime / cardVentureForce`。
+- 判断放在通用分支之前，`type=5/6` 直接走造型卡载荷；`effectiveIsSys` 优先取
+  `ShopItem.IsSys`，没有配置时回落到 display 前缀推断。
+- 之前 `tip_sys_avatar` 对商城卡会走到 `ok = 0`（卡不在商品表里），本轮补上数据后消失。
+
+### 4. `player_avatar_equip`（GameClient.Rpc.cs）
+
+官方成功回包是 `error = nil`（id=69/74，bodylen=11），不是 `ok = 1`；失败时返回错误 key。
+客户端本来就把回调传 `nil`，这里仅为了对齐抓包。
+
+### 5. `storage_storage_list` t=5（GameClient.Inventory.cs）
+
+仓库第 4 个页签（`depotCurr=4`）就是造型卡：客户端传 `t=5, s=10`，网格 5x2=10 格、
+5 页 → 50 个卡位，服务端按槽位分页天然得到 `pages=5`。补了官方额外下发的
+`isDefault / useStatus / avatarPurchaseStatus / plus / sysAvatarPlus`，
+并把 `avatarLevel` 在没有商品配置时兜底为 1（否则 `ComFuc.ShowUpgradeLevel(v, 5, ...)`
+不显示卡片等级角标）。
+
+### 6. 验证
+
+`dotnet build src/AvatarStar.Server.Game/AvatarStar.Server.Game.csproj -p:BaseOutputPath=tmp/buildchk/`
+0 警告 0 错误；另外用临时控制台工程直接断言过：
+
+- `GetAllShopItems()` 里 type=5 恰好 25 张，sid 与抓包一致；
+- `GetAvatarCardListWithPaging(1, 6, "1", null, "1,2,4")` → `pages=5, count=6`，第 5 页 1 张；
+- 序列化后的 `priceId="125"` / `sid="100047"` / `canDiscount=false` 与官方逐字段一致，
+  字典键（`isEnable` / `displayName` / `battleForce`）没有被驼峰化。
+
+调参/开关：造型卡数据完全来自 `Resources/avatar_cards.json`，改价格或外观只需改该文件并重启服务端。
+## 第 31 轮：强化面板物品分页真的能翻页 + 大厅背包「整理」（storage_neaten）
+
+抓包来源：`E:\AvatarStar\log-2026-10-15.txt`（14 条 storage_* 回包）。
+
+### 一、抓包里这两个功能长什么样
+
+| id | 请求 | 回包 |
+| --- | --- | --- |
+| 11 | `storage_item_filter {t=3, s=36, p=1, subType="302,;"}` | `page=1/1`，3 件（勋章页） |
+| 13/14/15 | `storage_item_filter {t=2, s=12, p=1/2/3, subType="1,0;...;16,0;"}` | `page=1`（12 件）/ `page=2`（12 件）/ `page=3`（5 件） |
+| 16/17/18 | 同上（第二次翻开，回包与 13-15 逐字节相同） | 同上 |
+| 22 | `storage_storage_list {t=2, s=24, p=1}` | 24 件、`page=1/5`、16038 字节 |
+| 23 | `storage_neaten {t=2, s=24, p=1}` | **与 22 逐字节相同** |
+| 24 | `storage_storage_list {t=2, s=24, p=1}` | **与 22 逐字节相同** |
+
+两个结论：
+
+1. 强化面板的物品列表（`storage_item_filter`，服务端 `pageBySlot: false`）按**件数**翻页，每页 `s` 件
+   （官方 12/12/剩余），`page` / `pages` / `s` 都要对；`slot` 是「绝对槽位 - 页偏移」，所以第 2、3 页会出现
+   `-1 / 0 / 1` 这种负值（客户端这两张列表是按 `ipairs` 下标摆图标的，不用 `slot`，负值无所谓）。
+2. `storage_neaten` 官方就是「重排槽位 + 回一份和 `storage_storage_list` 一模一样的载荷」。
+
+### 二、修改
+
+#### 1. `GetStorageItems` 缺了 Skip/Take（`Clients/GameClient.Inventory.cs`）
+
+`storage_item_filter` 走 `pageBySlot: false`，但取数时只做了槽位窗口过滤（那是给大厅仓库用的），
+压根没有按件数跳过 `pageOffset`。结果每一页都从头开始发同一批物品，而客户端的按钮只有 `reinWeapon_p_1..12`
+这 12 个，第 13 个以后是 nil，回调直接报错中断 —— 表现就是「翻页按钮完全没反应」。
+上一次（第 27 轮）只对齐了 `page/pages/slot` 字段，没发现这里。
+
+```csharp
+.Skip(pageBySlot ? 0 : pageOffset)
+.Take(pageBySlot ? int.MaxValue : pageSize)
+```
+
+大厅仓库（`pageBySlot: true`）走原来的槽位窗口，`Skip(0).Take(int.MaxValue)` 是空操作，行为不变。
+
+#### 2. `storage_neaten`（大厅背包「整理」按钮）
+
+`ui.btn_depot_reorder.EventClick` → `rpc_storage_neaten()` → `rpc_storage_storage_list(1)`。
+客户端的 rpc 是串行队列（`sys/rpc.lua`：`rpc_new` 入队，收到回包触发 `rpc_completed` 才发下一条），
+所以服务端必须在**回包之前**就把槽位重排好，否则紧接着的 `storage_storage_list` 读到的还是整理前的数据。
+
+- `Persistence/PlayerStore.cs` 新增 `PlayerState.NeatenStorage(int storageType)`：把该仓库的物品压到
+  1..N 连续槽位。排序策略：已装备（`isEquip=Y`）最前（保持原有相对顺序）→ 品质降序 → 子类型升序
+  → sid 升序 → 原槽位升序。装备是按 pid 记在 `EquippedItemsByType` 和快捷栏里的
+  （见 `GetEquippedEquipmentPids`），快捷栏里存的也是 pid，所以只改槽位不会影响已装备状态。
+  字典是原地 `Clear()` + 回填，不替换实例（`EnsureStarterInventory` 等地方捕获过 `cardsBag` 这类局部引用）。
+- `Clients/GameClient.Rpc.cs` 新增 `case "storage_neaten"`：整理完直接回一份 `storage_storage_list` 的载荷
+  （两边共用新加的 `BuildStorageListPayload`，对齐官方「23 与 22/24 逐字节相同」这一点）。
+
+官方整理用的具体排序规则**推断不出来**：抓包时那个账号的仓库（sid `254,254,257,47,47,3,12,239,1003x16`）
+本来就已排好，`storage_neaten` 前后两次回包一模一样，看不出它按什么键排。所以上面这套是自定义策略，
+只保证结果稳定、可预期；以后若拿到「整理前是乱的」官方抓包，照着改比较函数即可。
+
+### 三、复现验证
+
+`dotnet build src/AvatarStar.Server.Game/AvatarStar.Server.Game.csproj -p:BaseOutputPath=tmp/buildchk/` → 0 警告 0 错误。
+
+临时工程（反射调用内部的 `GameClient.GetStorageItems` 和 `PlayerState.NeatenStorage`，跑完即删）：
+
+- 仓库 39 件（武器页签命中 33 件），`s=12` 翻页得到 `page=1/3` 12 件、`2/3` 12 件、`3/3` 9 件；
+  三页合计 33 件、无重复无遗漏；`slot = 绝对槽位 - 页偏移`（第 2、3 页出现负值，和官方一致）；page1 品质降序。
+- `{t=3, s=36}` → `page=1/1` 2 件。
+- 带 `refitFilterItemId` 时该物品被排除，其余仍是满页 12 件。
+- 大厅仓库 `pageBySlot: true` 不受影响：固定 5 页、首页 24 件、槽位 1..24，第 2 页槽位减 24。
+- `storage_neaten`：整理前有空洞 → `moved=38`，槽位压成 1..39，物品集合与顺序不变，再整理一次 `moved=0`（幂等），
+  整理后第 1 页仍是 24 件 / 共 5 页。
+
+### 还没做 / 待确认
+
+- `storage_neaten` 没有额外的落盘动作，跟其它仓库改动一样依赖退出/定时快照持久化。
+- 官方整理排序规则未知（见上），当前是自定义策略。
+- `storage_storage_list` / `storage_item_filter` 回包里的 `ok = 1` 是早先加的字段，官方没有；客户端只读 `error`，
+  不读 `ok`，保持原样没有去掉。

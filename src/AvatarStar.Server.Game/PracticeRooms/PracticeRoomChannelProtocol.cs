@@ -295,9 +295,17 @@ internal sealed class PracticeRoomChannelProtocol
 
     // Gameplay tuning knobs. Change these values and restart the server.
     // Weapon fire_time is resolved per weapon resource first, then scaled here.
-    // Lower scale/minimum values make weapons fire faster while preserving per-weapon differences.
-    private const float WeaponFireTimeScale = 0.1f;
-    private const float WeaponFireTimeMinimum = 0.08f;
+    // fire_time 是「两发之间的间隔（秒）」，所以数值越大射速越慢。
+    // 官方服务端直接下发配置里的 fireSpeed（AK74/smg_01 = 0.2、狙击 = 0.75、
+    // 近战 knives_05 = 1.5），即 scale = 1.0 就是原始手感。
+    // 这里分两套参数：普通武器（步枪/机枪/狙击/散弹等）整体调慢，
+    // 手枪单独走一套更快的参数，保留「手枪点得快」的手感。
+    // 想更慢：把 scale 调大（1.0 = 官方原值）；想更快：调小。
+    private const float WeaponFireTimeScale = 0.6f;
+    private const float WeaponFireTimeMinimum = 0.18f;
+    private const float PistolFireTimeScale = 0.25f;
+    private const float PistolFireTimeMinimum = 0.09f;
+    private const byte PistolWeaponSubtype = 5;
 
     // Character movement tuning sent by packet103.
     // The first four fields are read right after maxHealth and copied into actor movement scalars.
@@ -7603,9 +7611,10 @@ internal sealed class PracticeRoomChannelProtocol
             }
         }
 
-        fireTime = ResolveTunedWeaponFireTime(fireTime);
+        var normalizedSubtype = NormalizeGameEquipmentSubtype(item.Subtype);
+        fireTime = ResolveTunedWeaponFireTime(normalizedSubtype, fireTime);
 
-        var hasExplosionRadius = IsExplosiveProjectileSubtype(NormalizeGameEquipmentSubtype(item.Subtype)) && range > 0f;
+        var hasExplosionRadius = IsExplosiveProjectileSubtype(normalizedSubtype) && range > 0f;
 
         return new GameWeaponRuntimeStats(
             CoolDown: coolDown,
@@ -7787,6 +7796,7 @@ internal sealed class PracticeRoomChannelProtocol
         {
             2 => 1.85f,
             4 => 1.4f,
+            5 => 1.0f,
             11 or 12 => 1.6f,
             14 or 16 => 1.55f,
             _ => 1.15f
@@ -7862,14 +7872,20 @@ internal sealed class PracticeRoomChannelProtocol
         return value.ToString("0.###", CultureInfo.InvariantCulture);
     }
 
-    private static float ResolveTunedWeaponFireTime(float fireTime)
+    // 射速最后一道缩放：fire_time 越大射速越慢。手枪（subtype 5）单独走快速参数；
+    // 其余武器走整体调慢参数，下限同样拉高，避免所有快枪都被压到同一个下限值。
+    private static float ResolveTunedWeaponFireTime(byte subtype, float fireTime)
     {
+        var isPistol = subtype == PistolWeaponSubtype;
+        var scale = isPistol ? PistolFireTimeScale : WeaponFireTimeScale;
+        var minimum = isPistol ? PistolFireTimeMinimum : WeaponFireTimeMinimum;
+
         if (float.IsNaN(fireTime) || float.IsInfinity(fireTime) || fireTime <= 0f)
         {
-            return WeaponFireTimeMinimum;
+            return minimum;
         }
 
-        return MathF.Max(WeaponFireTimeMinimum, fireTime * WeaponFireTimeScale);
+        return MathF.Max(minimum, fireTime * scale);
     }
 
     private static string FormatGameVector3(float x, float y, float z)

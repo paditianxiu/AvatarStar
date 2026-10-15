@@ -98,6 +98,18 @@ public class ShopItemDatabase
 
         /// <summary>分类标签 (用于UI显示分类)</summary>
         public string Category { get; set; } = string.Empty;
+
+        /// <summary>绑定类型 (client: bindType)。造型卡的商城系统卡为 2，玩家卡为 1。</summary>
+        public int BindType { get; set; }
+
+        /// <summary>是否可出售 (client: isSell)。</summary>
+        public string IsSell { get; set; } = "N";
+
+        /// <summary>是否系统商品 (client: isSys)；null 表示按 display 前缀推断。</summary>
+        public bool? IsSys { get; set; }
+
+        /// <summary>设计者 (client: designer)。</summary>
+        public string Designer { get; set; } = string.Empty;
     }
 
     /// <summary>商品价格定义</summary>
@@ -147,6 +159,9 @@ public class ShopItemDatabase
 
         /// <summary>结束时间(ms) (client: endDateTime)</summary>
         public long EndDateTime { get; set; }
+
+        /// <summary>是否可打折 (client: canDiscount)</summary>
+        public bool CanDiscount { get; set; }
     }
 
     // ===== 商品数据库 =====
@@ -175,8 +190,11 @@ public class ShopItemDatabase
             InitializePets();
             InitializeEnhancementMaterials();
             RebuildIndexes();
-            BumpConfigRevision();
         }
+
+        // 官方抓包还原的造型卡 (type=5) 与 shop_config.json 相互独立，两条载入路径最后都要合并。
+        ApplyOfficialAvatarCards();
+        BumpConfigRevision();
     }
 
     private static object CreateDefaultEquipAvatar()
@@ -465,7 +483,14 @@ public class ShopItemDatabase
     public static bool ReloadFromJsonConfig()
     {
         // TryLoadFromJsonConfig swaps dictionaries only on success, so current config stays intact on failure.
-        return TryLoadFromJsonConfig();
+        var loaded = TryLoadFromJsonConfig();
+        if (loaded)
+        {
+            ApplyOfficialAvatarCards();
+            BumpConfigRevision();
+        }
+
+        return loaded;
     }
 
     public static long GetConfigRevision() => Interlocked.Read(ref _configRevision);
@@ -500,6 +525,10 @@ public class ShopItemDatabase
                          grade = x.Grade,
                          quantity = x.Quantity,
                          isLimited = x.IsLimited,
+                         bindType = x.BindType,
+                         isSell = x.IsSell,
+                         isSys = x.IsSys,
+                         designer = x.Designer,
                          prices = (x.Prices ?? Array.Empty<ShopPrice>()).Select(p => new
                          {
                              priceId = p.PriceId,
@@ -514,6 +543,7 @@ public class ShopItemDatabase
                              isRenew = p.IsRenew,
                              isCardPrice = p.IsCardPrice,
                              isGive = p.IsGive,
+                             canDiscount = p.CanDiscount,
                              vipLevel = p.VipLevel,
                              startDateTime = p.StartDateTime,
                              endDateTime = p.EndDateTime
@@ -587,6 +617,10 @@ public class ShopItemDatabase
                          Quantity = item.Quantity <= 0 ? 1 : item.Quantity,
                          IsLimited = item.IsLimited,
                          Category = categoryName,
+                         BindType = item.BindType,
+                         IsSell = string.IsNullOrWhiteSpace(item.IsSell) ? "N" : item.IsSell!,
+                         IsSys = item.IsSys,
+                         Designer = item.Designer ?? string.Empty,
                          Prices = (item.Prices ?? Array.Empty<ShopConfigPrice>())
                              .Select(p => new ShopPrice
                              {
@@ -602,6 +636,7 @@ public class ShopItemDatabase
                                  IsRenew = p.IsRenew,
                                  IsCardPrice = p.IsCardPrice,
                                  IsGive = p.IsGive,
+                                 CanDiscount = p.CanDiscount,
                                  VipLevel = p.VipLevel,
                                  StartDateTime = p.StartDateTime,
                                  EndDateTime = p.EndDateTime
@@ -644,6 +679,212 @@ public class ShopItemDatabase
         }
     }
 
+    /// <summary>造型卡 (type=5) 在商城/仓库里的分类名。</summary>
+    public const string AvatarCardCategory = "AvatarCard";
+
+    // 官方抓包（log-2026-10-15.txt）里 5 个继承槽位对所有卡完全一致：
+    // 只有 num=0 是 isEnable="Y"，其余为 "N"，sid 全为 "0"。
+    private static object? _avatarCardSlotTemplate;
+
+    /// <summary>造型卡的继承槽位模板 (client: slots)，所有造型卡共用。</summary>
+    public static object AvatarCardSlotTemplate => _avatarCardSlotTemplate ?? Array.Empty<object>();
+
+    private static readonly JsonSerializerOptions AvatarCardJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
+    private static string? GetAvatarCardConfigPath()
+    {
+        var candidates = new List<string>
+        {
+            Path.Combine(AppContext.BaseDirectory, "Resources", "avatar_cards.json"),
+            Path.Combine(AppContext.BaseDirectory, "avatar_cards.json"),
+            Path.Combine(Directory.GetCurrentDirectory(), "Resources", "avatar_cards.json"),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "AvatarStar.Server.Game", "Resources", "avatar_cards.json"),
+        };
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>
+    /// 载入官方抓包还原的造型卡数据 (Resources/avatar_cards.json)。
+    /// 数据来自 log-2026-10-15.txt 的 shop_avatar_list / tip_sys_avatar 回包：共 25 张卡、
+    /// 分 5 页（每页 6 张），sid 100047-100183。与 shop_config.json 解耦，重新载入商城配置后依然保留。
+    /// </summary>
+    private static void ApplyOfficialAvatarCards()
+    {
+        try
+        {
+            var path = GetAvatarCardConfigPath();
+            if (path is null)
+            {
+                return;
+            }
+
+            var root = JsonSerializer.Deserialize<AvatarCardConfigRoot>(
+                File.ReadAllText(path),
+                AvatarCardJsonOptions);
+
+            if (root?.Cards is null || root.Cards.Count == 0)
+            {
+                return;
+            }
+
+            _avatarCardSlotTemplate = BuildAvatarCardSlotPayload(root.SlotTemplate);
+
+            var newItems = new Dictionary<int, ShopItem>(Items);
+            var newItemsByResource = new Dictionary<string, ShopItem>(ItemsByResource, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var card in root.Cards)
+            {
+                if (card.Sid <= 0)
+                {
+                    continue;
+                }
+
+                var shopItem = new ShopItem
+                {
+                    Sid = card.Sid,
+                    Type = ItemType.AvatarCard,
+                    Subtype = card.Subtype <= 0 ? 1 : card.Subtype,
+                    Resource = card.Resource ?? string.Empty,
+                    Display = card.Display ?? string.Empty,
+                    Description = card.Description ?? string.Empty,
+                    Level = card.Level,
+                    Occupation = -1,
+                    Grade = card.Grade <= 0 ? 1 : card.Grade,
+                    Avatar = NormalizeAvatarParts(card.Avatar),
+                    AvatarLevel = card.AvatarLevel,
+                    Quantity = 1,
+                    Category = AvatarCardCategory,
+                    BindType = card.BindType,
+                    IsSell = string.IsNullOrWhiteSpace(card.IsSell) ? "N" : card.IsSell!,
+                    IsSys = card.IsSys,
+                    Designer = card.Designer ?? string.Empty,
+                    Prices = (card.Prices ?? new List<AvatarCardPrice>())
+                        .Where(p => p.Currency > 0)
+                        .Select(p => new ShopPrice
+                        {
+                            PriceId = p.PriceId <= 0 ? 1 : p.PriceId,
+                            Currency = Enum.IsDefined(typeof(CurrencyType), p.Currency) ? (CurrencyType)p.Currency : CurrencyType.Gold,
+                            Price = p.Price,
+                            RebatePrice = p.RebatePrice,
+                            UnitType = p.UnitType <= 0 ? 1 : p.UnitType,
+                            Unit = p.Unit <= 0 ? 1 : p.Unit,
+                            RepeatDuration = 1,
+                            IsRenew = p.IsRenew,
+                            IsCardPrice = p.IsCardPrice,
+                            IsGive = p.IsGive,
+                            CanDiscount = p.CanDiscount
+                        })
+                        .ToArray()
+                };
+
+                if (shopItem.Prices.Length == 0)
+                {
+                    shopItem.Prices = new[] { new ShopPrice { PriceId = 1, Currency = CurrencyType.Gold, Price = 0 } };
+                }
+
+                newItems[shopItem.Sid] = shopItem;
+                if (!string.IsNullOrWhiteSpace(shopItem.Resource))
+                {
+                    newItemsByResource[shopItem.Resource] = shopItem;
+                }
+            }
+
+            Items = newItems;
+            ItemsByResource = newItemsByResource;
+        }
+        catch
+        {
+            // 造型卡资源缺失或损坏时不应该影响商城其它部分：保持原表不变。
+        }
+    }
+
+    private static object? NormalizeAvatarParts(Dictionary<string, string>? parts)
+    {
+        return parts is null ? null : new Dictionary<string, string>(parts, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>把造型卡槽位模板转成客户端 Lua 表载荷（键名与官方抓包一致）。</summary>
+    private static object BuildAvatarCardSlotPayload(List<AvatarCardSlot>? template)
+    {
+        if (template is null || template.Count == 0)
+        {
+            return Array.Empty<object>();
+        }
+
+        return template
+            .OrderBy(s => s.Num)
+            .Select(s => (object)new Dictionary<string, object?>
+            {
+                ["num"] = s.Num,
+                ["isEnable"] = string.IsNullOrWhiteSpace(s.IsEnable) ? "N" : s.IsEnable!,
+                ["sid"] = string.IsNullOrWhiteSpace(s.Sid) ? "0" : s.Sid!,
+                ["resource"] = s.Resource ?? string.Empty,
+                ["grade"] = s.Grade,
+                ["displayName"] = s.DisplayName ?? string.Empty,
+                ["effect"] = s.Effect ?? string.Empty,
+                ["battleForce"] = s.BattleForce,
+                ["level"] = s.Level
+            })
+            .ToArray();
+    }
+
+    private sealed class AvatarCardConfigRoot
+    {
+        public int Version { get; set; }
+        public string? Source { get; set; }
+        public List<AvatarCardSlot>? SlotTemplate { get; set; }
+        public List<AvatarCardEntry>? Cards { get; set; }
+    }
+
+    private sealed class AvatarCardSlot
+    {
+        public int Num { get; set; }
+        public string? IsEnable { get; set; }
+        public string? Sid { get; set; }
+        public string? Resource { get; set; }
+        public int Grade { get; set; }
+        public string? DisplayName { get; set; }
+        public string? Effect { get; set; }
+        public int BattleForce { get; set; }
+        public int Level { get; set; }
+    }
+
+    private sealed class AvatarCardEntry
+    {
+        public int Sid { get; set; }
+        public int Subtype { get; set; }
+        public string? Display { get; set; }
+        public string? Resource { get; set; }
+        public string? Description { get; set; }
+        public int Grade { get; set; }
+        public int AvatarLevel { get; set; }
+        public int BindType { get; set; }
+        public string? IsSell { get; set; }
+        public bool IsSys { get; set; }
+        public string? Designer { get; set; }
+        public int Level { get; set; }
+        public Dictionary<string, string>? Avatar { get; set; }
+        public List<AvatarCardPrice>? Prices { get; set; }
+    }
+
+    private sealed class AvatarCardPrice
+    {
+        public int PriceId { get; set; }
+        public int Currency { get; set; }
+        public int UnitType { get; set; }
+        public int Unit { get; set; }
+        public int Price { get; set; }
+        public int RebatePrice { get; set; }
+        public bool IsGive { get; set; }
+        public bool IsRenew { get; set; }
+        public bool IsCardPrice { get; set; }
+        public bool CanDiscount { get; set; }
+    }
+
     private static void BumpConfigRevision()
     {
         // Monotonic counter; used for clients/diagnostics to tell whether config changed.
@@ -681,6 +922,10 @@ public class ShopItemDatabase
         public object? Tip { get; set; }
         public int Quantity { get; set; } = 1;
         public bool IsLimited { get; set; }
+        public int BindType { get; set; }
+        public string? IsSell { get; set; }
+        public bool? IsSys { get; set; }
+        public string? Designer { get; set; }
         public ShopConfigPrice[]? Prices { get; set; }
     }
 
@@ -725,6 +970,9 @@ public class ShopItemDatabase
 
         /// <summary>结束时间(ms) (client: endDateTime)</summary>
         public long EndDateTime { get; set; }
+
+        /// <summary>是否可打折 (client: canDiscount)</summary>
+        public bool CanDiscount { get; set; }
     }
 
     #region 武器 (类型=Equipment, SID: 20001-20999)

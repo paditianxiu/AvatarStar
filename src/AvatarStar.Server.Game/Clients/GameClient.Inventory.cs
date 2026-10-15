@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using AvatarStar.Server.Game.Resources;
 
 namespace AvatarStar.Server.Game;
@@ -100,6 +101,12 @@ internal partial class GameClient
 
         var items = ordered
             .Where(x => !pageBySlot || (x.Slot >= pageSlotStart && x.Slot <= pageSlotEnd))
+            // 强化面板的物品列表（storage_item_filter，pageBySlot=false）按「件数」翻页：
+            // 官方抓包 page1/2/3 分别返回 12/12/5 件（s=12），所以必须跳过前面的 pageOffset 件，
+            // 否则每一页都会把第一页的内容重新发一遍，翻页按钮看起来没反应。
+            // 大厅仓库（pageBySlot=true）走槽位窗口，这里不做额外截断。
+            .Skip(pageBySlot ? 0 : pageOffset)
+            .Take(pageBySlot ? int.MaxValue : pageSize)
             .Select(x =>
             {
                 var shopItem = ShopItemDatabase.GetShopItem(x.Sid);
@@ -141,7 +148,9 @@ internal partial class GameClient
                     baseRank = ResolveBaseRank(x),
                     level = shopItem?.Level ?? 0,
                     occupation,
-                    avatarLevel = shopItem?.AvatarLevel ?? 0,
+                    // 造型卡 (t=5/6) 仓库列表官方下发 avatarLevel；缺失时客户端卡片上的
+                    // 等级角标（ComFuc.ShowUpgradeLevel 用 t=5 读 avatarLevel）不显示。
+                    avatarLevel = shopItem?.AvatarLevel ?? (x.Type is 5 or 6 ? 1 : 0),
                     quantity = x.Quantity,
                     unitType = x.UnitType,
                     unit = x.Unit,
@@ -175,12 +184,33 @@ internal partial class GameClient
                     position = x.Position,
                     display = x.Display,
                     designer = x.Designer,
-                    description = x.Description
+                    description = x.Description,
+                    // 造型卡（t=5）官方仓库列表额外下发这些字段，缺了会让卡片按钮/继承面板状态异常。
+                    isDefault = x.Type is 5 or 6 && x.Slot == 1 ? "Y" : "N",
+                    useStatus = 0,
+                    avatarPurchaseStatus = 0,
+                    plus = new Dictionary<string, object>(),
+                    sysAvatarPlus = new Dictionary<string, object>()
                 };
             })
             .ToArray();
 
         return new StorageListResult(items, currentPage, totalPages);
+    }
+
+    /// <summary>
+    /// storage_storage_list / storage_neaten 共用的回包。官方这两个接口的回包逐字节相同
+    /// （log-2026-10-15.txt：storage_neaten 与前后两次 storage_storage_list 的 body 完全一致，
+    /// 都是 24 件、page=1/5），所以整理完只要重新下发当前页即可。
+    /// </summary>
+    private static string BuildStorageListPayload(int storageType, int pageSize, StorageListResult result)
+    {
+        return "ok = 1\n" +
+               $"t = {storageType}\n" +
+               $"s = {pageSize}\n" +
+               $"page = {result.CurrentPage}\n" +
+               $"pages = {result.TotalPages}\n" +
+               "items = " + LuaSerializer.SerializeSequential(result.Items);
     }
 
     private static HashSet<int> ParseIntSetArg(string? raw)
@@ -235,5 +265,88 @@ internal partial class GameClient
     {
         var player = GetActivePlayerStateOrDefault();
         return player.TryPurchaseToInventory(shopItem, quantity, price);
+    }
+
+    /// <summary>
+    /// 造型卡 (type=5/6) 的物品提示载荷。字段顺序与官方抓包（log-2026-10-15.txt 的
+    /// tip_sys_avatar / tip_player_avatar）一致：客户端 Other/lobby/tip/tip.lua 的 tip_t[5] 会
+    /// 直接读写这些字段，缺字段会拿到 nil 而报错（例如 math.floor(data.stamina * 10000)）。
+    /// 造型卡没有等级/强化概念，所以数值字段统一给 0。
+    /// </summary>
+    private static string BuildAvatarCardTipPayload(
+        InventoryItem? invItem,
+        ShopItemDatabase.ShopItem? shopItem,
+        string id,
+        int subType,
+        string display,
+        string designer,
+        string resource,
+        bool isSys,
+        int grade,
+        int level,
+        int avatarLevel,
+        object? avatar,
+        long nowMs)
+    {
+        var sb = new StringBuilder();
+
+        sb.Append("id = ").Append(LuaEscape(id)).Append('\n');
+        sb.Append("type = ").Append((int)ShopItemDatabase.ItemType.AvatarCard).Append('\n');
+        sb.Append("subType = ").Append(subType).Append('\n');
+        sb.Append("display = ").Append(LuaEscape(display)).Append('\n');
+
+        if (invItem is null)
+        {
+            // 商城里的系统卡（tip_sys_avatar）：官方没有 isBind/isEquip/unit*。
+            sb.Append("bindType = ").Append(shopItem?.BindType ?? 2).Append('\n');
+            sb.Append("grade = ").Append(grade).Append('\n');
+            sb.Append("isSell = ").Append(LuaEscape(shopItem?.IsSell ?? "N")).Append('\n');
+            sb.Append("designer = ").Append(LuaEscape(designer)).Append('\n');
+            sb.Append("isSys = ").Append(isSys ? "true" : "false").Append('\n');
+            sb.Append("level = ").Append(level).Append('\n');
+            sb.Append("avatarLevel = ").Append(avatarLevel).Append('\n');
+            // 官方字段名就是这个拼写（ventureFroce）。
+            sb.Append("ventureFroce = 0\n");
+        }
+        else
+        {
+            // 玩家拥有的卡（tip_player_avatar）：带绑定/实例/背包字段。
+            sb.Append("isBind = ").Append(LuaEscape(string.IsNullOrWhiteSpace(invItem.IsBind) ? "N" : invItem.IsBind)).Append('\n');
+            sb.Append("isEquip = ").Append(LuaEscape(string.IsNullOrWhiteSpace(invItem.IsEquip) ? "N" : invItem.IsEquip)).Append('\n');
+            sb.Append("canEquip = \"Y\"\n");
+            sb.Append("bindType = 1\n");
+            sb.Append("unitType = ").Append(invItem.UnitType).Append('\n');
+            sb.Append("unit = ").Append(invItem.Unit).Append('\n');
+            sb.Append("remain = ").Append(invItem.Remain).Append('\n');
+            sb.Append("designer = ").Append(LuaEscape(designer)).Append('\n');
+            sb.Append("grade = ").Append(grade).Append('\n');
+            sb.Append("quality = 1\n");
+            sb.Append("popularity = 0\n");
+            sb.Append("resource = ").Append(LuaEscape(resource)).Append('\n');
+            sb.Append("position = ").Append(invItem.Position ?? 0).Append('\n');
+            sb.Append("battleForce = 0\n");
+            sb.Append("isLock = 0\n");
+            sb.Append("lockExpireTime = 0\n");
+            sb.Append("level = ").Append(level).Append('\n');
+            sb.Append("avatarLevel = ").Append(avatarLevel).Append('\n');
+            sb.Append("cardVentureForce = 0\n");
+        }
+
+        // tip.lua 用 math.floor(x * 10000) / 100 计算百分比，nil 会直接抛错，所以必须给数值。
+        sb.Append("armor = 0\n");
+        sb.Append("recovery = 0\n");
+        sb.Append("cureQuantity = 0\n");
+        sb.Append("stamina = 0\n");
+        sb.Append("armorGem = 0\n");
+        sb.Append("recoveryGem = 0\n");
+        sb.Append("cureQuantityGem = 0\n");
+        sb.Append("staminaGem = 0\n");
+        sb.Append("isRenew = ").Append(invItem?.IsRenew == true ? "true" : "false").Append('\n');
+        sb.Append("now = ").Append(nowMs).Append('\n');
+        sb.Append("sysAvatarPlus = {}\n");
+        sb.Append("avatar = ").Append(avatar is null ? "{}" : LuaSerializer.Serialize(avatar)).Append('\n');
+        sb.Append("slots = ").Append(LuaSerializer.Serialize(ShopItemDatabase.AvatarCardSlotTemplate));
+
+        return sb.ToString();
     }
 }

@@ -2967,6 +2967,62 @@ internal sealed class PlayerStore
             return true;
         }
 
+        /// <summary>
+        /// 大厅背包「整理」（storage_neaten）。把某个仓库的物品压到从 1 号槽位开始的连续空位上，
+        /// 并按固定规则排序，消掉物品之间的空洞。装备是通过 pid 记在 EquippedItemsByType 和快捷栏
+        /// 里的（见 GetEquippedEquipmentPids），所以只改槽位不影响已装备状态。
+        ///
+        /// 官方抓包（log-2026-10-15.txt：storage_neaten 与前后两次 storage_storage_list 的回包
+        /// 逐字节相同）只能看出「整理后重新下发当前页」，排序规则本身推断不出来（抓包时那个账号的
+        /// 仓库本来就已排好序），所以这里采用自定义策略，仅保证结果稳定、可预期：
+        /// 已装备的装备排在最前（保持原有相对顺序）→ 品质降序 → 子类型升序 → sid 升序 → 原槽位升序。
+        /// 返回被挪动过槽位的物品数量（0 表示本来就已经是整理好的状态）。
+        /// </summary>
+        public int NeatenStorage(int storageType)
+        {
+            lock (_stateLock)
+            {
+                if (!Storages.TryGetValue(storageType, out var slots) || slots.Count == 0)
+                {
+                    return 0;
+                }
+
+                var ordered = slots
+                    .Select(x => x.Value.Slot == x.Key ? x.Value : x.Value with { Slot = x.Key })
+                    .OrderByDescending(item => string.Equals(item.IsEquip, "Y", StringComparison.OrdinalIgnoreCase))
+                    .ThenByDescending(item => item.Grade)
+                    .ThenBy(item => item.SubType > 0 ? item.SubType : item.Subtype)
+                    .ThenBy(item => item.Sid)
+                    .ThenBy(item => item.Slot)
+                    .ToArray();
+
+                var moved = 0;
+                var rearranged = new Dictionary<int, InventoryItem>(ordered.Length);
+                for (var index = 0; index < ordered.Length; index++)
+                {
+                    var targetSlot = index + 1;
+                    var item = ordered[index];
+                    if (item.Slot != targetSlot)
+                    {
+                        moved++;
+                        item = item with { Slot = targetSlot };
+                    }
+
+                    rearranged[targetSlot] = item;
+                }
+
+                // 原地改写字典内容（而不是 Storages[type] = newDict），避免其它已捕获的
+                // 局部引用（例如 EnsureStarterInventory 里的 cardsBag）指向旧实例。
+                slots.Clear();
+                foreach (var entry in rearranged)
+                {
+                    slots[entry.Key] = entry.Value;
+                }
+
+                return moved;
+            }
+        }
+
         private static int ResolveStorageTypeByItemType(int itemType)
         {
             return itemType switch

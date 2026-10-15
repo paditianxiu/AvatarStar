@@ -47,6 +47,30 @@ public static class ShopItemProvider
         ShopListQuery query,
         Func<int, int, int>? getPlayerPurchasedCount = null)
     {
+        var (ordered, pageSize, page, currencySet) = SelectShopItems(query);
+
+        var totalCount = ordered.Count;
+        var totalPages = totalCount == 0 ? 1 : (totalCount + pageSize - 1) / pageSize;
+        if (page > totalPages) page = totalPages;
+
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var pageItems = ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => ConvertToRpcFormat(x, nowMs, currencySet, getPlayerPurchasedCount))
+            .Where(x => x is not null)
+            .Cast<Dictionary<string, object>>()
+            .ToList();
+
+        return (pageItems, totalPages, page);
+    }
+
+    /// <summary>
+    /// 商城筛选/排序的公共部分（普通商品列表与造型卡列表共用）。
+    /// </summary>
+    private static (List<ShopItemDatabase.ShopItem> ordered, int pageSize, int page, HashSet<int>? currencySet) SelectShopItems(
+        ShopListQuery query)
+    {
         var pageSize = query.PageSize;
         if (pageSize <= 0 || pageSize > MaxPageSize) pageSize = DefaultPageSize;
         var page = query.Page;
@@ -87,21 +111,100 @@ public static class ShopItemProvider
             items = items.Where(x => (x.Prices ?? Array.Empty<ShopItemDatabase.ShopPrice>()).Any(p => currencySet.Contains((int)p.Currency)));
         }
 
-        var ordered = items.OrderBy(x => x.Sid).ToList();
-        var totalCount = ordered.Count;
-        var totalPages = totalCount == 0 ? 1 : (totalCount + pageSize - 1) / pageSize;
-        if (page > totalPages) page = totalPages;
+        return (items.OrderBy(x => x.Sid).ToList(), pageSize, page, currencySet);
+    }
 
-        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    /// <summary>
+    /// 造型卡商城列表 (shop_avatar_list, client t=5)。
+    /// 字段与官方抓包 (log-2026-10-15.txt id=78) 对齐：sid 是字符串、price 内 priceId 是字符串且
+    /// 带 canDiscount，没有 now/quantity/category/isLimited（这些字段官方在本接口不下发）。
+    /// </summary>
+    public static (List<Dictionary<string, object>> items, int totalPages, int currentPage) GetAvatarCardListWithPaging(
+        int page,
+        int pageSize,
+        string? st,
+        int? occupation,
+        string? currency)
+    {
+        var query = new ShopListQuery(
+            Type: (int)ShopItemDatabase.ItemType.AvatarCard,
+            St: st,
+            SellState: null,
+            Occupation: occupation,
+            Currency: currency,
+            Page: page,
+            PageSize: pageSize);
+
+        var (ordered, size, currentPage, currencySet) = SelectShopItems(query);
+
+        var totalCount = ordered.Count;
+        var totalPages = totalCount == 0 ? 1 : (totalCount + size - 1) / size;
+        if (currentPage > totalPages) currentPage = totalPages;
+
         var pageItems = ordered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(x => ConvertToRpcFormat(x, nowMs, currencySet, getPlayerPurchasedCount))
-            .Where(x => x is not null)
-            .Cast<Dictionary<string, object>>()
+            .Skip((currentPage - 1) * size)
+            .Take(size)
+            .Select(x => ConvertAvatarCardToRpcFormat(x, currencySet))
             .ToList();
 
-        return (pageItems, totalPages, page);
+        return (pageItems, totalPages, currentPage);
+    }
+
+    private static Dictionary<string, object> ConvertAvatarCardToRpcFormat(
+        ShopItemDatabase.ShopItem item,
+        HashSet<int>? currencySet)
+    {
+        var prices = (item.Prices ?? Array.Empty<ShopItemDatabase.ShopPrice>())
+            .Where(p => currencySet is null || currencySet.Count == 0 || currencySet.Contains((int)p.Currency))
+            .OrderBy(p => p.PriceId)
+            .Select(p => new Dictionary<string, object>
+            {
+                { "priceId", p.PriceId.ToString(CultureInfo.InvariantCulture) },
+                { "currency", (int)p.Currency },
+                { "unitType", p.UnitType },
+                { "unit", p.Unit },
+                { "price", p.Price },
+                { "rebatePrice", p.RebatePrice },
+                { "isGive", p.IsGive },
+                { "isRenew", p.IsRenew },
+                { "isCardPrice", p.IsCardPrice },
+                { "canDiscount", p.CanDiscount }
+            })
+            .ToList();
+
+        if (prices.Count == 0)
+        {
+            // 官方造型卡一定带价格；价格被 currency 过滤掉时补一个占位，避免客户端 price[1] 取 nil。
+            prices.Add(new Dictionary<string, object>
+            {
+                { "priceId", "1" },
+                { "currency", (int)ShopItemDatabase.CurrencyType.Gold },
+                { "unitType", 1 },
+                { "unit", 1 },
+                { "price", 0 },
+                { "rebatePrice", 0 },
+                { "isGive", false },
+                { "isRenew", false },
+                { "isCardPrice", false },
+                { "canDiscount", false }
+            });
+        }
+
+        return new Dictionary<string, object>
+        {
+            { "sid", item.Sid.ToString(CultureInfo.InvariantCulture) },
+            { "type", (int)item.Type },
+            { "subtype", item.Subtype },
+            { "display", item.Display },
+            { "resource", ShopItemDatabase.GetClientResource(item) },
+            { "description", item.Description },
+            { "canEquip", "Y" },
+            { "canUse", "N" },
+            { "grade", item.Grade },
+            { "avatarLevel", item.AvatarLevel ?? 0 },
+            { "price", prices },
+            { "avatar", item.Avatar ?? string.Empty }
+        };
     }
 
     public static List<Dictionary<string, object>> GetShopItemsByCategory(string category)
