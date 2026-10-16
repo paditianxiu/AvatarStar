@@ -1,0 +1,627 @@
+{
+  "version": 1,
+  "source": "远征模式.txt packet30 (official server level list, 69 entries)",
+  "levels": [
+    {
+      "id": 2,
+      "name": "LEVEL1",
+      "gameType": 1,
+      "showName": "id_datalist_Belfry_Square_level1",
+      "description": "id_datalist_Belfry_Square_level1",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 3,
+      "name": "LEVEL2",
+      "gameType": 1,
+      "showName": "id_datalist_Hero_Relics_level2",
+      "description": "id_datalist_Hero_Relics_level2",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 6,
+      "name": "LEVEL11",
+      "gameType": 4,
+      "showName": "id_datalist_Belfry_Square_level11",
+      "description": "id_datalist_Belfry_Square_level11",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 7,
+      "name": "LEVEL5",
+      "gameType": 2,
+      "showName": "id_datalist_Hill_Top_Old_Town_level5",
+      "description": "id_datalist_Hill_Top_Old_Town_level5",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 9,
+      "name": "LEVEL7",
+      "gameType": 2,
+      "showName": "id_datalist_Shipwreck_Island_level7",
+      "description": "id_datalist_Shipwreck_Island_level7",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 10,
+      "name": "LEVEL8",
+      "gameType": 4,
+      "showName": "id_datalist_Windy_Old_Town_level8",
+      "description": "id_datalist_Windy_Old_Town_level8",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 12,
+      "name": "LEVEL10",
+      "gameType": 1,
+      "showName": "id_datalist_Night_Town_level10",
+      "description": "id_datalist_Night_Town_level10",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 13,
+      "name": "LEVEL12",
+      "gameType": 4,
+      "showName": "id_datalist_Night_Town_level12",
+      "description": "id_datalist_Night_Town_level12",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 14,
+      "name": "LEVEL13",
+      "gameType": 4,
+      "showName": "id_datalist_Cape_of_Aegean_level13",
+      "description": "id_datalist_Cape_of_Aegean_level13",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 15,
+      "name": "LEVEL14",
+      "gameType": 3,
+      "showName": "id_datalist_Alley_of_Aegean_level14",
+      "description": "id_datalist_Alley_of_Aegean_level14",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 16,
+      "name": "LEVEL15",
+      "gameType": 7,
+      "showName": "id_datalist_Beginners_Stage_level15",
+      "description": "id_datalist_Beginners_Stage_level15",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 17,
+      "name": "LEVEL16",
+      "gameType": 2,
+      "showName": "id_datalist_City_of_Aegean_level16",
+      "description": "id_datalist_City_of_Aegean_level16",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 18,
+      "name": "LEVEL17",
+      "gameType": 4,
+      "showName": "id_datalist_Space_Battlefield_level17",
+      "description": "id_datalist_Space_Battlefield_level17",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 20,
+      "name": "LEVEL18",
+      "gameType": 2,
+      "showName": "id_datalist_Alien_Flag_War_level18",
+      "description": "id_datalist_Alien_Flag_War_level18",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 21,
+      "name": "LEVEL19",
+      "gameType": 3,
+      "showName": "id_datalist_Starry_Treasure_level19",
+      "description": "id_datalist_Starry_Treasure_level19",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 22,
+      "name": "LEVEL20",
+      "gameType": 3,
+      "showName": "id_datalist_Dragon_Cave_level20",
+      "description": "id_datalist_Dragon_Cave_level20",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 23,
+      "name": "LEVEL21",
+      "gameType": 1,
+      "showName": "id_datalist_Cape_of_Aegean_level21",
+      "description": "id_datalist_Cape_of_Aegean_level21",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 24,
+      "name": "LEVEL22",
+      "gameType": 1,
+      "showName": "id_datalist_Space_Battlefield_level22",
+      "description": "id_datalist_Space_Battlefield_level22",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 25,
+      "name": "LEVEL23",
+      "gameType": 3,
+      "showName": "id_datalist_Dukes_Treasure_level23",
+      "description": "id_datalist_Dukes_Treasure_level23",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 28,
+      "name": "LEVEL26",
+      "gameType": 2,
+      "showName": "id_datalist_Hazard_Town_level26",
+      "description": "id_datalist_Hazard_Town_level26",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 29,
+      "name": "LEVEL27",
+      "gameType": 4,
+      "showName": "id_datalist_Aegean_Courtyard_level27",
+      "description": "id_datalist_Aegean_Courtyard_level27",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 32,
+      "name": "LEVEL29",
+      "gameType": 4,
+      "showName": "id_datalist_scene_level29",
+      "description": "id_datalist_scene_level29",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 33,
+      "name": "LEVEL30",
+      "gameType": 4,
+      "showName": "id_datalist_scene_level30",
+      "description": "id_datalist_scene_level30",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 34,
+      "name": "LEVEL24",
+      "gameType": 4,
+      "showName": "id_datalist_scene_level24",
+      "description": "id_datalist_scene_level24",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 35,
+      "name": "LEVEL25",
+      "gameType": 1,
+      "showName": "id_datalist_scene_level25",
+      "description": "id_datalist_scene_level25",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 36,
+      "name": "LEVEL34",
+      "gameType": 2,
+      "showName": "id_datalist_scene_level34",
+      "description": "id_datalist_scene_level34",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 37,
+      "name": "LEVEL35",
+      "gameType": 3,
+      "showName": "id_datalist_scene_level35",
+      "description": "id_datalist_scene_level35",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 38,
+      "name": "LEVEL31",
+      "gameType": 4,
+      "showName": "id_datalist_scene_level31",
+      "description": "id_datalist_scene_level31",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 39,
+      "name": "LEVEL32",
+      "gameType": 2,
+      "showName": "id_datalist_scene_level32",
+      "description": "id_datalist_scene_level32",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 40,
+      "name": "LEVEL33",
+      "gameType": 2,
+      "showName": "id_datalist_scene_level33",
+      "description": "id_datalist_scene_level33",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 41,
+      "name": "LEVEL36",
+      "gameType": 1,
+      "showName": "id_datalist_scene_level33",
+      "description": "id_datalist_scene_level33",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 42,
+      "name": "LEVEL37",
+      "gameType": 4,
+      "showName": "id_datalist_scene_level33",
+      "description": "id_datalist_scene_level33",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 43,
+      "name": "LEVEL41",
+      "gameType": 11,
+      "showName": "id_datalist_Belfry_Square_level1",
+      "description": "id_datalist_Belfry_Square_level1",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 44,
+      "name": "LEVEL42",
+      "gameType": 11,
+      "showName": "id_datalist_scene_level33",
+      "description": "id_datalist_scene_level33",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 45,
+      "name": "LEVEL40",
+      "gameType": 11,
+      "showName": "UI_abilities_map_level40",
+      "description": "UI_abilities_map_level40",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 47,
+      "name": "LEVEL45",
+      "gameType": 8,
+      "showName": "UI_datalist_hupanxiaozhen",
+      "description": "UI_datalist_hupanxiaozhen",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 10001,
+      "name": "LEVEL10001",
+      "gameType": 9,
+      "showName": "UI_inGame_BOSS1_MAP",
+      "description": "UI_inGame_BOSS1_MAP",
+      "difficulty": 0,
+      "group": 1
+    },
+    {
+      "id": 10002,
+      "name": "LEVEL10002",
+      "gameType": 9,
+      "showName": "UI_common_hell_hollow",
+      "description": "UI_common_hell_hollow",
+      "difficulty": 0,
+      "group": 2
+    },
+    {
+      "id": 10003,
+      "name": "LEVEL10003",
+      "gameType": 9,
+      "showName": "UI_inGame_BOSS3_MAP",
+      "description": "UI_inGame_BOSS3_MAP",
+      "difficulty": 0,
+      "group": 3
+    },
+    {
+      "id": 10009,
+      "name": "LEVEL10009",
+      "gameType": 9,
+      "showName": "UI_lobby_siwangzhijing",
+      "description": "UI_lobby_siwangzhijing",
+      "difficulty": 0,
+      "group": 9
+    },
+    {
+      "id": 20001,
+      "name": "LEVEL10001",
+      "gameType": 9,
+      "showName": "UI_inGame_BOSS1_MAP",
+      "description": "UI_inGame_BOSS1_MAP",
+      "difficulty": 1,
+      "group": 1
+    },
+    {
+      "id": 20002,
+      "name": "LEVEL10002",
+      "gameType": 9,
+      "showName": "UI_common_hell_hollow",
+      "description": "UI_common_hell_hollow",
+      "difficulty": 1,
+      "group": 2
+    },
+    {
+      "id": 20003,
+      "name": "LEVEL10003",
+      "gameType": 9,
+      "showName": "UI_inGame_BOSS3_MAP",
+      "description": "UI_inGame_BOSS3_MAP",
+      "difficulty": 1,
+      "group": 3
+    },
+    {
+      "id": 20009,
+      "name": "LEVEL10009",
+      "gameType": 9,
+      "showName": "UI_lobby_siwangzhijing",
+      "description": "UI_lobby_siwangzhijing",
+      "difficulty": 1,
+      "group": 9
+    },
+    {
+      "id": 100001,
+      "name": "LEVEL38",
+      "gameType": 10,
+      "showName": "id_abilities_scene_level38",
+      "description": "id_abilities_scene_level38",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 100002,
+      "name": "LEVEL39",
+      "gameType": 10,
+      "showName": "id_abilities_scene_level39",
+      "description": "id_abilities_scene_level39",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 100003,
+      "name": "LEVEL43",
+      "gameType": 12,
+      "showName": "濞佺壒鍒╁皵鍩庡牎",
+      "description": "濞佺壒鍒╁皵鍩庡牎",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 100004,
+      "name": "LEVEL44",
+      "gameType": 12,
+      "showName": "UI_lobby_chenmushangu",
+      "description": "UI_lobby_chenmushangu",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 100005,
+      "name": "LEVEL38",
+      "gameType": 13,
+      "showName": "id_abilities_scene_level38",
+      "description": "id_abilities_scene_level38",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 30015,
+      "name": "LEVEL15",
+      "gameType": 4,
+      "showName": "id_datalist_Beginners_Stage_level15",
+      "description": "id_datalist_Beginners_Stage_level15",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400001,
+      "name": "LEVEL38",
+      "gameType": 4,
+      "showName": "id_abilities_scene_level38",
+      "description": "id_abilities_scene_level38",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400002,
+      "name": "LEVEL39",
+      "gameType": 4,
+      "showName": "id_abilities_scene_level39",
+      "description": "id_abilities_scene_level39",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400003,
+      "name": "LEVEL43",
+      "gameType": 4,
+      "showName": "LEVEL43",
+      "description": "LEVEL43",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400004,
+      "name": "LEVEL44",
+      "gameType": 4,
+      "showName": "UI_lobby_chenmushangu",
+      "description": "UI_lobby_chenmushangu",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400005,
+      "name": "LEVEL38",
+      "gameType": 4,
+      "showName": "id_abilities_scene_level38",
+      "description": "id_abilities_scene_level38",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400006,
+      "name": "LEVEL3",
+      "gameType": 4,
+      "showName": "LEVEL3",
+      "description": "LEVEL3",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400007,
+      "name": "LEVEL4",
+      "gameType": 4,
+      "showName": "LEVEL4",
+      "description": "LEVEL4",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400008,
+      "name": "LEVEL28",
+      "gameType": 1,
+      "showName": "LEVEL28",
+      "description": "LEVEL28",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400009,
+      "name": "LEVEL46",
+      "gameType": 4,
+      "showName": "LEVEL46",
+      "description": "LEVEL46",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400010,
+      "name": "LEVEL47",
+      "gameType": 4,
+      "showName": "LEVEL47",
+      "description": "LEVEL47",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400011,
+      "name": "LEVEL48",
+      "gameType": 4,
+      "showName": "LEVEL48",
+      "description": "LEVEL48",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400012,
+      "name": "LEVEL49",
+      "gameType": 8,
+      "showName": "LEVEL49",
+      "description": "LEVEL49",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400013,
+      "name": "LEVEL50",
+      "gameType": 4,
+      "showName": "LEVEL50",
+      "description": "LEVEL50",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400014,
+      "name": "LEVEL10004",
+      "gameType": 4,
+      "showName": "LEVEL10004",
+      "description": "LEVEL10004",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400015,
+      "name": "LEVEL10005",
+      "gameType": 4,
+      "showName": "LEVEL10005",
+      "description": "LEVEL10005",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400016,
+      "name": "LEVEL10006",
+      "gameType": 4,
+      "showName": "LEVEL10006",
+      "description": "LEVEL10006",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400017,
+      "name": "LEVEL10007",
+      "gameType": 4,
+      "showName": "LEVEL10007",
+      "description": "LEVEL10007",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400018,
+      "name": "LEVEL10008",
+      "gameType": 4,
+      "showName": "LEVEL10008",
+      "description": "LEVEL10008",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400019,
+      "name": "LEVEL10010",
+      "gameType": 4,
+      "showName": "LEVEL10010",
+      "description": "LEVEL10010",
+      "difficulty": 0,
+      "group": 0
+    }
+  ]
+}

@@ -579,6 +579,9 @@ internal sealed class PlayerStore
         {
             var character = snapshot.Character with
             {
+                // Characters created before the level bump are stored at level 1; promote them
+                // on load so the saved character matches CharacterInfo.DefaultLevel.
+                Level = CharacterInfo.DefaultLevel,
                 EquipAvatar = NormalizeAvatarPayload(snapshot.Character.EquipAvatar) ?? CharacterInfo.Create(0, string.Empty, snapshot.Character.Occupation).EquipAvatar
             };
             var player = new PlayerState(character)

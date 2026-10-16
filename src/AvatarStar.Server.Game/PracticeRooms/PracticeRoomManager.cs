@@ -3045,6 +3045,26 @@ internal sealed class PracticeRoomManager
 
     private static IReadOnlyList<BattleLevelChoice> LoadRandomBattleLevelChoices()
     {
+        // 优先用官方关卡表（Config/lobby_levels.json）：随机出来的房间 LevelId 必须和
+        // packet30 下发给客户端的 id 一致，否则房间地图名会和玩家看到的选择对不上。
+        // 旧表（lobby_levelinfo.json）按 "LEVEL11" 里的数字当 id，和官方 id（LEVEL11 → 6）不同，
+        // 所以只作为兜底。boss 图（gameType = 9）不参与随机。
+        if (LobbyLevelCatalog.HasLevels)
+        {
+            var official = LobbyLevelCatalog.Levels
+                .Where(level => level.Id is > 0 and < 10000 &&
+                                level.GameType != LobbyLevelCatalog.BossGameType &&
+                                !string.IsNullOrWhiteSpace(level.ShowName))
+                .Select(level => new BattleLevelChoice(level.Id, level.ShowName))
+                .OrderBy(choice => choice.LevelId)
+                .ToArray();
+
+            if (official.Length > 0)
+            {
+                return official;
+            }
+        }
+
         var configPath = ResolveLobbyLevelInfoConfigPath();
         if (string.IsNullOrWhiteSpace(configPath))
         {

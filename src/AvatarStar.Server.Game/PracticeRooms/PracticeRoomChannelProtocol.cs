@@ -1036,6 +1036,10 @@ internal sealed class PracticeRoomChannelProtocol
     // slot is activated, the way the retail server does.
     private readonly HashSet<byte> _openSkillAbilityIds = new();
 
+    // 「冒险远征」的 boss 实体包（packet104）一局只发一次：官方抓包里开局那三条
+    // （BOSS 一阶/二阶/三阶）之后整局都不再出现。
+    private int _bossStageEntitiesSent;
+
     // Live Healing Beacon pulse loops (one per placed device). Each loop heals the teammates
     // around the device every two seconds until the level's total heal is used up.
     private readonly HashSet<CancellationTokenSource> _healingBeaconLoops = new();
@@ -1988,6 +1992,7 @@ internal sealed class PracticeRoomChannelProtocol
         _previousWeaponSlot = 0;
         _knownGamePlayerUids.Clear();
         _openSkillAbilityIds.Clear();
+        Volatile.Write(ref _bossStageEntitiesSent, 0);
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -2026,6 +2031,12 @@ internal sealed class PracticeRoomChannelProtocol
             optionChange.Matching,
             optionChange.EnterLimit);
 
+        // 客户端建房/改设置时一般不填地图名（抓包里该字段为空串），
+        // 官方服务端是按 levelId 回填地图显示名，这里照做，否则房间列表和房间信息里地图是空白。
+        var optionMapName = string.IsNullOrWhiteSpace(optionChange.MapName)
+            ? LobbyLevelCatalog.ResolveMapShowName(optionChange.LevelId) ?? string.Empty
+            : optionChange.MapName;
+
         PracticeRoomManager.PracticeRoomSession? room = null;
         var resultCode = 1;
         if (_currentRoomId == 0 ||
@@ -2043,7 +2054,7 @@ internal sealed class PracticeRoomChannelProtocol
                     CheckBalance: optionChange.CheckBalance,
                     Matching: optionChange.Matching,
                     CanBeWatched: optionChange.CanBeWatched,
-                    MapName: optionChange.MapName,
+                    MapName: optionMapName,
                     EnterLimit: optionChange.EnterLimit),
                 out room,
                 out resultCode))
@@ -2298,6 +2309,7 @@ internal sealed class PracticeRoomChannelProtocol
         _previousWeaponSlot = 0;
         _knownGamePlayerUids.Clear();
         _openSkillAbilityIds.Clear();
+        Volatile.Write(ref _bossStageEntitiesSent, 0);
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -2885,6 +2897,13 @@ internal sealed class PracticeRoomChannelProtocol
         string trigger,
         bool preferKnownPosition)
     {
+        // 「冒险远征」(kBoss) 的房间在初始化时要把 boss 的三个阶段实体下发给客户端：
+        // 官方抓包里这三条 packet104 就夹在 packet105 与 packet106 之间。
+        if (room.GameType == LobbyLevelCatalog.BossGameType)
+        {
+            await SendBossStageEntitiesAsync(trigger);
+        }
+
         // 先发送初始化包
         await SendPacket106GameInitAsync(room);
         // The retail server follows packet 106 with the in-game battle state frames (packet 146
@@ -2910,6 +2929,39 @@ internal sealed class PracticeRoomChannelProtocol
         else
         {
             await SendPacket111GameSpawnAsync(room, trigger);
+        }
+    }
+
+    /// <summary>
+    /// 「冒险远征」的 boss 实体包（packet104，server → client）。
+    /// 官方开局会连发三条（BOSS 一阶 / 二阶 / 三阶），客户端据此创建 boss 模型并按阶段切换；
+    /// 字节与阶段表来自 Resources/boss_stages.json（见 docs/ingame-boss-expedition.md）。
+    /// </summary>
+    private async Task SendBossStageEntitiesAsync(string trigger)
+    {
+        if (!BossStageCatalog.HasStages)
+        {
+            return;
+        }
+
+        if (Interlocked.Exchange(ref _bossStageEntitiesSent, 1) != 0)
+        {
+            return;
+        }
+
+        foreach (var stage in BossStageCatalog.Stages)
+        {
+            await SendPayloadAsync(stage.Payload, encrypt: true);
+
+            Log.Information(
+                "Channel packet{PacketId} -> {Remote}: boss stage={Stage} display={Display} health={Health} payloadBytes={PayloadBytes} trigger={Trigger}",
+                BossStageCatalog.PacketId,
+                _remoteLabel,
+                stage.Stage,
+                stage.Display,
+                stage.Health,
+                stage.Payload.Length,
+                trigger);
         }
     }
 
@@ -6858,6 +6910,13 @@ internal sealed class PracticeRoomChannelProtocol
 
     private static string ResolveBattleLevelCode(PracticeRoomManager.PracticeRoomSession room)
     {
+        // 关卡码以官方关卡表为准：远征 boss 关的 id 与关卡码不是简单拼接
+        // （10001 和 20001 都是 LEVEL10001，难度 0/1 共用同一张图）。
+        if (LobbyLevelCatalog.ResolveLevelCode(room.LevelId) is { } catalogLevelCode)
+        {
+            return catalogLevelCode;
+        }
+
         if (room.LevelId > 0)
         {
             return $"LEVEL{room.LevelId}";

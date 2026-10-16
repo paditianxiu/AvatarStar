@@ -4,7 +4,7 @@
 > 构建与验证流程、代码地图、已完成功能索引、已知不确定项。
 > 单个功能/单轮修复的完整过程请看 `docs/` 下的三篇专题文档（见第 9 节），本文不复制它们的正文。
 >
-> 最后更新：提交 `aeedd41`（「新增两个造型卡」）。文中行号是当时的快照、会随提交漂移，**以符号名为准**。
+> 最后更新：冒险远征（Boss）模式实现 + 角色等级固定 30（工作区改动，未提交）。文中行号是当时的快照、会随提交漂移，**以符号名为准**。
 
 ## 1. 这个项目是什么
 
@@ -89,7 +89,7 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 | `PracticeRooms/PracticeRoomChannelProtocol.cs`（**≈356KB，最大**） | 局内 channel 协议：技能释放（packet136/155/160/162/185）、对局初始化（packet103/106）、血量同步（packet111）。**技能类需求基本都改这个文件**。 |
 | `PracticeRooms/PracticeRoomManager.cs`（≈123KB） | 房间生命周期、玩家快照 `GamePlayerSnapshot`(3286)、房间广播。 |
 | `Models/InventoryItem.cs` | 物品记录（Pid/Slot/Sid/Subtype/Grade/Quantity/UnitType/RefitLevel/PlusLevel/IsEquip…）。 |
-| `Models/CharacterInfo.cs` | 角色信息（Id/Name/Level/Occupation/BattleForce/EquipAvatar/MaxHealth）。 |
+| `Models/CharacterInfo.cs` | 角色信息（Id/Name/Level/Occupation/BattleForce/EquipAvatar/MaxHealth）；`DefaultLevel = 30` 是唯一的等级来源，`Create` 与 `PlayerStore.PlayerState.FromSnapshot` 都强制 30（旧存档载入即提升）。 |
 | `Resources/ShopItemDatabase.cs`（≈53KB） | 商城/造型卡基础数据与价格；`CurrencyType{Gold=1,Diamond=2,Ticket=4}`；造型卡载入(≈692/711/835)。 |
 | `Resources/ShopItemProvider.cs`（≈15KB） | 商城取数/分页/购买校验：`SelectShopItems`(71)、`GetAvatarCardListWithPaging`(122)、`ConvertAvatarCardToRpcFormat`、`CanPurchaseItem`(245)、`TryGetPriceById`(254)。 |
 | `Config/game_text_id_to_text.json`（≈425KB） | 7xxx 条文本 id → 文本。 |
@@ -97,6 +97,12 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 
 ## 6. 数据资源与常量
 
+- `Config/lobby_levels.json`：官方 packet30 的 69 条关卡表（含 8 条 `gameType = 9` 的远征 boss 关），
+  加载在 `Config/LobbyLevelCatalog.cs`；大厅关卡列表、房间地图名、局内关卡码都走它。
+- 角色等级：全服固定 **30 级**（`CharacterInfo.DefaultLevel`，官方上限）。没有经验/升级系统；
+  改等级只动这一个常量——新建角色与读档都会用它，不需要改客户端。
+- `Resources/boss_stages.json`：冒险远征的 BOSS 一/二/三阶段实体包（packet104 整包 hex，血量 56 万 / 88 万 / 120 万），
+  加载在 `Resources/BossStageCatalog.cs`。
 - `Resources/avatar_cards.json`：造型卡数据（当前 **27 张**）。顶层键 `version / source / slotTemplate / cards`；
   每张卡 `sid / subtype / display / grade / avatarLevel / designer / level / prices[] / avatar{}`，
   `avatar{}` 里是各部位 `{名称,索引,颜色,模型,RGB…}` 的 lua 字面量。
@@ -140,6 +146,7 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 | `docs/ingame-skill-release.md`（88KB） | 局内技能释放全流程，第 12~26 轮：对局初始化与移动回显、隐身/冲刺、packet155 的真实语义、护卫兵技能、箭雨按等级、技能同步给房间内他人、治疗/振荡器回血、冲击波、进局 NullReferenceException、packet111 血量包、重装兵护盾/飞毛腿、生化专家生命抽取/生命传导。 |
 | `docs/weapon-refit.md` | 武器强化协议与实现；「强化等级带进局内」补充。 |
 | `docs/practice-room-multiplayer.md` | 练习房间广播与多人加入。 |
+| `docs/ingame-boss-expedition.md` | 冒险远征（kBoss = 9）：官方关卡表（packet30）、远征 RPC（`player_venture_detail` / `player_venture_info`）、BOSS 三个阶段实体包（packet104）与还没做的战斗同步。 |
 
 按轮次索引（第 1~11 轮见 `ingame-skill-release.md` 前半）：
 
@@ -151,6 +158,8 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 - 第 30 轮：造型卡（拥有列表 / 切换页 / 商城列表 / 卡片数据）。
 - 第 31 轮：强化面板物品分页真的能翻页（根因：`GetStorageItems` 在 `storage_item_filter` 路径漏了跳过 `pageOffset`）+ 大厅背包「整理」`storage_neaten`。
 - 第 32 轮：造型卡商城补两张卡（狼王斯沃夫 / 龙鳞战甲）。
+- 第 33 轮：冒险远征（Boss）模式——官方关卡表（远征界面能列出 8 张图）、远征 RPC、BOSS 三阶段实体包（`docs/ingame-boss-expedition.md`）。
+- 第 34 轮：角色等级固定 30（`CharacterInfo.DefaultLevel`；旧存档 `FromSnapshot` 时提升）。
 
 ## 10. 待办 / 已知不确定项
 
@@ -159,6 +168,8 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 - 第 32 轮新增的两张造型卡，**价格是照同档卡套的**（钻石 99 / 券 99），不是官方定价。
 - `storage_*` 系列回包比官方多一个 `ok = 1` 字段（客户端不读，无影响，但对比抓包时会看到差异）。
 - 商城 `shop_config.json` 的 `type = 5` 分类为空，造型卡数据只来自 `avatar_cards.json`。
+- 冒险远征（boss）模式目前只做到「能开局 + 出现 boss 三阶段」：boss 的伤害 / 掉血 / 阶段切换 /
+  技能（packet 198 / 199 / 112 / 113 / 116 / 187 / 200 等）都还没实现，见 `docs/ingame-boss-expedition.md`。
 
 ## 11. 日志与临时脚本
 

@@ -4,6 +4,12 @@ internal sealed record CharacterInfo(int Id, string Name, int Level, int Occupat
 {
     public const int DefaultMaxHealth = 2300;
 
+    /// <summary>
+    /// Level every character reports to the client. The retail server caps characters at 30,
+    /// and several lobby gates (the "adventure expedition" entry needs level &gt;= 10) expect it.
+    /// </summary>
+    public const int DefaultLevel = 30;
+
     public static int ResolveDefaultMaxHealth(int occupation)
     {
         return occupation switch
@@ -42,7 +48,7 @@ internal sealed record CharacterInfo(int Id, string Name, int Level, int Occupat
         return new CharacterInfo(
             Id: id,
             Name: name,
-            Level: 1,
+            Level: DefaultLevel,
             Occupation: occupation,
             BattleForce: "0",
             EquipAvatar: equipAvatar,

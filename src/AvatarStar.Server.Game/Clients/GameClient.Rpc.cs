@@ -3893,6 +3893,39 @@ internal partial class GameClient
                 return;
             }
 
+            // 「冒险远征」模式（CreateRoom.lua: kGameTypeBoss = 9，界面在 lobby/expedition*.lua）。
+            // 打开远征界面时先问体力，选中地图后再按 mid 问关卡要求，两个都是纯 lua kv 文本；
+            // 字段名与取值照「远征模式.txt」抓包（fitnessConsumer 要 <= 体力，否则客户端不让开局）。
+            case "player_venture_detail":
+            {
+                writer.WriteString(
+                    "ok = 1\n" +
+                    "fitnessValue = 100\n" +
+                    "fitnessMaxValue = 100\n" +
+                    "ownNum = 0\n" +
+                    "needNum = 1\n" +
+                    "type = 0\n" +
+                    "subType = 0\n" +
+                    "category = 0\n" +
+                    "displayName = \"\"");
+                await SendAsync(writer);
+                return;
+            }
+
+            case "player_venture_info":
+            {
+                writer.WriteString(
+                    "ok = 1\n" +
+                    "level = 10\n" +
+                    "minCount = 1\n" +
+                    "maxCount = 4\n" +
+                    "venturePower = 0\n" +
+                    "fitnessConsumer = 20\n" +
+                    "mapInfoKey = \"id_weapon_naimo_book_effect\"");
+                await SendAsync(writer);
+                return;
+            }
+
             case "sys_avatar_part_get":
                 writer.WriteString(GenericOkPayload(rpcArgs));
                 await SendAsync(writer);

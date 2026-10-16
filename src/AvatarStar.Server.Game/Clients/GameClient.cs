@@ -186,8 +186,30 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         return long.TryParse(sb.ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out id);
     }
 
+    // 官方抓包还原的关卡表（Config/lobby_levels.json）优先于 lobby_levelinfo.json：
+    // 只有它带 gameType / difficulty，「冒险远征」(kBoss = 9) 等模式的地图不在旧表里。
+    private static readonly Lazy<IReadOnlyList<LobbyLevelInfo>> CatalogLobbyLevels = new(() =>
+        LobbyLevelCatalog.Levels
+            .Select(level => new LobbyLevelInfo(
+                level.Id,
+                level.Name,
+                level.GameType,
+                level.ShowName,
+                level.Description,
+                level.Difficulty,
+                level.Group))
+            .ToArray());
+
+    private static IReadOnlyList<LobbyLevelInfo> GetCatalogLobbyLevels() => CatalogLobbyLevels.Value;
+
     private static IReadOnlyList<LobbyLevelInfo> GetConfiguredLobbyLevelsOrDefault()
     {
+        var catalogLevels = GetCatalogLobbyLevels();
+        if (catalogLevels.Count > 0)
+        {
+            return catalogLevels;
+        }
+
         var configPath = ResolveLobbyLevelInfoConfigPath();
         if (string.IsNullOrWhiteSpace(configPath))
         {
