@@ -270,6 +270,13 @@ internal partial class GameClient
         "weapon_decomposition"
     };
 
+    /// <summary>
+    /// 远征模式的体力。官方抓包里 `player_venture_detail` 与 `get_room_player_info` 都报 100，
+    /// 客户端拿 fitnessValue 与关卡的 fitnessConsumer（各级都是 20）比对，不够就不让开局。
+    /// </summary>
+    private const int ExpeditionFitnessValue = 100;
+    private const int ExpeditionFitnessMaxValue = 100;
+
     private const string BoxRulesConfigFileName = "box_rules.json";
     private static readonly object BoxRulesLock = new();
     private static readonly JsonSerializerOptions BoxRulesJsonOptions = new()
@@ -1615,6 +1622,61 @@ internal partial class GameClient
             var affordableDelta = Math.Min(desired - current, player.GetLeftSkillPoints());
             player.SetSkillLevel(skillId, current + affordableDelta);
         }
+    }
+
+    /// <summary>
+    /// `get_room_player_info` 的回包，字段名与格式照官方抓包（远征模式.txt #31 / #35）：
+    /// `playerList = {{id=100190001,playerId=100190001,name="易拉罐",level=30,ventureForce=3842}}`
+    /// `playerExtraList = {{id=100190001,fitness=100}}`
+    /// </summary>
+    private string BuildRoomPlayerInfoPayload(IReadOnlyDictionary<string, string> rpcArgs)
+    {
+        var playerList = new StringBuilder("playerList = {");
+        var extraList = new StringBuilder("playerExtraList = {");
+        var first = true;
+
+        foreach (var characterId in ParsePlayerIdList(rpcArgs))
+        {
+            var player = _playerStore.GetOrCreate((int)characterId);
+            var character = player.Character;
+
+            if (!first)
+            {
+                playerList.Append(',');
+                extraList.Append(',');
+            }
+
+            first = false;
+
+            playerList
+                .Append("{id=").Append(character.Id)
+                .Append(",playerId=").Append(character.Id)
+                .Append(",name=").Append(LuaEscape(character.Name))
+                .Append(",level=").Append(character.Level)
+                .Append(",ventureForce=").Append(player.GetVentureForce())
+                .Append('}');
+
+            extraList
+                .Append("{id=").Append(character.Id)
+                .Append(",fitness=").Append(ExpeditionFitnessValue)
+                .Append('}');
+        }
+
+        return "ok = 1\n" + playerList.Append("}\n") + extraList.Append('}');
+    }
+
+    /// <summary>`playerIds` 形如 "100190001,100190002,"，按分隔符拆成角色 id。</summary>
+    private static IEnumerable<long> ParsePlayerIdList(IReadOnlyDictionary<string, string> rpcArgs)
+    {
+        if (!rpcArgs.TryGetValue("playerIds", out var raw) || string.IsNullOrWhiteSpace(raw))
+        {
+            return Array.Empty<long>();
+        }
+
+        return raw
+            .Split(new[] { ',', ';', ' ', '|' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => long.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : 0)
+            .Where(id => id is > 0 and <= int.MaxValue);
     }
 
     private static string StageQuitPayload(
@@ -3900,8 +3962,8 @@ internal partial class GameClient
             {
                 writer.WriteString(
                     "ok = 1\n" +
-                    "fitnessValue = 100\n" +
-                    "fitnessMaxValue = 100\n" +
+                    $"fitnessValue = {ExpeditionFitnessValue}\n" +
+                    $"fitnessMaxValue = {ExpeditionFitnessMaxValue}\n" +
                     "ownNum = 0\n" +
                     "needNum = 1\n" +
                     "type = 0\n" +
@@ -3923,6 +3985,22 @@ internal partial class GameClient
                     "fitnessConsumer = 20\n" +
                     "mapInfoKey = \"id_weapon_naimo_book_effect\"");
                 await SendAsync(writer);
+                return;
+            }
+
+            // 房间内玩家信息。远征模式的「开始游戏」完全依赖这条回包
+            // （expedition.lua:SetLimitText 会逐个玩家比对 level / ventureForce / fitness），
+            // 少字段客户端 lua 回调就直接报错，表现为「开始游戏」按了没反应。
+            case "get_room_player_info":
+            {
+                var playerInfoPayload = BuildRoomPlayerInfoPayload(rpcArgs);
+                writer.WriteString(playerInfoPayload);
+                await SendAsync(writer);
+                Log.Information(
+                    "RPC get_room_player_info: roleId={RoleId} ids={Ids} payload={Payload}",
+                    _activeRoleId,
+                    rpcArgs.TryGetValue("playerIds", out var playerIds) ? playerIds : string.Empty,
+                    playerInfoPayload.Replace("\n", " | "));
                 return;
             }
 

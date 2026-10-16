@@ -2683,6 +2683,73 @@ internal sealed class PlayerStore
             return result.ToArray();
         }
 
+        /// <summary>
+        /// 「远征战力」：已装备物品的 tip 里 ventureForce 之和。官方在 `get_room_player_info`
+        /// 里按玩家下发这个值，远征模式拿它和关卡的 venturePower 比对（目前各级远征关卡都是 0）。
+        /// 只读，不补初始背包，避免查别人的角色时改到对方存档。
+        /// </summary>
+        public int GetVentureForce()
+        {
+            // 与客户端的「已装备」判定保持一致：EquippedItemsByType + 快捷栏里的装备
+            // （初始武器装备挂在快捷栏上，不先补齐的话战力会算成 0）。
+            EnsureStarterInventory();
+            NormalizeHotKeySlots();
+            EnsureDefaultWeaponHotKeySlots();
+
+            lock (_stateLock)
+            {
+                var total = 0d;
+                foreach (var pid in GetEquippedEquipmentPids())
+                {
+                    var item = FindItemByPid(pid, 2);
+                    if (item is null)
+                    {
+                        continue;
+                    }
+
+                    total += ResolveItemVentureForce(ShopItemDatabase.GetShopItem(item.Sid)?.Tip);
+                }
+
+                return (int)Math.Floor(total);
+            }
+        }
+
+        /// <summary>
+        /// 从物品 tip（`shop_config.json` 的 tip 对象）里取 ventureForce。
+        /// 值可能是 long / double / string，缺字段按 0 处理。
+        /// </summary>
+        private static double ResolveItemVentureForce(object? tip)
+        {
+            if (tip is not Dictionary<string, object?> map)
+            {
+                return 0;
+            }
+
+            foreach (var (key, value) in map)
+            {
+                if (value is null || !string.Equals(key, "ventureForce", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                switch (value)
+                {
+                    case double d:
+                        return d;
+                    case float f:
+                        return f;
+                    case long l:
+                        return l;
+                    case int i:
+                        return i;
+                    case string s when double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed):
+                        return parsed;
+                }
+            }
+
+            return 0;
+        }
+
         public IReadOnlyList<string> GetGameIndependentTrinketResources()
         {
             return GetGameIndependentTrinketItems()

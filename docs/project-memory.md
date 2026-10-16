@@ -4,7 +4,7 @@
 > 构建与验证流程、代码地图、已完成功能索引、已知不确定项。
 > 单个功能/单轮修复的完整过程请看 `docs/` 下的三篇专题文档（见第 9 节），本文不复制它们的正文。
 >
-> 最后更新：冒险远征（Boss）模式实现 + 角色等级固定 30（工作区改动，未提交）。文中行号是当时的快照、会随提交漂移，**以符号名为准**。
+> 最后更新：冒险远征 boss **不会动**（packet198 的 12 字节块其实是「相位/计时器/朝向的每秒变化率」，之前只发固定模板）与**第二局 boss 消失**（packet104 ×3 + 212 一局改下发两次）已修；服务端另有文件日志 `logs/server-YYYYMMDD.log`（工作区改动，未提交）。文中行号是当时的快照、会随提交漂移，**以符号名为准**。
 
 ## 1. 这个项目是什么
 
@@ -80,13 +80,13 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 
 | 文件 | 说明 |
 |---|---|
-| `Clients/GameClient.Rpc.cs`（≈168KB） | 大厅 RPC 总入口。`HandleRpcCall`(1697) 读包 → `var rpcName`(1700) → `switch (rpcName)`(1721) 分发；未命中走白名单 `KnownRpcNames`(93) 兜底 `GenericOkPayload`(1564)，再不行返回 `error=nil`。**加新 RPC 就改这里**。 |
+| `Clients/GameClient.Rpc.cs`（≈168KB） | 大厅 RPC 总入口。远征相关：`case "player_venture_detail"` / `"player_venture_info"` / `"get_room_player_info"`（`BuildRoomPlayerInfoPayload`）。`HandleRpcCall`(1697) 读包 → `var rpcName`(1700) → `switch (rpcName)`(1721) 分发；未命中走白名单 `KnownRpcNames`(93) 兜底 `GenericOkPayload`(1564)，再不行返回 `error=nil`。**加新 RPC 就改这里**。 |
 | `Clients/GameClient.Inventory.cs`（≈17KB） | 背包/仓库：`GetStorageItems`(14)、`BuildStorageListPayload`(206)、`ParseIntSetArg`(216)、`ParseGradeFilterArg`(240)、`BuildAvatarCardTipPayload`(276)。 |
 | `Clients/GameClient.Refit.cs`（≈23KB） | 武器强化（refit）、`ResolveBaseRank`。 |
 | `Clients/GameClient.cs`（≈38KB） | 连接生命周期、`GetIntArg`、`GetActivePlayerStateOrDefault`、私有 `_playerStore`。 |
 | `Persistence/PlayerStore.cs`（≈126KB） | 玩家存档主体：嵌套 `PlayerState`、`Storages`、`AddItem`、`EnsureStarterInventory`(873)、`NormalizeHotKeySlots`(1542)、`GetGameLoadoutItems`(2271)、`NeatenStorage`(2981)、`ResolveStorageTypeByItemType`(3026)。 |
 | `Persistence/GameDataRepository.cs`（≈12KB） | MySQL 落盘。 |
-| `PracticeRooms/PracticeRoomChannelProtocol.cs`（**≈356KB，最大**） | 局内 channel 协议：技能释放（packet136/155/160/162/185）、对局初始化（packet103/106）、血量同步（packet111）。**技能类需求基本都改这个文件**。 |
+| `PracticeRooms/PracticeRoomChannelProtocol.cs`（**≈365KB，最大**） | 局内 channel 协议：技能释放（packet136/155/160/162/185）、对局初始化（packet103/106）、血量同步（packet111）、**冒险远征 boss 战斗帧**（`TrySendBossGameInitSpawnPacketsAsync` / `StartBossStateLoop` / `ScheduleBossLocalSpawn`）。**技能与局内类需求基本都改这个文件**。 |
 | `PracticeRooms/PracticeRoomManager.cs`（≈123KB） | 房间生命周期、玩家快照 `GamePlayerSnapshot`(3286)、房间广播。 |
 | `Models/InventoryItem.cs` | 物品记录（Pid/Slot/Sid/Subtype/Grade/Quantity/UnitType/RefitLevel/PlusLevel/IsEquip…）。 |
 | `Models/CharacterInfo.cs` | 角色信息（Id/Name/Level/Occupation/BattleForce/EquipAvatar/MaxHealth）；`DefaultLevel = 30` 是唯一的等级来源，`Create` 与 `PlayerStore.PlayerState.FromSnapshot` 都强制 30（旧存档载入即提升）。 |
@@ -103,6 +103,9 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
   改等级只动这一个常量——新建角色与读档都会用它，不需要改客户端。
 - `Resources/boss_stages.json`：冒险远征的 BOSS 一/二/三阶段实体包（packet104 整包 hex，血量 56 万 / 88 万 / 120 万），
   加载在 `Resources/BossStageCatalog.cs`。
+- `Resources/boss_combat.json`：冒险远征**局内战斗帧**（`gameInitPacket106Hex` 30 字节最小 106、
+  `gameInitPlayerStatePacket112Hex` 180 字节 112、`gameInitPreludePacket212Hex` 212、三阶段的
+  `packet198Hex`/`packet199Hex` 模板、`spawnTransform`、倒计时/间隔参数），加载在 `Resources/BossCombatCatalog.cs`。
 - `Resources/avatar_cards.json`：造型卡数据（当前 **27 张**）。顶层键 `version / source / slotTemplate / cards`；
   每张卡 `sid / subtype / display / grade / avatarLevel / designer / level / prices[] / avatar{}`，
   `avatar{}` 里是各部位 `{名称,索引,颜色,模型,RGB…}` 的 lua 字面量。
@@ -146,7 +149,7 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 | `docs/ingame-skill-release.md`（88KB） | 局内技能释放全流程，第 12~26 轮：对局初始化与移动回显、隐身/冲刺、packet155 的真实语义、护卫兵技能、箭雨按等级、技能同步给房间内他人、治疗/振荡器回血、冲击波、进局 NullReferenceException、packet111 血量包、重装兵护盾/飞毛腿、生化专家生命抽取/生命传导。 |
 | `docs/weapon-refit.md` | 武器强化协议与实现；「强化等级带进局内」补充。 |
 | `docs/practice-room-multiplayer.md` | 练习房间广播与多人加入。 |
-| `docs/ingame-boss-expedition.md` | 冒险远征（kBoss = 9）：官方关卡表（packet30）、远征 RPC（`player_venture_detail` / `player_venture_info`）、BOSS 三个阶段实体包（packet104）与还没做的战斗同步。 |
+| `docs/ingame-boss-expedition.md` | 冒险远征（kBoss = 9）：官方关卡表（packet30）、远征 RPC（`player_venture_detail` / `player_venture_info` / `get_room_player_info`）、BOSS 三阶段实体包（packet104）、**进局内的 boss 战斗帧（106/112/212/151/198/199）与「出生延后 10 秒」根因**。 |
 
 按轮次索引（第 1~11 轮见 `ingame-skill-release.md` 前半）：
 
@@ -158,8 +161,27 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 - 第 30 轮：造型卡（拥有列表 / 切换页 / 商城列表 / 卡片数据）。
 - 第 31 轮：强化面板物品分页真的能翻页（根因：`GetStorageItems` 在 `storage_item_filter` 路径漏了跳过 `pageOffset`）+ 大厅背包「整理」`storage_neaten`。
 - 第 32 轮：造型卡商城补两张卡（狼王斯沃夫 / 龙鳞战甲）。
+- 第 33~35 轮：冒险远征（Boss）模式 —— 官方关卡表 + 远征 RPC + BOSS 三阶段实体包（packet104）；
+  房内「开始游戏」补 `get_room_player_info` 的 `playerList` / `playerExtraList`；角色等级固定 30。
+- 第 36 轮：冒险远征**进局内**（地图 + 基础 BOSS）—— 开局 106 用官方 30 字节最小包、
+  105 之前补 1 条 packet112，106 之后发 151(10.0) 倒计时 + 每 200ms 的 198/199 状态流，
+  **10 秒后才 111 出生**；根因是 boss 大场景没加载完就收到出生帧 → 进房 1 秒「网络异常」掉线。
+- 第 37 轮：**BOSS 不出现**——开局初始化有两个触发者（客户端自己的 packet103 请求 / 0.5 秒的
+  `game-enter-fallback` 兜底），两者时刻几乎相同、谁先到是随机的；兜底抢跑时 packet104 落在客户端
+  「还在加载」的窗口里，本机客户端（1.4.0.65795）不会据此建 boss 模型（官方 1.4.0.65828 两种都会建）。
+  现改成：packet112 在 105 之前；packet104 ×3 + 212 只由客户端 packet103 请求触发（在 packet106 之前）；
+  boss 图的兜底推迟到 `BossGameInitFallbackDelayMilliseconds = 8000`。
+- 第 38 轮：冒险远征 boss **不会动**——packet198 的 offset 23..34 是 6 个 i16÷256 的**速率**（相位 offset 11 /
+  动作计时器 offset 15 / 朝向 offset 19 的每秒变化率），之前只反复发同一帧固定模板；现按官方实测轨道推进
+  （一阶入场 4s 转身 + 14s 循环、二阶入场 4.95s + 20s 循环、三阶入场 4.99s + 22s 循环），
+  `stateIntervalMilliseconds` 200 → 50。同时修「第二局 boss 消失」：`packet104 ×3 + packet212`
+  除客户端 packet103 请求后那次外，还在 packet157「地图加载完成」之后、出生帧之前补发一次
+  （`SendBossSpawnPreludeAsync`）。
 - 第 33 轮：冒险远征（Boss）模式——官方关卡表（远征界面能列出 8 张图）、远征 RPC、BOSS 三阶段实体包（`docs/ingame-boss-expedition.md`）。
 - 第 34 轮：角色等级固定 30（`CharacterInfo.DefaultLevel`；旧存档 `FromSnapshot` 时提升）。
+- 第 35 轮：远征房间「开始游戏」没反应——根因是大厅 `get_room_player_info` 只回了泛用 `ok = 1`，
+  缺 `playerList` / `playerExtraList` 让客户端 lua 回调静默报错；现已按官方格式回包（`ventureForce` 用
+  `PlayerState.GetVentureForce()` 算，`fitness` 与 `player_venture_detail` 共用常量 100）。
 
 ## 10. 待办 / 已知不确定项
 
@@ -168,10 +190,20 @@ $targets | ForEach-Object { Remove-Item -LiteralPath $_ -Recurse -Force }
 - 第 32 轮新增的两张造型卡，**价格是照同档卡套的**（钻石 99 / 券 99），不是官方定价。
 - `storage_*` 系列回包比官方多一个 `ok = 1` 字段（客户端不读，无影响，但对比抓包时会看到差异）。
 - 商城 `shop_config.json` 的 `type = 5` 分类为空，造型卡数据只来自 `avatar_cards.json`。
-- 冒险远征（boss）模式目前只做到「能开局 + 出现 boss 三阶段」：boss 的伤害 / 掉血 / 阶段切换 /
-  技能（packet 198 / 199 / 112 / 113 / 116 / 187 / 200 等）都还没实现，见 `docs/ingame-boss-expedition.md`。
+- 冒险远征（boss）模式：开局 112（105 之前）→ 105 →（客户端 packet103 请求）→ 104 ×3 + 212
+  → 106（官方 30 字节）→ 151(10.0) 倒计时 + 每 50ms 的 198/199 状态流，**10 秒后才发 111 出生**
+  （boss 场景没加载完就出生会「网络异常」掉线；104 ×3 必须落在客户端自己的请求之后，否则 boss 不出现）。
+  104 ×3 + 212 一局要发两次（客户端请求之后 + 出生帧之前），因为本机客户端只在「刚切进图」的窗口里才建 boss 实体。
+- boss 的**掉血 / 阶段切换还没做**：198 的 offset 3（阶段索引）与血量字段已经能写，但还没有「玩家打中 boss」的
+  伤害来源，目前 boss 永远停在一阶段满血。真要做阶段切换时，官方在每个阶段开始还会补发
+  212（`d400` + 相位/计时器/朝向 float + `02` + 阶段号）与 210（`d200 02 <阶段号>`）。
+- 官方 boss 图里未实现的实体流：`0x74`(116) ×1520、`0xBB`(187) ×1520、`0x71`(113) ×1567、`0xC8`(200) ×864
+  （116 的 offset 35 也带 `fe 07` = boss 实体 id，疑似 boss 的另一条骨骼/位移通道）。
 
 ## 11. 日志与临时脚本
+
+- 服务端日志：除控制台外还会同时写 `src/AvatarStar.Server.Game/bin/Debug/net8.0/logs/server-YYYYMMDD.log`
+  （`Logging/FileLogSink.cs`，启动时会打一行 `Server log file: ...`）。排查封包时序看这个文件即可，不用再人工复制控制台。
 
 - 游戏日志：`E:\AvatarStar\log-YYYY-MM-DD.txt`（UTF-8，按天一份）。用户会指定「最新的那份」。
   里面有 `局外接收封包 server to client` / `局外发送封包 client to server` 的 hex dump，实现依据都从这里来。

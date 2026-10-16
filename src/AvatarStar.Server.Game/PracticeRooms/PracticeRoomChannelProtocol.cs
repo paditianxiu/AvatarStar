@@ -208,6 +208,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const int DeferredGameEnterRpcQuietMilliseconds = 500;
     private const int DeferredGameEnterMaxDelayMilliseconds = 3000;
     private const int GameInitSpawnFallbackDelayMilliseconds = 500;
+    private const int BossGameInitFallbackDelayMilliseconds = 8000;
     private const byte GameLoadoutHudReadyState = 1;
     private const string GameLoadoutHudRefreshPropertyName = "ammo_in_clip";
     private const string GameLoadoutAmmoOneClipPropertyName = "ammo_one_clip";
@@ -216,6 +217,11 @@ internal sealed class PracticeRoomChannelProtocol
     private static readonly bool EnableKnifeAutoRearmLoop = false;
     private const double KnifeAutoRearmInitialDelaySeconds = 0.15;
     private const int GameMatchTimerIntervalMilliseconds = 1000;
+    // boss 状态流每帧都日志会刷屏，每 25 帧（5 秒）记一条 Verbose。
+    private const int BossStateVerboseLogIntervalFrames = 100;
+    // 倒计时结束后再等客户端「地图加载完成」的上限与轮询间隔。
+    private const int BossSpawnLoadingWaitCapMilliseconds = 15000;
+    private const int BossSpawnLoadingPollMilliseconds = 250;
     private const int DefaultAccuracyDivisor = 1;
     private const byte GameCharacterTrailingReservedFlag = 0;
     private const byte GameCharacterModelReadyFlag = 1;
@@ -1039,6 +1045,21 @@ internal sealed class PracticeRoomChannelProtocol
     // 「冒险远征」的 boss 实体包（packet104）一局只发一次：官方抓包里开局那三条
     // （BOSS 一阶/二阶/三阶）之后整局都不再出现。
     private int _bossStageEntitiesSent;
+
+    /// <summary>本地出生前补发的 packet104 ×3 + packet212（一局一次，见 SendBossSpawnPreludeAsync）。</summary>
+    private int _bossSpawnPreludeSent;
+
+    // 冒险远征（boss 图）的状态流：packet198（阶段/朝向/血量）+ packet199（本阶段剩余时间），
+    // 官方每 200ms 一条；本地在 151(10.0) 倒计时开始、对局结束停止。
+    private CancellationTokenSource? _bossStateLoopCts;
+    private double _bossStageSecondsRemaining;
+    private int _bossStateStageIndex;
+    private bool _bossPlayerSpawned;
+    private volatile bool _bossClientLoadingComplete;
+
+    // boss 动作轨道（packet198）的起点：本地出生（packet111）那一刻开始推进。
+    private DateTimeOffset _bossStateTrackStartedAtUtc;
+    private int _bossStateTrackStageIndex = -1;
 
     // Live Healing Beacon pulse loops (one per placed device). Each loop heals the teammates
     // around the device every two seconds until the level's total heal is used up.
@@ -1993,6 +2014,12 @@ internal sealed class PracticeRoomChannelProtocol
         _knownGamePlayerUids.Clear();
         _openSkillAbilityIds.Clear();
         Volatile.Write(ref _bossStageEntitiesSent, 0);
+        Volatile.Write(ref _bossSpawnPreludeSent, 0);
+        StopBossStateLoop();
+        _bossPlayerSpawned = false;
+        _bossClientLoadingComplete = false;
+        _bossStateTrackStartedAtUtc = default;
+        _bossStateTrackStageIndex = -1;
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -2310,6 +2337,12 @@ internal sealed class PracticeRoomChannelProtocol
         _knownGamePlayerUids.Clear();
         _openSkillAbilityIds.Clear();
         Volatile.Write(ref _bossStageEntitiesSent, 0);
+        Volatile.Write(ref _bossSpawnPreludeSent, 0);
+        StopBossStateLoop();
+        _bossPlayerSpawned = false;
+        _bossClientLoadingComplete = false;
+        _bossStateTrackStartedAtUtc = default;
+        _bossStateTrackStageIndex = -1;
         _lastSpecialWeaponRearmBySlot.Clear();
         _movementDebugSamplesRemaining = MovementDebugSampleLogLimit;
         _lastGameMovementInputByte = 0;
@@ -2327,6 +2360,20 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPacket100GameEnterResultAsync(resultCode: 0);
         await SendPacket102GameAuthenticationAsync(room);
         await SendPacket103GameCharacterCreateListAsync(room);
+
+        if (IsBossGameRoom(room))
+        {
+            // 官方 boss 图（远征模式.txt 18:54:12）：
+            //   103(1998B 玩家与装备) → 112(180B) → 105
+            //   →（客户端自己发 103 请求）→ 104 ×3 → 212 → 106 → 151 → 198/199 …
+            // packet112 在 packet105 之前；packet104 ×3 与 packet212 只能跟在
+            // **客户端自己的 packet103 请求**后面（见 TrySendBossGameInitSpawnPacketsAsync）。
+            // 本机客户端（1.4.0.65795）在「还在加载 / 还没进局内」时收到 104 不会建 boss 模型，
+            // 而 0.5 秒的兜底定时器常常抢在客户端请求（约 1 秒）之前 —— 抢跑的那一局
+            // 表现就是「地图能进、boss 不出现」。官方 1.4.0.65828 客户端两种时序都能建。
+            await SendBossGameInitPlayerStatePreludeAsync(room, source);
+        }
+
         await SendPacket105GameLoadingReadyAsync();
         if (UseLegacyHotbarBootstrapSequence)
         {
@@ -2492,6 +2539,14 @@ internal sealed class PracticeRoomChannelProtocol
         Log.Information("Channel packet103 <- {Remote}: client requested game init/spawn handshake", _remoteLabel);
 
         await SendGameInitSpawnPacketsAsync(_currentGameRoom, "packet103", preferKnownPosition: false);
+
+        // 冒险远征的本地出生被 151 的 10 秒倒计时推后了（见 RunBossLocalSpawnAsync），
+        // 在那之前不能播「玩家进入」通知，也不能提前清掉加载遮罩。
+        if (IsBossGameRoom(_currentGameRoom))
+        {
+            return;
+        }
+
         await SendLocalPlayerEnteredOnceAsync();
         _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
         await SendPendingPlayerEnteringClearAsync("packet111");
@@ -2833,17 +2888,25 @@ internal sealed class PracticeRoomChannelProtocol
     {
         var roomId = room.RoomId;
         var generation = _gameInitSpawnHandshakeGeneration;
-        _ = SendGameInitSpawnHandshakeFallbackAsync(roomId, generation, source);
+        // boss 图的局内初始化必须由客户端自己的 packet103 请求触发（见 BeginGameEnterSequenceAsync 里的说明）：
+        // 0.5 秒的兜底会和客户端请求（约 1 秒）抢跑，抢跑时 packet104 落在「还在加载」的窗口里，
+        // boss 模型就不建。所以 boss 图的兜底推迟到 BossGameInitFallbackDelayMilliseconds，
+        // 正常情况下客户端请求先到，兜底随后因为握手已开始而直接返回。
+        var delayMilliseconds = IsBossGameRoom(room)
+            ? BossGameInitFallbackDelayMilliseconds
+            : GameInitSpawnFallbackDelayMilliseconds;
+        _ = SendGameInitSpawnHandshakeFallbackAsync(roomId, generation, source, delayMilliseconds);
     }
 
     private async Task SendGameInitSpawnHandshakeFallbackAsync(
         int roomId,
         int generation,
-        string source)
+        string source,
+        int delayMilliseconds)
     {
         try
         {
-            await Task.Delay(GameInitSpawnFallbackDelayMilliseconds);
+            await Task.Delay(delayMilliseconds);
             if (_state != ChannelState.InGame ||
                 _currentGameRoom is not { } room ||
                 room.RoomId != roomId ||
@@ -2858,7 +2921,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _remoteLabel,
                 source,
                 roomId,
-                GameInitSpawnFallbackDelayMilliseconds);
+                delayMilliseconds);
 
             var quietWaitMs = await WaitForGameClientRpcQuietAsync(roomId, generation);
             if (_state != ChannelState.InGame ||
@@ -2874,7 +2937,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _remoteLabel,
                 source,
                 roomId,
-                GameInitSpawnFallbackDelayMilliseconds,
+                delayMilliseconds,
                 quietWaitMs);
 
             await SendGameInitSpawnPacketsAsync(room, "game-enter-fallback", preferKnownPosition: false);
@@ -2899,9 +2962,9 @@ internal sealed class PracticeRoomChannelProtocol
     {
         // 「冒险远征」(kBoss) 的房间在初始化时要把 boss 的三个阶段实体下发给客户端：
         // 官方抓包里这三条 packet104 就夹在 packet105 与 packet106 之间。
-        if (room.GameType == LobbyLevelCatalog.BossGameType)
+        if (await TrySendBossGameInitSpawnPacketsAsync(room, trigger))
         {
-            await SendBossStageEntitiesAsync(trigger);
+            return;
         }
 
         // 先发送初始化包
@@ -2933,20 +2996,48 @@ internal sealed class PracticeRoomChannelProtocol
     }
 
     /// <summary>
-    /// 「冒险远征」的 boss 实体包（packet104，server → client）。
-    /// 官方开局会连发三条（BOSS 一阶 / 二阶 / 三阶），客户端据此创建 boss 模型并按阶段切换；
+    /// 「冒险远征」开局的 boss 资料前奏：packet104 ×3（BOSS 一阶 / 二阶 / 三阶）→ packet212（切到一阶）。
+    /// 官方把这两步都放在 packet105 之后、客户端自己发 packet103 请求之前，
+    /// 客户端只在场景加载阶段据此建 boss 模型。
     /// 字节与阶段表来自 Resources/boss_stages.json（见 docs/ingame-boss-expedition.md）。
+    /// 客户端 packet103 请求这条路径与 8 秒兜底路径各可能触发一次，所以这里放到两次。
+    /// 出生前那次见 <see cref="SendBossSpawnPreludeAsync"/>。
     /// </summary>
-    private async Task SendBossStageEntitiesAsync(string trigger)
+    private async Task SendBossStagePreludeAsync(string trigger)
     {
-        if (!BossStageCatalog.HasStages)
+        if (Interlocked.Increment(ref _bossStageEntitiesSent) > 2)
         {
             return;
         }
 
-        if (Interlocked.Exchange(ref _bossStageEntitiesSent, 1) != 0)
+        await SendBossStagePreludePayloadsAsync(trigger);
+    }
+
+    /// <summary>
+    /// 本地出生（packet111）之前再补一次的 boss 实体定义（packet104 ×3 + packet212）。
+    /// 本机客户端（1.4.0.65795）只有在「场景刚切进来」的窗口里才会用 104 建 boss 实体：
+    /// 第二局从房间直接进图时，跟 packet105 一起下发的那次会被丢掉，表现就是
+    /// 「第一局有 boss、第二局 boss 直接没了」。这里在客户端 packet157「地图加载完成」
+    /// 之后、出生帧之前再补一次，一局保证发一次。
+    /// </summary>
+    private async Task SendBossSpawnPreludeAsync(string trigger)
+    {
+        if (Interlocked.Exchange(ref _bossSpawnPreludeSent, 1) != 0)
         {
             return;
+        }
+
+        await SendBossStagePreludePayloadsAsync(trigger);
+    }
+
+    private async Task SendBossStagePreludePayloadsAsync(string trigger)
+    {
+        if (!BossStageCatalog.HasStages)
+        {
+            Log.Warning(
+                "Channel boss stage prelude skipped -> {Remote}: boss_stages.json unavailable trigger={Trigger}",
+                _remoteLabel,
+                trigger);
         }
 
         foreach (var stage in BossStageCatalog.Stages)
@@ -2963,10 +3054,398 @@ internal sealed class PracticeRoomChannelProtocol
                 stage.Payload.Length,
                 trigger);
         }
+
+        await SendBossGameInitPreludePacket212Async(trigger);
+    }
+
+    private static bool IsBossGameRoom(PracticeRoomManager.PracticeRoomSession room)
+    {
+        return room.GameType == LobbyLevelCatalog.BossGameType;
+    }
+
+    /// <summary>
+    /// 冒险远征的局内初始化（官方抓包 18:54:12–18:54:25）。
+    /// 客户端发 packet103 请求后才走这里：packet106（30 字节最小包）
+    /// → packet151（float = 倒计时 10 秒）→ 每 200ms 的 packet198/199 状态流
+    /// → 倒计时结束后才出生（RunBossLocalSpawnAsync）。
+    /// 104 ×3 与 packet212 不在这里：它们必须赶在 packet105 之后、客户端请求之前下发，
+    /// 见 SendBossStagePreludeAsync。
+    /// 返回 true 表示整条链路已被这里接管，调用方不要再走练习房的初始化流程。
+    /// </summary>
+    private async Task<bool> TrySendBossGameInitSpawnPacketsAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        string trigger)
+    {
+        if (!IsBossGameRoom(room))
+        {
+            return false;
+        }
+
+        // 104 ×3 与 212 正常已经在 105 之后的前奏里发过
+        // （BeginGameEnterSequenceAsync）；这里再调一次是兜底，方法幂等（发过就直接返回）。
+        await SendBossStagePreludeAsync(trigger);
+
+        if (!BossCombatCatalog.HasData)
+        {
+            Log.Warning(
+                "Channel boss game init from {Remote} fell back to the practice-room flow: boss_combat.json unavailable",
+                _remoteLabel);
+            return false;
+        }
+
+        if (_bossPlayerSpawned)
+        {
+            // 已经出过生：把这条链路当成「静默刷新」，
+            // 只重发出生/位置帧，不能再来一次倒计时。
+            await SendPacket111GameSpawnAsync(room, trigger + "-boss-refresh");
+            return true;
+        }
+
+        await SendBossGameInitPacket106Async(trigger);
+        await SendPacket151Async(
+            BossCombatCatalog.LoadingCountdownSeconds,
+            trigger + "-boss-countdown",
+            _playerEnteringClearRetriesRemaining);
+
+        StartBossStateLoop();
+        ScheduleBossLocalSpawn(room, trigger);
+        return true;
+    }
+
+    /// <summary>
+    /// packet112（180 字节）：玩家局内状态帧。官方在 105 之前发一条（对局中每秒约 3.5 条），
+    /// 客户端用它建立局内玩家条目（uid 字节改写成本地 uid）。
+    /// </summary>
+    private async Task SendBossGameInitPlayerStatePreludeAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        string trigger)
+    {
+        var payload = BossCombatCatalog.GameInitPlayerStatePacket(_localGameUid);
+        if (payload.Length == 0)
+        {
+            return;
+        }
+
+        var copies = Math.Max(1, BossCombatCatalog.PlayerStateRepeatCount);
+        for (var copy = 0; copy < copies; copy++)
+        {
+            await SendPayloadAsync(payload, encrypt: true);
+        }
+
+        Log.Information(
+            "Channel packet112 -> {Remote}: boss player-state prelude copies={Copies} bytes={Bytes} uid={Uid} trigger={Trigger}",
+            _remoteLabel,
+            copies,
+            payload.Length,
+            _localGameUid,
+            trigger);
+    }
+
+    /// <summary>packet212：官方 boss 初始化里的战斗前奏帧（16 字节）。</summary>
+    private async Task SendBossGameInitPreludePacket212Async(string trigger)
+    {
+        var payload = BossCombatCatalog.PreludePacket;
+        if (payload.Length == 0)
+        {
+            return;
+        }
+
+        await SendPayloadAsync(payload, encrypt: true);
+
+        Log.Information(
+            "Channel packet212 -> {Remote}: boss battle prelude bytes={Bytes} trigger={Trigger}",
+            _remoteLabel,
+            payload.Length,
+            trigger);
+    }
+
+    /// <summary>
+    /// packet106：官方 boss 图上是 30 字节的空玩家列表最小包（练习房的那套玩家/装备块在 boss 图里会让
+    /// 客户端解析出错），uid 字节改写成本地 uid。
+    /// </summary>
+    private async Task SendBossGameInitPacket106Async(string trigger)
+    {
+        var room = _currentGameRoom;
+        var payload = BossCombatCatalog.GameInitPacket106(_localGameUid);
+        if (room is null)
+        {
+            return;
+        }
+
+        if (payload.Length == 0)
+        {
+            await SendPacket106GameInitAsync(room);
+            return;
+        }
+
+        _knownGamePlayerUids.Clear();
+        _knownGamePlayerUids.Add(_localGameUid);
+
+        Log.Information(
+            "Channel packet106 -> {Remote}: boss minimal init gameType={GameType} localUid={LocalUid} bytes={Bytes} trigger={Trigger} hex={Hex}",
+            _remoteLabel,
+            room.GameType,
+            _localGameUid,
+            payload.Length,
+            trigger,
+            Convert.ToHexString(payload));
+
+        await SendPayloadAsync(payload, encrypt: true);
+    }
+
+    /// <summary>启动 boss 状态流（packet198 + packet199，每 200ms 一组）。</summary>
+    private void StartBossStateLoop()
+    {
+        if (_bossStateLoopCts is not null)
+        {
+            return;
+        }
+
+        _bossStateStageIndex = 0;
+        _bossStageSecondsRemaining = ResolveBossStageTimeLimit(0);
+        var cts = new CancellationTokenSource();
+        _bossStateLoopCts = cts;
+        _ = RunBossStateLoopAsync(cts.Token);
+
+        Log.Information(
+            "Channel boss state loop started -> {Remote}: intervalMs={Interval} stage={Stage} stageSeconds={StageSeconds} stageHealth={StageHealth}",
+            _remoteLabel,
+            BossCombatCatalog.StateIntervalMilliseconds,
+            _bossStateStageIndex + 1,
+            _bossStageSecondsRemaining,
+            ResolveBossStageHealth(_bossStateStageIndex));
+    }
+
+    private void StopBossStateLoop()
+    {
+        var cts = _bossStateLoopCts;
+        if (cts is null)
+        {
+            return;
+        }
+
+        _bossStateLoopCts = null;
+        cts.Cancel();
+    }
+
+    private async Task RunBossStateLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var intervalMilliseconds = Math.Max(50, BossCombatCatalog.StateIntervalMilliseconds);
+            var interval = TimeSpan.FromMilliseconds(intervalMilliseconds);
+            var elapsedSeconds = intervalMilliseconds / 1000d;
+            var frameCount = 0;
+            while (!cancellationToken.IsCancellationRequested &&
+                   _state == ChannelState.InGame &&
+                   _currentGameRoom is not null)
+            {
+                frameCount++;
+                await SendBossStateFramesAsync(elapsedSeconds, frameCount);
+                await Task.Delay(interval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Channel boss state loop stopped -> {Remote}", _remoteLabel);
+        }
+    }
+
+    /// <summary>
+    /// 每隔 200ms 一条 packet198（阶段、朝向、当前血量）+ 一条 packet199（本阶段剩余时间，
+    /// 官方一阶段 300 秒 / 二阶段 420 秒 / 三阶段 600 秒）。
+    /// 目前是「基础 boss」：停在第一阶段并按阶段满血发布，后续接伤害时把 health 换成实际血量即可。
+    /// </summary>
+    private async Task SendBossStateFramesAsync(double elapsedSeconds, int frameCount)
+    {
+        _bossStageSecondsRemaining = Math.Max(0d, _bossStageSecondsRemaining - elapsedSeconds);
+
+        var health = (float)ResolveBossStageHealth(_bossStateStageIndex);
+        var state = BossCombatCatalog.BossStatePacket(
+            _bossStateStageIndex,
+            health,
+            ResolveBossStateTrackElapsedMilliseconds());
+        if (state.Length > 0)
+        {
+            await SendPayloadAsync(state, encrypt: true);
+        }
+
+        var timer = BossCombatCatalog.BossStageTimerPacket(_bossStageSecondsRemaining);
+        if (timer.Length > 0)
+        {
+            await SendPayloadAsync(timer, encrypt: true);
+        }
+
+        if (frameCount == 1)
+        {
+            Log.Information(
+                "Channel packet198 -> {Remote}: boss state stage={Stage} health={Health} remainingSeconds={Remaining} stateBytes={StateBytes} timerBytes={TimerBytes}",
+                _remoteLabel,
+                _bossStateStageIndex + 1,
+                health,
+                FormatProtocolFloat((float)_bossStageSecondsRemaining),
+                state.Length,
+                timer.Length);
+        }
+        else if (frameCount % BossStateVerboseLogIntervalFrames == 0)
+        {
+            Log.Verbose(
+                "Channel packet198 -> {Remote}: boss state stage={Stage} health={Health} remainingSeconds={Remaining}",
+                _remoteLabel,
+                _bossStateStageIndex + 1,
+                health,
+                FormatProtocolFloat((float)_bossStageSecondsRemaining));
+        }
+    }
+
+    /// <summary>
+    /// boss 动作轨道已走过的毫秒数；还没本地出生（倒计时阶段）时返回 null，
+    /// 这时只发拓包里「定住不动」的 198 模板（和官方倒计时阶段一致）。
+    /// </summary>
+    private double? ResolveBossStateTrackElapsedMilliseconds()
+    {
+        if (!_bossPlayerSpawned || _bossStateTrackStartedAtUtc == default)
+        {
+            return null;
+        }
+
+        if (_bossStateTrackStageIndex != _bossStateStageIndex)
+        {
+            _bossStateTrackStageIndex = _bossStateStageIndex;
+            _bossStateTrackStartedAtUtc = DateTimeOffset.UtcNow;
+        }
+
+        return Math.Max(0d, (DateTimeOffset.UtcNow - _bossStateTrackStartedAtUtc).TotalMilliseconds);
+    }
+
+    private static int ResolveBossStageHealth(int stageIndex)
+    {
+        var stages = BossCombatCatalog.Stages;
+        if (stageIndex < 0 || stageIndex >= stages.Count)
+        {
+            return 0;
+        }
+
+        return stages[stageIndex].Health;
+    }
+
+    private static double ResolveBossStageTimeLimit(int stageIndex)
+    {
+        var stages = BossCombatCatalog.Stages;
+        if (stageIndex < 0 || stageIndex >= stages.Count)
+        {
+            return 0d;
+        }
+
+        return stages[stageIndex].TimeLimitSeconds;
+    }
+
+    /// <summary>
+    /// 倒计时结束后才让本地玩家出生（官方是 10 秒）：packet151(0.0) 清进入遮罩、
+    /// 战斗状态帧、出生包。这是 boss 图能进局内的关键——场景没加载完就出生会掉线。
+    /// </summary>
+    private void ScheduleBossLocalSpawn(
+        PracticeRoomManager.PracticeRoomSession room,
+        string trigger)
+    {
+        var roomId = room.RoomId;
+        var generation = _gameInitSpawnHandshakeGeneration;
+        var delayMilliseconds = (int)Math.Round(Math.Max(0d, BossCombatCatalog.BossSpawnDelaySeconds) * 1000d);
+        _ = RunBossLocalSpawnAsync(room, roomId, generation, delayMilliseconds, trigger);
+    }
+
+    private async Task RunBossLocalSpawnAsync(
+        PracticeRoomManager.PracticeRoomSession room,
+        int roomId,
+        int generation,
+        int delayMilliseconds,
+        string trigger)
+    {
+        try
+        {
+            if (delayMilliseconds > 0)
+            {
+                await Task.Delay(delayMilliseconds);
+            }
+
+            if (_state != ChannelState.InGame ||
+                _currentGameRoom is not { } currentRoom ||
+                currentRoom.RoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration)
+            {
+                return;
+            }
+
+            // 客户端还没报「地图加载完成」（packet157）时再等一会儿，
+            // 避免在场景没加载完时把出生帧推过去。
+            var loadingWaitMilliseconds = 0;
+            while (!_bossClientLoadingComplete &&
+                   loadingWaitMilliseconds < BossSpawnLoadingWaitCapMilliseconds &&
+                   _state == ChannelState.InGame &&
+                   _currentGameRoom is { } waitingRoom &&
+                   waitingRoom.RoomId == roomId &&
+                   generation == _gameInitSpawnHandshakeGeneration)
+            {
+                await Task.Delay(BossSpawnLoadingPollMilliseconds);
+                loadingWaitMilliseconds += BossSpawnLoadingPollMilliseconds;
+            }
+
+            if (_state != ChannelState.InGame ||
+                _currentGameRoom is not { } spawnRoom ||
+                spawnRoom.RoomId != roomId ||
+                generation != _gameInitSpawnHandshakeGeneration)
+            {
+                return;
+            }
+
+            // 出生前再补一次 boss 实体（packet104 ×3 + packet212）：场景重载后
+            // 客户端会丢掉 boss，这时它已经在局内，补发能把 boss 建回来。
+            await SendBossSpawnPreludeAsync(trigger + "-boss-spawn");
+
+            _bossStateTrackStageIndex = _bossStateStageIndex;
+            _bossStateTrackStartedAtUtc = DateTimeOffset.UtcNow;
+            _bossPlayerSpawned = true;
+            await SendPacket151Async(0f, trigger + "-boss-spawn", _playerEnteringClearRetriesRemaining);
+            await SendPacket146GameBattleStateAsync(trigger);
+            await SendPacket231GameTimerAsync(trigger);
+            await SendPacket165GameBattleFlagAsync(trigger);
+            StartGameMatchTimerLoop();
+            await SendPacket111GameSpawnAsync(room, trigger + "-boss-spawn");
+            await SendLocalPlayerEnteredOnceAsync();
+            _playerEnteringClearRetriesRemaining = PlayerEnteringClearRetryCount;
+            await SendPendingPlayerEnteringClearAsync(trigger);
+            await SendPendingSilentLoadoutHudRefreshAsync(trigger);
+
+            Log.Information(
+                "Channel boss local spawn -> {Remote}: delayMs={DelayMs} loadingWaitMs={LoadingWaitMs} localUid={LocalUid} trigger={Trigger}",
+                _remoteLabel,
+                delayMilliseconds,
+                loadingWaitMilliseconds,
+                _localGameUid,
+                trigger);
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Channel boss local spawn failed -> {Remote}", _remoteLabel);
+        }
     }
 
     private async Task SendActiveClientGameInitRefreshOnceAsync(string trigger)
     {
+        // boss 图倒计时期间不能重发初始化（会提前出生）；也不消耗那个「只发一次」
+        // 的标志，等出生后再走正常流程。
+        if (_currentGameRoom is not null && IsBossGameRoom(_currentGameRoom) && !_bossPlayerSpawned)
+        {
+            Log.Information(
+                "Channel active-client init refresh deferred -> {Remote}: trigger={Trigger} reason=boss-countdown",
+                _remoteLabel,
+                trigger);
+            return;
+        }
+
         if (_currentGameRoom is null ||
             Interlocked.Exchange(ref _activeClientGameInitRefreshSent, 1) != 0)
         {
@@ -3704,6 +4183,13 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
+        if (_currentGameRoom is not null && IsBossGameRoom(_currentGameRoom))
+        {
+            // 官方 boss 图上这条请求的回包是 157（4 个 0 字节）+ 一条 112，
+            // 客户端收到后自己会发「加载完成」的 157（见 _bossClientLoadingComplete）。
+            await SendBossOverlayInfoAsync("packet156");
+        }
+
         Log.Information("Channel packet156 <- {Remote}: game-info overlay show request; packet194 ack sent", _remoteLabel);
         await SendPacket194GameInfoOverlayShowAckAsync();
     }
@@ -3766,6 +4252,9 @@ internal sealed class PracticeRoomChannelProtocol
 
         // The retail server answers the loading-complete notify with the player-entering overlay
         // clear (packet151, float 0.0), which is what hands control over to the in-game HUD.
+        // 冒险远征的 boss 场景很大，这条通知还兼作「地图加载完成」，
+        // 出生包要等它（见 RunBossLocalSpawnAsync）。
+        _bossClientLoadingComplete = true;
         Log.Information("Channel packet157 <- {Remote}: loading complete; packet151 overlay clear sent", _remoteLabel);
         await SendPacket151PlayerEnteringCompleteAsync("packet157", _playerEnteringClearRetriesRemaining);
     }
@@ -6384,6 +6873,33 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
+    /// <summary>
+    /// boss 图的 156 回包：packet157（short + int32 0，官方 `9d00 00000000`）+ 一条 packet112。
+    /// 练习房没有这两条，所以只在 boss 房间发。
+    /// </summary>
+    private async Task SendBossOverlayInfoAsync(string trigger)
+    {
+        using (var writer = new PacketWriter())
+        {
+            writer.WriteShort(157);
+            writer.WriteInt(0);
+            await SendPacketAsync(writer);
+        }
+
+        var payload = BossCombatCatalog.GameInitPlayerStatePacket(_localGameUid);
+        if (payload.Length > 0)
+        {
+            await SendPayloadAsync(payload, encrypt: true);
+        }
+
+        Log.Information(
+            "Channel packet157 -> {Remote}: boss overlay info + player state bytes={Bytes} uid={Uid} trigger={Trigger}",
+            _remoteLabel,
+            payload.Length,
+            _localGameUid,
+            trigger);
+    }
+
     private Task SendPacket194GameInfoOverlayShowAckAsync()
     {
         using var writer = new PacketWriter();
@@ -6726,15 +7242,33 @@ internal sealed class PracticeRoomChannelProtocol
 
     private Task SendPacket151PlayerEnteringCompleteAsync(string trigger, int retriesRemaining)
     {
+        // 冒险远征（boss 图）在加载倒计时期间不能清「进入遮罩」：官方是 151(10.0) 之后等 10 秒才 151(0.0)，
+        // 提前清会让客户端在 boss 场景没加载完时就进局内（表现为进房后「网络异常」掉线）。
+        if (_currentGameRoom is not null && IsBossGameRoom(_currentGameRoom) && !_bossPlayerSpawned)
+        {
+            Log.Information(
+                "Channel packet151 -> {Remote}: player-entering overlay clear deferred trigger={Trigger} retriesRemaining={RetriesRemaining} reason=boss-countdown",
+                _remoteLabel,
+                trigger,
+                retriesRemaining);
+            return Task.CompletedTask;
+        }
+
+        return SendPacket151Async(0f, trigger, retriesRemaining);
+    }
+
+    private Task SendPacket151Async(float value, string trigger, int retriesRemaining)
+    {
         using var writer = new PacketWriter();
-        // Client dispatch uses packetId - 2; opcode 151 is the one-float player-entering overlay clear.
+        // Client dispatch uses packetId - 2; opcode 151 is the one-float player-entering overlay frame.
         writer.WriteShort(151);
-        writer.WriteFloat(0f);
+        writer.WriteFloat(value);
 
         Log.Information(
-            "Channel packet151 -> {Remote}: player-entering overlay clear trigger={Trigger} retriesRemaining={RetriesRemaining}",
+            "Channel packet151 -> {Remote}: player-entering overlay clear trigger={Trigger} value={Value} retriesRemaining={RetriesRemaining}",
             _remoteLabel,
             trigger,
+            FormatProtocolFloat(value),
             retriesRemaining);
         return SendPacketAsync(writer);
     }
@@ -8773,7 +9307,10 @@ internal sealed class PracticeRoomChannelProtocol
 
         var health = player.MaxHealth;
         const short actorState = InitialGamePlayerActionStateFlags;
-        const float spawnActorFloat = 0f;
+        // 官方 boss 图的出生帧里第 5 个 float 是 5.0（练习房是 0）。
+        var spawnActorFloat = room.GameType == LobbyLevelCatalog.BossGameType && BossCombatCatalog.HasData
+            ? BossCombatCatalog.Spawn.ActorFloat
+            : 0f;
         var (spawnPositionX, spawnPositionY, spawnPositionZ, spawnYaw) = ResolveGameSpawnTransform(room, player.LastPosition);
 
         writer.WriteShort(111);
@@ -8827,6 +9364,13 @@ internal sealed class PracticeRoomChannelProtocol
     private static (float X, float Y, float Z, float Yaw) ResolveSpawnPoint(
         PracticeRoomManager.PracticeRoomSession room)
     {
+        // 冒险远征用官方 packet111 里的出生点（LEVEL10001，x/y/z/yaw 都是世界坐标）。
+        if (room.GameType == LobbyLevelCatalog.BossGameType && BossCombatCatalog.HasData)
+        {
+            var bossSpawn = BossCombatCatalog.Spawn;
+            return (bossSpawn.X, bossSpawn.Y, bossSpawn.Z, bossSpawn.Yaw);
+        }
+
         // The reference server avoids the origin because some maps place dead-space
         // volumes there. Keep the spawn explicit until per-map spawn tables are decoded.
         return (-22f, 2f, 15f, 0f);

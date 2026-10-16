@@ -1,0 +1,83 @@
+{
+  "version": 2,
+  "source": "远征模式.txt packet106(gap) -> packet151 -> packet198/199 -> packet111 (server to client), 冒险远征 kBoss 开局流, LEVEL10001, 抓包 18:54:12-19:01:10",
+  "loadingCountdownSeconds": 9.999997,
+  "bossSpawnDelaySeconds": 10.0,
+  "stateIntervalMilliseconds": 50,
+  "stateTracks": [
+    {
+      "stage": 1,
+      "entrySegmentCount": 1,
+      "segments": [
+        { "actionHex": "000000fe800c000000000000", "durationMilliseconds": 4000, "phaseStart": 0.0, "phaseEnd": 0.0, "timerStart": 8.0, "timerEnd": 0.0, "yawStart": -90.0, "yawEnd": -40.0 },
+        { "actionHex": "000600000000000000000000", "durationMilliseconds": 5000, "phaseStart": 0.0, "phaseEnd": 30.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -40.0, "yawEnd": -40.0 },
+        { "actionHex": "00fa000000f6000000000000", "durationMilliseconds": 5000, "phaseStart": 30.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -40.0, "yawEnd": -90.0 },
+        { "actionHex": "00000000800c000000000000", "durationMilliseconds": 4000, "phaseStart": 0.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -90.0, "yawEnd": -40.0 }
+      ]
+    },
+    {
+      "stage": 2,
+      "entrySegmentCount": 1,
+      "segments": [
+        { "actionHex": "60f900000006000000000000", "durationMilliseconds": 4950, "phaseStart": 13.118756, "phaseEnd": -19.95, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -40.0, "yawEnd": -10.0 },
+        { "actionHex": "000400000002000000000000", "durationMilliseconds": 5000, "phaseStart": -20.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -10.0, "yawEnd": 0.0 },
+        { "actionHex": "0004000000fe000000000000", "durationMilliseconds": 5000, "phaseStart": 0.0, "phaseEnd": 20.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": 0.0, "yawEnd": -10.0 },
+        { "actionHex": "00fc000000fa000000000000", "durationMilliseconds": 5000, "phaseStart": 20.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -10.0, "yawEnd": -40.0 },
+        { "actionHex": "00fc00000006000000000000", "durationMilliseconds": 5000, "phaseStart": 0.0, "phaseEnd": -20.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -40.0, "yawEnd": -10.0 }
+      ]
+    },
+    {
+      "stage": 3,
+      "entrySegmentCount": 1,
+      "segments": [
+        { "actionHex": "dbfb000013fe000000000000", "durationMilliseconds": 4990, "phaseStart": 0.726724, "phaseEnd": -20.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -0.363362, "yawEnd": -10.0 },
+        { "actionHex": "000800000000000000000000", "durationMilliseconds": 5000, "phaseStart": -20.0, "phaseEnd": 20.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -10.0, "yawEnd": -10.0 },
+        { "actionHex": "abfc000000f6000000000000", "durationMilliseconds": 6000, "phaseStart": 20.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -10.0, "yawEnd": -70.0 },
+        { "actionHex": "000000000005000000000000", "durationMilliseconds": 6000, "phaseStart": 0.0, "phaseEnd": 0.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -70.0, "yawEnd": -40.0 },
+        { "actionHex": "00fc00000006000000000000", "durationMilliseconds": 5000, "phaseStart": 0.0, "phaseEnd": -20.0, "timerStart": 0.0, "timerEnd": 0.0, "yawStart": -40.0, "yawEnd": -10.0 }
+      ]
+    }
+    ],
+  "playerStateRepeatCount": 1,
+  "gameInitPacket106Hex": "6a0040000009010000000000000000000009000000000000000000000000",
+  "gameInitPlayerStatePacket112Hex": "700040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+  "gameInitPreludePacket212Hex": "d40000000000000000410000b4c20201",
+  "spawnTransform": {
+    "actorFloat": 5.0,
+    "x": -0.735231,
+    "y": 1.039062,
+    "z": 3.187552,
+    "yaw": 0.0
+  },
+  "capturedSpawnHealth": 2446,
+  "capturedSpawnActorState": 0,
+  "stages": [
+    {
+      "stage": 1,
+      "health": 560000,
+      "timeLimitSeconds": 300.0,
+      "packet198Hex": "c6000000010000fe07000000000000000000410000b4c2000000000000000000000000876400b8084900000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "packet199Hex": "c70000009643",
+      "bossStateFloat11": 0.0,
+      "bossYawDegrees": -90.0
+    },
+    {
+      "stage": 2,
+      "health": 880000,
+      "timeLimitSeconds": 420.0,
+      "packet198Hex": "c6000001010000fe0700006de6514100000000000020c2000000000000000000000000876400d8564900000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "packet199Hex": "c7000000d243",
+      "bossStateFloat11": 13.118756,
+      "bossYawDegrees": -40.0
+    },
+    {
+      "stage": 3,
+      "health": 1200000,
+      "timeLimitSeconds": 600.0,
+      "packet198Hex": "c6000002010000fe0700008f0a3a3f000000008f0ababe0000000000000000000000008764007c924900000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "packet199Hex": "c70000001644",
+      "bossStateFloat11": 0.726724,
+      "bossYawDegrees": -0.363362
+    }
+  ]
+}

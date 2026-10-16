@@ -1,5 +1,6 @@
 using AvatarStar.Server.Game;
 using AvatarStar.Server.Game.Config;
+using AvatarStar.Server.Game.Logging;
 using AvatarStar.Server.Game.Resources;
 using AvatarStar.Server.Game.Udp;
 using AvatarStar.Server.Database;
@@ -8,11 +9,18 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
+var serverLogDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+var serverLogPath = Path.Combine(serverLogDirectory, $"server-{DateTime.Now:yyyyMMdd}.log");
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .Enrich.FromLogContext()
     .WriteTo.Console()
+    // 控制台之外再落一份文件日志：排查封包时序时不用人工复制控制台输出。
+    .WriteTo.Sink(new FileLogSink(serverLogPath))
     .CreateLogger();
+
+Log.Information("Server log file: {ServerLogPath}", serverLogPath);
 
 try
 {
