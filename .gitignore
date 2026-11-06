@@ -8,7 +8,7 @@
 *.sln.docstates
 *.sln.iml
 *.iml
-
+tools/
 .tmpbuild/
 AvatarStar_cache/
 AvatarStar_zh_cn_cache/

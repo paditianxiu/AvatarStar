@@ -237,6 +237,7 @@ internal sealed class PlayerStore
             1 => "100005",
             2 => "100003",
             3 => "100127",
+            4 => "100003", // Samurai currently shares the Assassin starter appearance.
             _ => "100001"
         };
     }

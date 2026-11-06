@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "远征模式.txt packet30 (official server level list, 69 entries)",
+  "source": "远征模式.txt packet30 (official server level list, 69 entries) + client maps LEVEL51-LEVEL53",
   "levels": [
     {
       "id": 2,
@@ -620,6 +620,33 @@
       "gameType": 4,
       "showName": "LEVEL10010",
       "description": "LEVEL10010",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400020,
+      "name": "LEVEL51",
+      "gameType": 4,
+      "showName": "id_datalist_Bridge_level51",
+      "description": "id_datalist_Bridge_level51",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400021,
+      "name": "LEVEL52",
+      "gameType": 4,
+      "showName": "id_datalist_Island_Resort_level52",
+      "description": "id_datalist_Island_Resort_level52",
+      "difficulty": 0,
+      "group": 0
+    },
+    {
+      "id": 400022,
+      "name": "LEVEL53",
+      "gameType": 4,
+      "showName": "id_datalist_Star_Hall_level53",
+      "description": "id_datalist_Star_Hall_level53",
       "difficulty": 0,
       "group": 0
     }

@@ -1842,6 +1842,7 @@ internal partial class GameClient
                         1 => "UI_profession_Gunner_desc",
                         2 => "UI_profession_Assassin_desc",
                         3 => "UI_profession_Biochemical_desc",
+                        4 => "UI_profession_Samurai_desc",
                         _ => "UI_profession_Guardian_desc",
                     };
 
@@ -1853,7 +1854,9 @@ internal partial class GameClient
                     new { description = Desc(0) },
                     new { description = Desc(1) },
                     new { description = Desc(2) },
-                    new { description = Desc(3) }
+                    new { description = Desc(3) },
+                    // SamuraiClass enables creation when characterList[5] is present.
+                    new { description = Desc(4) }
                 });
                 writer.WriteString("characterList = " + characterList);
                 await SendAsync(writer);
@@ -1952,7 +1955,8 @@ internal partial class GameClient
                     var jobIdStr = rpcArgs.TryGetValue("id", out var jid) ? jid : "1";
                     _ = int.TryParse(jobIdStr, out var jobId);
 
-                    var occupation = Math.Clamp(jobId - 1, 0, 3);
+                    // Client job ids are 1-based; Samurai (5) must remain occupation 4.
+                    var occupation = Math.Clamp(jobId - 1, 0, 4);
                     var cardDisplay = name;
                     var cardDesigner = rpcArgs.TryGetValue("description", out var descriptionRaw) && !string.IsNullOrWhiteSpace(descriptionRaw)
                         ? descriptionRaw
