@@ -9,7 +9,7 @@ using Serilog;
 
 namespace AvatarStar.Server.Game;
 
-internal sealed class PracticeRoomChannelProtocol
+internal sealed partial class PracticeRoomChannelProtocol
 {
     private const byte DefaultServerSeed = 0x5A;
     private const uint XorInInitial = 0x54425749;
@@ -1161,6 +1161,11 @@ internal sealed class PracticeRoomChannelProtocol
             return;
         }
 
+        // Ended matches still accept ping and voluntary leave, but cannot replay
+        // attacks, skills, spawn-ready or duplicate entry while the result is shown.
+        if (_state == ChannelState.InGame && _currentGameRoom is { } activeRoom &&
+            _practiceRoomManager.IsGameFinished(activeRoom.RoomId) && packetId is not (3 or 104 or 121)) return;
+
         switch (_state)
         {
             case ChannelState.AwaitClientHello when packetId == 0:
@@ -2008,8 +2013,10 @@ internal sealed class PracticeRoomChannelProtocol
     private void ResetLocalGameState()
     {
         _currentGameRoom = null;
+        _endedMatch = null;
         _localGameUid = LocalGameUid;
         _localPlayerEnterPacketSent = false;
+        _gameScoreSnapshotSent = false;
         _localPlayerEnterBroadcastSent = false;
         Interlocked.Exchange(ref _gameInitSpawnHandshakeStarted, 0);
         Interlocked.Exchange(ref _activeClientGameInitRefreshSent, 0);
@@ -2317,6 +2324,7 @@ internal sealed class PracticeRoomChannelProtocol
 
         _state = ChannelState.InGame;
         _currentGameRoom = room;
+        _endedMatch = null;
         var localMember = GetLocalGameMember(room);
         var localCharacterId = localMember?.CharacterId ?? room.HostCharacterId;
         var localCharacterName = localMember?.CharacterName ?? room.HostName;
@@ -2334,6 +2342,7 @@ internal sealed class PracticeRoomChannelProtocol
         _practiceRoomManager.ConfigureSamurai(room.RoomId, _localGameUid, localPlayerState);
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
+        _gameScoreSnapshotSent = false;
         _localPlayerEnterBroadcastSent = false;
         Volatile.Write(ref _gameInitSpawnHandshakeStarted, 0);
         Volatile.Write(ref _activeClientGameInitRefreshSent, 0);
@@ -2984,7 +2993,7 @@ internal sealed class PracticeRoomChannelProtocol
         // and packet 165) and the packet 231 match timer before the local spawn (packet 111).
         await SendPacket146GameBattleStateAsync(trigger);
         await SendPacket231GameTimerAsync(trigger);
-        await SendPacket165GameBattleFlagAsync(trigger);
+        await SendCurrentGameTeamScoreAsync(trigger);
         StartGameMatchTimerLoop();
 
         // 添加短暂延迟
@@ -3422,7 +3431,7 @@ internal sealed class PracticeRoomChannelProtocol
             await SendPacket151Async(0f, trigger + "-boss-spawn", _playerEnteringClearRetriesRemaining);
             await SendPacket146GameBattleStateAsync(trigger);
             await SendPacket231GameTimerAsync(trigger);
-            await SendPacket165GameBattleFlagAsync(trigger);
+            await SendCurrentGameTeamScoreAsync(trigger);
             StartGameMatchTimerLoop();
             await SendPacket111GameSpawnAsync(room, trigger + "-boss-spawn");
             await SendLocalPlayerEnteredOnceAsync();
@@ -3827,6 +3836,7 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task RunSkillAbilityOpenAsync(byte abilityId, TimeSpan delay, string trigger)
     {
+        var generation = _gameInitSpawnHandshakeGeneration;
         try
         {
             if (delay > TimeSpan.Zero)
@@ -3836,7 +3846,8 @@ internal sealed class PracticeRoomChannelProtocol
 
             // The reply can be scheduled seconds into the future, so the room may already be gone
             // by the time it fires: drop it instead of writing to a disposed socket.
-            if (_clientDisconnected)
+            if (_clientDisconnected || generation != _gameInitSpawnHandshakeGeneration || _endedMatch is not null ||
+                _currentGameRoom is { } room && _practiceRoomManager.IsGameFinished(room.RoomId))
             {
                 return;
             }
@@ -3868,10 +3879,11 @@ internal sealed class PracticeRoomChannelProtocol
 
     private async Task RunShockwaveReactionCloseAsync(byte[] victimUids, TimeSpan delay, string trigger)
     {
+        var generation = _gameInitSpawnHandshakeGeneration;
         try
         {
             await Task.Delay(delay);
-            if (_clientDisconnected)
+            if (_clientDisconnected || generation != _gameInitSpawnHandshakeGeneration || _endedMatch is not null)
             {
                 return;
             }
@@ -4080,7 +4092,15 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPendingPlayerEnteringClearAsync("packet141");
         await SendPendingSilentLoadoutHudRefreshAsync("packet141");
         StartKnifeAutoRearmLoopIfNeeded("packet141");
-        if (_currentGameRoom is not null) await _practiceRoomManager.ActivateBotsAsync(_currentGameRoom.RoomId, this);
+        if (_currentGameRoom is not null)
+        {
+            if (!_gameScoreSnapshotSent)
+            {
+                _gameScoreSnapshotSent = true;
+                await _practiceRoomManager.SendGameScoreSnapshotAsync(_currentGameRoom.RoomId, this);
+            }
+            await _practiceRoomManager.ActivateBotsAsync(_currentGameRoom.RoomId, this);
+        }
     }
 
     private async Task HandlePacket113GameActionScalarAsync(PacketReader reader)
@@ -5994,11 +6014,13 @@ internal sealed class PracticeRoomChannelProtocol
             ? (GameRemoteShootObjectDeltaFlags & ~GameObjectDeltaSkipTargetFlag) |
               GameObjectDeltaTargetUidFlag | GameObjectDeltaWeaponVictimHealthFlag
             : GameRemoteShootObjectDeltaFlags;
+        if (damage?.KillScore is not null) flags |= 0x00003000; // 113: kills bit 12, deaths bit 13.
         WriteGameObjectDeltaFlags(writer, flags);
         writer.WriteByte(shoot.Uid);
         if (damage is { } hit) writer.WriteByte(hit.VictimUid);
         writer.WriteByte(shoot.SlotOneBased);
         writer.WriteByte(playShot ? GameRemoteShootActionByte : (byte)0);
+        if (damage?.KillScore is { } score) WriteGameKillScore(writer, score);
         if (damage is { } health) writer.WriteInt(health.VictimHealth);
         else writer.WriteByte(GameRemoteShootSkipTargetMarker);
         WriteCompressedVector3Raw(writer, shoot.OriginXRaw, shoot.OriginYRaw, shoot.OriginZRaw);
@@ -6049,19 +6071,20 @@ internal sealed class PracticeRoomChannelProtocol
 
     internal Task SendPacket128RemoteWeaponSlotAsync(
         byte actorUid,
-        byte weaponSlot,
+        byte weaponSlotZeroBased,
         string trigger)
     {
         using var writer = new PacketWriter();
         writer.WriteShort(GameRemoteWeaponSlotPacketId);
         writer.WriteByte(actorUid);
-        writer.WriteByte(weaponSlot);
+        // Unlike packet113, native packet128 passes the index directly to SelectWeapon.
+        writer.WriteByte(weaponSlotZeroBased);
 
         Log.Verbose(
             "Channel packet128 -> {Remote}: remote weapon-slot uid={Uid} slot={Slot} trigger={Trigger}",
             _remoteLabel,
             actorUid,
-            weaponSlot,
+            weaponSlotZeroBased,
             trigger);
         return SendPacketAsync(writer);
     }
@@ -6741,7 +6764,13 @@ internal sealed class PracticeRoomChannelProtocol
         }
     }
 
-    internal Task SendGameDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
+    internal async Task SendGameDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
+    {
+        await SendGameDamagePacketAsync(damage);
+        if (damage.KillScore is { } score) await SendPacket165TeamScoreAsync(score.Teams);
+    }
+
+    private Task SendGameDamagePacketAsync(PracticeRoomManager.GameDamageAction damage)
     {
         if (damage.WeaponHit is { } weapon)
         {
@@ -6756,9 +6785,11 @@ internal sealed class PracticeRoomChannelProtocol
         using var writer = new PacketWriter();
 
         writer.WriteShort(GameRemoteDamageHitPacketId);
-        WriteGameObjectDeltaFlags(writer, GameRemoteDamageHitObjectDeltaFlags);
+        WriteGameObjectDeltaFlags(writer, GameRemoteDamageHitObjectDeltaFlags |
+            (damage.KillScore.HasValue ? 0x00000600 : 0)); // 184: kills bit 9, deaths bit 10.
         writer.WriteByte(damage.AttackerUid);
         writer.WriteByte(damage.VictimUid);
+        if (damage.KillScore is { } score) WriteGameKillScore(writer, score);
         writer.WriteInt(damage.VictimHealth);
 
         if (damage.Killed)
@@ -6796,10 +6827,12 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteShort(121);
         WriteGameObjectDeltaFlags(writer, GameObjectDeltaActorUidFlag | GameObjectDeltaTargetUidFlag |
             GameObjectDeltaWeaponSlotFlag | GameObjectDeltaWeaponVictimHealthFlag |
-            GameObjectDeltaOriginFlag | GameObjectDeltaVectorFlag);
+            GameObjectDeltaOriginFlag | GameObjectDeltaVectorFlag |
+            (damage.KillScore.HasValue ? 0x00000C00 : 0)); // 121: kills bit 10, deaths bit 11.
         writer.WriteByte(damage.AttackerUid);
         writer.WriteByte(damage.VictimUid);
         writer.WriteByte(shot.SlotOneBased);
+        if (damage.KillScore is { } score) WriteGameKillScore(writer, score);
         writer.WriteInt(damage.VictimHealth);
         WriteCompressedVector3Raw(writer, shot.OriginXRaw, shot.OriginYRaw, shot.OriginZRaw);
         var vector = ResolveRemoteShootVector(shot);
@@ -7162,6 +7195,7 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPacket103GameCharacterCreateAsync(player);
         await SendPacket111GameSpawnAsync(room, player, trigger);
         await SendPacket107GamePlayerEnterAsync(actorUid, teamId, trigger);
+        await SendPacket112GameScoreAsync(actorUid, _practiceRoomManager.GetGamePlayerScore(room.RoomId, characterId));
     }
 
     internal Task SendRemoteGamePlayerRespawnAsync(
@@ -7204,24 +7238,6 @@ internal sealed class PracticeRoomChannelProtocol
 
         Log.Debug(
             "Channel packet146 -> {Remote}: battle state trigger={Trigger}",
-            _remoteLabel,
-            trigger);
-        return SendPacketAsync(writer);
-    }
-
-    /// <summary>
-    /// Packet 165: in-game battle flag frame the retail server pairs with the player-entering overlay
-    /// clear.
-    /// </summary>
-    private Task SendPacket165GameBattleFlagAsync(string trigger)
-    {
-        using var writer = new PacketWriter();
-        writer.WriteShort(165);
-        writer.WriteShort(100);
-        writer.WriteInt(0);
-
-        Log.Debug(
-            "Channel packet165 -> {Remote}: battle flag trigger={Trigger}",
             _remoteLabel,
             trigger);
         return SendPacketAsync(writer);
@@ -7415,8 +7431,9 @@ internal sealed class PracticeRoomChannelProtocol
             writer.WriteShort(0);
             writer.WriteInt(player.MaxHealth);
             writer.WriteShort(InitialGamePlayerActionStateFlags);
-            writer.WriteShort(0);
-            writer.WriteShort(0);
+            var score = _practiceRoomManager.GetGamePlayerScore(room.RoomId, player.CharacterId);
+            writer.WriteShort(GameScoreShort(score.Kills));
+            writer.WriteShort(GameScoreShort(score.Deaths));
             WriteGamePlayerTransform(writer, room, player.LastPosition);
             WriteGameEquipmentBlock(writer, player.EquipmentItems);
             writer.WriteByte(InitialGamePlayerActive);

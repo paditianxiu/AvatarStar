@@ -190,7 +190,7 @@ internal sealed partial class PracticeRoomManager
         PracticeRoomSession room;
         lock (_lock)
         {
-            if (!_roomsById.TryGetValue(roomId, out room!) || room.RoomState != 2 ||
+            if (!_roomsById.TryGetValue(roomId, out room!) || room.RoomState != 2 || room.Scores.Result is not null ||
                 !_botsByRoom.TryGetValue(roomId, out var list) || !_botReadyChannels.Add(channel)) return;
             bots = list.Select(b => ((long)b.Player.Character.Id, b.Uid)).ToArray();
         }
@@ -202,7 +202,7 @@ internal sealed partial class PracticeRoomManager
         }
         lock (_lock)
         {
-            if (!_roomsById.ContainsKey(roomId) || _botLoops.ContainsKey(roomId)) return;
+            if (!_roomsById.ContainsKey(roomId) || room.Scores.Result is not null || _botLoops.ContainsKey(roomId)) return;
             var cancellation = new CancellationTokenSource(); _botLoops.Add(roomId, cancellation);
             _ = RunBotsAsync(roomId, cancellation);
         }
@@ -219,25 +219,13 @@ internal sealed partial class PracticeRoomManager
                 PracticeRoomChannelProtocol[] targets;
                 lock (_lock)
                 {
-                    if (!_roomsById.TryGetValue(roomId, out var room) || room.RoomState != 2 ||
+                    if (!_roomsById.TryGetValue(roomId, out var room) || room.RoomState != 2 || room.Scores.Result is not null ||
                         !_gameChannelsByRoomId.TryGetValue(roomId, out var channels)) break;
                     targets = channels.Keys.Where(_botReadyChannels.Contains).ToArray();
                     if (targets.Length == 0) continue;
                     frame = StepBotsNoLock(room, Environment.TickCount64);
                 }
-                foreach (var target in targets)
-                {
-                    try
-                    {
-                        foreach (var move in frame.Moves) await target.SendPacket110GameMovementAsync(move);
-                        foreach (var (uid, slot) in frame.Switches) await target.SendPacket128RemoteWeaponSlotAsync(uid, slot, "ai-switch");
-                        foreach (var uid in frame.Reloads) await target.SendPacket117RemoteReloadActionAsync(uid);
-                        foreach (var shot in frame.Shots.Where(s => !frame.Combat.Damage.Any(d => d.WeaponHit?.Shot == s)))
-                            await target.SendPacket113RemoteShootAsync(shot);
-                    }
-                    catch { UnregisterGameChannel(roomId, target, out _); }
-                }
-                if (frame.Combat.Damage.Count > 0) await BroadcastSamuraiCombatAsync(roomId, frame.Combat);
+                await BroadcastBotFrameAsync(roomId, frame, targets);
             }
         }
         catch (OperationCanceledException) { }
@@ -249,9 +237,35 @@ internal sealed partial class PracticeRoomManager
         }
     }
 
+    private async Task BroadcastBotFrameAsync(int roomId, BotFrame frame, PracticeRoomChannelProtocol[] targets)
+    {
+        lock (_lock)
+        {
+            if (!_roomsById.TryGetValue(roomId, out var room) || room.Scores.EndAnnounced ||
+                frame.Combat.Generation != room.Scores.Generation ||
+                room.Scores.Result is not null && !ReferenceEquals(frame.Combat.MatchResult, room.Scores.Result)) return;
+        }
+        foreach (var target in targets)
+        {
+            try
+            {
+                foreach (var move in frame.Moves) await target.SendPacket110GameMovementAsync(move);
+                foreach (var (uid, slotZeroBased) in frame.Switches)
+                    await target.SendPacket128RemoteWeaponSlotAsync(uid, slotZeroBased, "ai-switch");
+                foreach (var uid in frame.Reloads) await target.SendPacket117RemoteReloadActionAsync(uid);
+                foreach (var shot in frame.Shots.Where(s => !frame.Combat.Damage.Any(d => d.WeaponHit?.Shot == s)))
+                    await target.SendPacket113RemoteShootAsync(shot);
+            }
+            catch { UnregisterGameChannel(roomId, target, out _); }
+        }
+        if (frame.Combat.Damage.Count > 0) await BroadcastSamuraiCombatAsync(roomId, frame.Combat);
+    }
+
     private BotFrame StepBotsNoLock(PracticeRoomSession room, long now)
     {
         var frame = new BotFrame();
+        frame.Combat.Generation = room.Scores.Generation;
+        if (room.Scores.Result is not null) return frame;
         if (!_botsByRoom.TryGetValue(room.RoomId, out var bots) || !_gamePlayersByRoomId.TryGetValue(room.RoomId, out var players)) return frame;
         var nav = AiNavigation.ForLevel(room.LevelId)!;
         var readyHumans = _gameChannelsByRoomId.GetValueOrDefault(room.RoomId)?
@@ -260,6 +274,7 @@ internal sealed partial class PracticeRoomManager
         var rotation = bots.Count == 0 ? 0 : (int)(now / 100 % bots.Count);
         foreach (var bot in bots.Skip(rotation).Concat(bots.Take(rotation)))
         {
+            if (room.Scores.Result is not null) break;
             if (!players.TryGetValue(bot.Uid, out var actor) || actor.CurrentHealth <= 0 || actor.LastPosition is not { } pose) continue;
             var position = BotWorld(pose);
             var enemies = players.Values.Where(p => p.CurrentHealth > 0 && p.TeamId < 2 && p.TeamId != actor.TeamId &&
@@ -347,14 +362,16 @@ internal sealed partial class PracticeRoomManager
             var look = target is not null && visible ? targetPosition - position : moved;
             var yaw = look.LengthSquared() > .001f ? MathF.Atan2(look.X, -look.Z) : (pose.YawRaw ?? 0) / 8192f;
             var newPose = BotPosition(position, yaw); actor.LastPosition = newPose;
-            var (flags, payload) = PracticeRoomChannelProtocol.BuildTeleportMovementPayload(newPose);
-            var input = (byte)0;
+            // Packet110's optional 16-bit field is ping; facing already carries the yaw.
+            var (flags, payload) = PracticeRoomChannelProtocol.BuildTeleportMovementPayload(newPose with { YawRaw = null });
+            // Native PS_OnGround. Without it, directional movement plays an airborne pose.
+            var input = (byte)0x02;
             if (moved.LengthSquared() > .0001f)
             {
                 var forward = new Vector3(MathF.Sin(yaw), 0, -MathF.Cos(yaw));
                 var side = new Vector3(MathF.Cos(yaw), 0, MathF.Sin(yaw));
                 var f = Vector3.Dot(moved, forward); var s = Vector3.Dot(moved, side);
-                input = Math.Abs(f) >= Math.Abs(s) ? (byte)(f >= 0 ? 0x10 : 0x20) : (byte)(s >= 0 ? 0x80 : 0x40);
+                input |= Math.Abs(f) >= Math.Abs(s) ? (byte)(f >= 0 ? 0x10 : 0x20) : (byte)(s >= 0 ? 0x80 : 0x40);
             }
             // The client adds this byte / 255 to its movement timeline; it is NOT a sequence.
             // Carry the fraction so 100 ms steps alternate 25/26 without accumulating drift.
@@ -384,7 +401,7 @@ internal sealed partial class PracticeRoomManager
                 unchecked((short)(-MathF.Asin(direction.Y) * 8192)), direction.X, direction.Y, direction.Z, DateTimeOffset.UtcNow);
             actor.LastShoot = shoot; frame.Shots.Add(shoot);
             if (offset.Length() <= (weapon.Subtype == 4 ? 1.1f : .65f))
-                ApplyCombatDamageNoLock(actor, target, PracticeRoomChannelProtocol.ResolveGameWeaponDamage(weapon), true,
+                ApplyCombatDamageNoLock(room, actor, target, PracticeRoomChannelProtocol.ResolveGameWeaponDamage(weapon), true,
                     null, frame.Combat, now, new GameWeaponHit(shoot, PlayShot: true));
         }
         return frame;

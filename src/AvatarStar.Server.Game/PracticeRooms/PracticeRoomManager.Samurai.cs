@@ -7,6 +7,8 @@ internal sealed partial class PracticeRoomManager
 {
     internal sealed class SamuraiCombatBatch
     {
+        internal long Generation { get; set; }
+        internal GameMatchResult? MatchResult { get; set; }
         public List<GameDamageAction> Damage { get; } = [];
         public List<SamuraiBuffChange> Buffs { get; } = [];
         public List<SamuraiMove> Moves { get; } = [];
@@ -31,7 +33,7 @@ internal sealed partial class PracticeRoomManager
         lock (_lock)
         {
             if (state.Character.Occupation != 4 || state.GetSkillLevel(skillId) != level ||
-                !_roomsById.TryGetValue(roomId, out var room) ||
+                !_roomsById.TryGetValue(roomId, out var room) || room.Scores.Result is not null ||
                 !_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
                 !channels.TryGetValue(source, out var sourceUid) || sourceUid != uid ||
                 !_gamePlayersByRoomId.TryGetValue(roomId, out var players) ||
@@ -41,6 +43,7 @@ internal sealed partial class PracticeRoomManager
                 return false;
 
             var now = Environment.TickCount64;
+            batch.Generation = room.Scores.Generation;
             var forward = ResolveSamuraiFacing(player);
             if (skillId != SamuraiSkills.BladeGuard && forward.LengthSquared() < 0.5f)
                 return false;
@@ -56,7 +59,7 @@ internal sealed partial class PracticeRoomManager
             // Snapshot candidates before moving the caster. Every enemy is visited once per cast.
             foreach (var enemy in players.Values.ToArray())
             {
-                if (player.CurrentHealth <= 0) break;
+                if (player.CurrentHealth <= 0 || room.Scores.Result is not null) break;
                 if (enemy.Uid == uid || enemy.CurrentHealth <= 0 ||
                     !IsEnemyTeam(ResolveGamePlayerTeamId(room, player), ResolveGamePlayerTeamId(room, enemy)) ||
                     !TryResolveProximityWorldPosition(enemy, false, out var target) ||
@@ -64,9 +67,9 @@ internal sealed partial class PracticeRoomManager
                 var push = skillId is SamuraiSkills.IaiSlash or SamuraiSkills.WindCut
                     ? new GameKnockbackAction(GameKnockbackAction.BlowUpBuffType, forward.X * 3f, 0.5f, forward.Y * 3f)
                     : (GameKnockbackAction?)null;
-                ApplyCombatDamageNoLock(player, enemy, SamuraiSkills.Damage(skillId, level), false, push, batch, now);
+                ApplyCombatDamageNoLock(room, player, enemy, SamuraiSkills.Damage(skillId, level), false, push, batch, now);
             }
-            if (skillId == SamuraiSkills.WindStep && player.CurrentHealth > 0)
+            if (skillId == SamuraiSkills.WindStep && player.CurrentHealth > 0 && room.Scores.Result is null)
                 MoveSamuraiNoLock(player, start + new Vector3(forward.X, 0, forward.Y) * SamuraiSkills.StepDistance, batch);
             return true;
         }
@@ -108,10 +111,11 @@ internal sealed partial class PracticeRoomManager
         batch.Moves.Add(new(player.Uid, position));
     }
 
-    private static GameDamageAction ApplyCombatDamageNoLock(GamePlayerRuntime attacker, GamePlayerRuntime victim,
+    private static GameDamageAction ApplyCombatDamageNoLock(PracticeRoomSession room, GamePlayerRuntime attacker, GamePlayerRuntime victim,
         int damage, bool weapon, GameKnockbackAction? push, SamuraiCombatBatch batch, long now,
         GameWeaponHit? weaponHit = null)
     {
+        batch.Generation = room.Scores.Generation;
         if (weapon) damage = attacker.Samurai.WeaponDamage(damage, now);
         var guard = 0;
         Vector3 counterTarget = default;
@@ -132,8 +136,10 @@ internal sealed partial class PracticeRoomManager
         damage = Math.Clamp(damage, 1, Math.Max(1, victim.MaxHealth));
         victim.CurrentHealth = Math.Max(0, health - damage);
         var killed = health > 0 && victim.CurrentHealth == 0;
+        var killScore = killed ? RecordGameDeathNoLock(room, attacker, victim) : (GameKillScore?)null;
+        batch.MatchResult = room.Scores.Result;
         var action = new GameDamageAction(attacker.Uid, victim.Uid, damage, victim.CurrentHealth,
-            victim.MaxHealth, killed, push, weapon ? weaponHit : null);
+            victim.MaxHealth, killed, push, weapon ? weaponHit : null, killScore);
         batch.Damage.Add(action);
         if (killed)
         {
@@ -141,11 +147,11 @@ internal sealed partial class PracticeRoomManager
             if (attacker.Samurai.OnKill(now))
                 batch.Buffs.Add(new(attacker.Uid, SamuraiSkills.BushidoBuff, attacker.Samurai.BushidoUntil, attacker.Samurai));
         }
-        if (guard > 0 && victim.CurrentHealth > 0 && attacker.CurrentHealth > 0)
+        if (guard > 0 && victim.CurrentHealth > 0 && attacker.CurrentHealth > 0 && room.Scores.Result is null)
         {
             MoveSamuraiNoLock(victim, counterTarget, batch);
             // Each guard is consumed before the follow-up; two guarded players cannot loop forever.
-            ApplyCombatDamageNoLock(victim, attacker, SamuraiSkills.Damage(SamuraiSkills.BladeGuard, guard),
+            ApplyCombatDamageNoLock(room, victim, attacker, SamuraiSkills.Damage(SamuraiSkills.BladeGuard, guard),
                 false, null, batch, now);
         }
         return action;
@@ -159,6 +165,25 @@ internal sealed partial class PracticeRoomManager
     }
 
     public async Task<int> BroadcastSamuraiCombatAsync(int roomId, SamuraiCombatBatch batch)
+    {
+        PracticeRoomSession room;
+        lock (_lock)
+            if (!_roomsById.TryGetValue(roomId, out room!)) return 0;
+        // A queued pre-win batch must never overwrite the final score after packet131.
+        await room.Scores.BroadcastGate.WaitAsync();
+        try
+        {
+            lock (_lock)
+                if (!_roomsById.TryGetValue(roomId, out var current) || !ReferenceEquals(current, room) ||
+                    batch.Generation != room.Scores.Generation || room.Scores.EndAnnounced) return 0;
+            var sent = await BroadcastSamuraiCombatCoreAsync(roomId, batch);
+            if (batch.MatchResult is { } result) await AnnounceMatchEndAsync(room, result);
+            return sent;
+        }
+        finally { room.Scores.BroadcastGate.Release(); }
+    }
+
+    private async Task<int> BroadcastSamuraiCombatCoreAsync(int roomId, SamuraiCombatBatch batch)
     {
         KeyValuePair<PracticeRoomChannelProtocol, byte>[] targets;
         lock (_lock)
@@ -196,10 +221,13 @@ internal sealed partial class PracticeRoomManager
                 UnregisterGameChannel(roomId, target, out _);
             }
         }
-        foreach (var action in batch.Damage.Where(a => a.Killed))
-            _ = RespawnGamePlayerAfterDelayAsync(roomId, action.VictimUid, GameAutoRespawnDelayMilliseconds, "samurai-combat");
-        foreach (var buff in batch.Buffs.Where(b => b.Deadline > 0))
-            _ = CloseSamuraiBuffAfterDelayAsync(roomId, buff);
+        if (!IsGameFinished(roomId))
+        {
+            foreach (var action in batch.Damage.Where(a => a.Killed))
+                _ = RespawnGamePlayerAfterDelayAsync(roomId, action.VictimUid, GameAutoRespawnDelayMilliseconds, "samurai-combat");
+            foreach (var buff in batch.Buffs.Where(b => b.Deadline > 0))
+                _ = CloseSamuraiBuffAfterDelayAsync(roomId, buff);
+        }
         return sent;
     }
 
@@ -211,7 +239,7 @@ internal sealed partial class PracticeRoomManager
             PracticeRoomChannelProtocol[] targets;
             lock (_lock)
             {
-                if (!_gamePlayersByRoomId.TryGetValue(roomId, out var players) ||
+                if (IsGameFinished(roomId) || !_gamePlayersByRoomId.TryGetValue(roomId, out var players) ||
                     !players.TryGetValue(buff.Uid, out var player) || !ReferenceEquals(player.Samurai, buff.State) ||
                     player.Samurai.Deadline(buff.Buff) != buff.Deadline ||
                     !_gameChannelsByRoomId.TryGetValue(roomId, out var channels)) return;

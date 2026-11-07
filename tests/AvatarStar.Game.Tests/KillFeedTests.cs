@@ -43,11 +43,15 @@ internal static class KillFeedTests
                 Clear();
                 var (_, hit) = await manager.BroadcastGameShotDamageAsync(room.RoomId, shooter, Shot(slot), amount, hitRule, victim);
                 check(hit.Applied && hit.Killed == (amount == 600), "weapon hit preserves damage and lethal state");
-                check(frames.All(p => p.Count == 1 && BitConverter.ToInt16(p[0]) == 113),
+                check(frames.All(p => p.Count == (hit.Killed ? 2 : 1) && BitConverter.ToInt16(p[0]) == 113),
                     "one combined weapon shot/hit reaches owner, victim and spectator without Spurt packet");
-                check(frames.All(p => Flags(p[0]) == 0x00F0000F && p[0].Length == 30 &&
+                check(frames.All(p => Flags(p[0]) == (hit.Killed ? 0x00F0300F : 0x00F0000F) && p[0].Length == (hit.Killed ? 34 : 30) &&
                     p[0][6] == attacker && p[0][7] == victim && p[0][8] == slot && p[0][9] == 1 &&
-                    BitConverter.ToInt32(p[0], 10) == hit.VictimHealth), "native weapon-hit layout carries correct slot and victim health at bit 20");
+                    BitConverter.ToInt32(p[0], hit.Killed ? 14 : 10) == hit.VictimHealth), "native weapon-hit layout carries correct slot and victim health at bit 20");
+                if (hit.Killed)
+                    check(frames.All(p => BitConverter.ToInt16(p[0], 10) == slot && BitConverter.ToInt16(p[0], 12) == slot &&
+                        BitConverter.ToInt16(p[1]) == 165 && BitConverter.ToInt16(p[1], 4) == slot && BitConverter.ToInt16(p[1], 6) == 0),
+                        "lethal weapon delta and team HUD carry cumulative authoritative scores");
             }
         }
         Clear();
@@ -67,10 +71,12 @@ internal static class KillFeedTests
         Clear();
         var impact = await manager.BroadcastGameDamageAsync(room.RoomId, victimChannel, attacker, damage, rule, victim,
             new(originalShot, PlayShot: false, Projectile: true));
-        check(impact.Killed && frames.All(p => BitConverter.ToInt16(p[0]) == 121 && Flags(p[0]) == 0x00700007 &&
-            p[0][6] == attacker && p[0][7] == victim && p[0][8] == 2 && BitConverter.ToInt32(p[0], 9) == 0),
+        check(impact.Killed && frames.All(p => BitConverter.ToInt16(p[0]) == 121 && Flags(p[0]) == 0x00700C07 &&
+            p[0][6] == attacker && p[0][7] == victim && p[0][8] == 2 && BitConverter.ToInt32(p[0], 13) == 0),
             "projectile impact resolves original equipment slot for kill icon");
         check(frames.All(p => p.All(f => BitConverter.ToInt16(f) is not (113 or 184))), "impact does not replay shooting or use Spurt hit");
+        check(frames.All(p => BitConverter.ToInt16(p[0], 9) == 4 && BitConverter.ToInt16(p[0], 11) == 4 &&
+            BitConverter.ToInt16(p[1], 4) == 4), "projectile uses its own native kill/death delta bits");
         manager.RemoveRoom(room.RoomId);
 
         // Drive a real AI attack, then decode its broadcast rather than manufacturing its source.
@@ -108,8 +114,40 @@ internal static class KillFeedTests
         check(weapon.ItemType == 2 && weapon.Slot is >= 1 and <= 3, "AI kill source is one of its equipped weapons");
         Clear();
         await manager.BroadcastSamuraiCombatAsync(room.RoomId, combat);
-        check(frames[0].Count == 1 && BitConverter.ToInt16(frames[0][0]) == 113 && frames[0][0][8] == weapon.Slot &&
-            BitConverter.ToInt32(frames[0][0], 10) == 0, "AI kill broadcasts weapon icon and zero health together");
+        check(frames[0].Count == 2 && BitConverter.ToInt16(frames[0][0]) == 113 && frames[0][0][8] == weapon.Slot &&
+            BitConverter.ToInt32(frames[0][0], 14) == 0, "AI kill broadcasts weapon icon and zero health together");
+        check(manager.GetGamePlayerScore(room.RoomId, bot.CharacterId).Kills == 1 &&
+            manager.GetGamePlayerScore(room.RoomId, 1).Deaths == 1 &&
+            BitConverter.ToInt16(frames[0][1], 4) == 0 && BitConverter.ToInt16(frames[0][1], 6) == 1,
+            "AI kill credits its blue team and human victim exactly once");
+        foreach (var (name, value) in new (string, object)[] { ("_currentGameRoom", room), ("_currentRoomId", room.RoomId),
+            ("_currentCharacterId", 1L), ("_localGameUid", hostUid) })
+            typeof(PracticeRoomChannelProtocol).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(hostChannel, value);
+        room.Scores.Teams = new(42, 99);
+        manager.TrySetGamePlayerHealth(room.RoomId, hostUid, 1, out _);
+        object winningFrame = null!;
+        for (var tick = 0; tick < 100 && room.Scores.Result is null; tick++)
+            winningFrame = step.Invoke(manager, new object[] { room, now + 6000 + tick * 100 })!;
+        check(room.Scores.Result is { WinningTeam: 1, Teams.BlueKills: 100 }, "real AI decision reaches the blue team's kill limit");
+        Clear();
+        var broadcastFrame = typeof(PracticeRoomManager).GetMethod("BroadcastBotFrameAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await (Task)broadcastFrame.Invoke(manager, new object[] { room.RoomId, winningFrame, new[] { hostChannel } })!;
+        check(frames[0].Count(p => BitConverter.ToInt16(p) == 131) == 1 && frames[0].Last().SequenceEqual(new byte[] { 131, 0, 1, 0 }),
+            "AI winning frame publishes final damage then the blue victory result");
+        var afterEnd = step.Invoke(manager, new object[] { room, now + 20000 })!;
+        check(((List<PracticeRoomManager.GameMovementDelta>)afterEnd.GetType().GetProperty("Moves", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(afterEnd)!).Count == 0 &&
+            ((List<PracticeRoomManager.GameShootAction>)afterEnd.GetType().GetProperty("Shots", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(afterEnd)!).Count == 0,
+            "AI stops both movement and attack decisions after victory");
+        var endCount = frames[0].Count;
+        await (Task)broadcastFrame.Invoke(manager, new object[] { room.RoomId, winningFrame, new[] { hostChannel } })!;
+        check(frames[0].Count == endCount, "duplicate AI frame cannot replay damage or match end");
+        var complete = typeof(PracticeRoomManager).GetMethod("ReturnEndedMatchToRoomAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        await (Task)complete.Invoke(manager, new object[] { room, room.Scores.Result! })!;
+        check(room.RoomState == 1 && room.Members.Single(m => m.CharacterId == bot.CharacterId).Ready &&
+            !room.Members.Single(m => m.CharacterId == 1).Ready, "finished AI room keeps AI ready and clears human readiness");
+        check(manager.TryStartGame(room.RoomId, out _, out _) && !manager.IsGameFinished(room.RoomId) &&
+            manager.GetGameTeamScore(room.RoomId) == default && manager.ListGamePlayers(room.RoomId).Any(p => p.CharacterId == bot.CharacterId && p.LastPosition.HasValue),
+            "same AI room can rebuild bot spawns for a second match");
         manager.RemoveRoom(room.RoomId);
     }
 }

@@ -5,6 +5,7 @@ namespace AvatarStar.Server.Game;
 internal static class AiSteering
 {
     internal const float Clearance = 1.05f;
+    internal const float ComfortDistance = 3.8f;
 
     internal static float PlanarDistance(Vector3 a, Vector3 b) => Vector2.Distance(new(a.X, a.Z), new(b.X, b.Z));
 
@@ -23,7 +24,7 @@ internal static class AiSteering
         {
             if (Math.Abs(point.Y - other.Y) > 1.4f) continue;
             var distance = PlanarDistance(point, other);
-            if (distance < 3) penalty += (3 - distance) * (3 - distance);
+            if (distance < ComfortDistance) penalty += (ComfortDistance - distance) * (ComfortDistance - distance);
         }
         return penalty;
     }
@@ -38,7 +39,7 @@ internal static class AiSteering
             if (Math.Abs(other.Y - (from.Y + to.Y) / 2) > 1.4f) continue;
             var point = new Vector2(other.X, other.Z);
             var start = Vector2.Distance(a, point); var end = Vector2.Distance(b, point);
-            if (start < Clearance && end > start + .001f) continue;
+            if (start < Clearance && end > start + .001f && Vector2.Dot(delta, a - point) >= 0) continue;
             var t = delta.LengthSquared() < .000001f ? 0 : Math.Clamp(Vector2.Dot(point - a, delta) / delta.LengthSquared(), 0, 1);
             if (Vector2.DistanceSquared(a + delta * t, point) < Clearance * Clearance) return false;
         }
@@ -53,13 +54,13 @@ internal static class AiSteering
         if (candidates.Length == 0) return nav.Nearest(center, node);
         var preferred = target.HasValue
             ? center + new Vector3(MathF.Cos(flankAngle), 0, MathF.Sin(flankAngle)) * desiredRange
-            : position + new Vector3(MathF.Cos(flankAngle), 0, MathF.Sin(flankAngle)) * 10;
+            : position + new Vector3(MathF.Cos(flankAngle), 0, MathF.Sin(flankAngle)) * (8 + Noise(seed, node, 1) * 8);
         var ranked = candidates.Select(n =>
         {
             var p = nav.Points[n];
             var rangeCost = target.HasValue ? Math.Abs(PlanarDistance(p, center) - desiredRange) * 2 : 0;
             var score = rangeCost + PlanarDistance(p, preferred) * .5f + PlanarDistance(p, position) * .08f +
-                Crowding(p, occupied) * 5 + Noise(seed, n, 0) * 1.5f;
+                Crowding(p, occupied) * 5 + Noise(seed, n, 0) * 4;
             return (Node: n, Score: score);
         }).OrderBy(p => p.Score).Take(16).ToArray();
         if (target.HasValue)

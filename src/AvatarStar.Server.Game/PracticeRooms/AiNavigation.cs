@@ -137,7 +137,7 @@ internal sealed class AiNavigation
                 {
                     // Stable per route and area, so agents choose different lanes without jittering.
                     penalty = routeSeed == 0 ? 0 : AiSteering.Noise(routeSeed,
-                        (int)MathF.Floor(Points[next].X / 4), (int)MathF.Floor(Points[next].Z / 4)) * .8f;
+                        (int)MathF.Floor(Points[next].X / 4), (int)MathF.Floor(Points[next].Z / 4)) * 1.35f;
                     penalty += AiSteering.Crowding(Points[next], occupied);
                     penalties[next] = penalty;
                 }

@@ -178,4 +178,7 @@ await SkillOwnershipTests.Run(config, Check);
 AiCrowdTests.Run(config, Check);
 AiFillTests.Run(config, Check);
 await KillFeedTests.Run(config, Check);
+await AiReplicationTests.Run(config, Check);
+await GameScoreTests.Run(config, Check);
+await MatchEndTests.Run(config, Check);
 Console.WriteLine($"PASS: {checks} total checks including AI navigation, professions, permissions, combat, respawn and cleanup.");

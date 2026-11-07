@@ -523,7 +523,8 @@ internal sealed partial class PracticeRoomManager
     {
         lock (_lock)
         {
-            if (!_roomsById.TryGetValue(roomId, out room!))
+            if (!_roomsById.TryGetValue(roomId, out room!) || room.RoomState == 2 ||
+                room.Scores.Result is not null && !room.Scores.ReturnCompleted)
             {
                 resultCode = 1;
                 return false;
@@ -536,6 +537,7 @@ internal sealed partial class PracticeRoomManager
                 resultCode = 1;
                 return false;
             }
+            room.Scores.Reset();
             room.RoomState = 2;
             foreach (var member in room.Members)
             {
@@ -562,7 +564,7 @@ internal sealed partial class PracticeRoomManager
                 return false;
             }
 
-            if (room.RoomState != 2)
+            if (room.RoomState != 2 || room.Scores.Result is not null)
             {
                 resultCode = 1;
                 return false;
@@ -1141,7 +1143,7 @@ internal sealed partial class PracticeRoomManager
                 return GameHealBroadcastResult.NotApplied("invalid-heal-amount");
             }
 
-            if (!_roomsById.TryGetValue(roomId, out var room) ||
+            if (!_roomsById.TryGetValue(roomId, out var room) || room.Scores.Result is not null ||
                 !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
                 !playersByUid.TryGetValue(healerUid, out var healer))
             {
@@ -1501,7 +1503,7 @@ internal sealed partial class PracticeRoomManager
 
         lock (_lock)
         {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            if (IsGameFinished(roomId) || !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
             {
                 return 0;
             }
@@ -1537,7 +1539,7 @@ internal sealed partial class PracticeRoomManager
 
         lock (_lock)
         {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            if (IsGameFinished(roomId) || !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
             {
                 return 0;
             }
@@ -1849,8 +1851,14 @@ internal sealed partial class PracticeRoomManager
     {
         try
         {
+            long generation;
+            lock (_lock)
+            {
+                if (!_roomsById.TryGetValue(roomId, out var room) || room.Scores.Result is not null) return;
+                generation = room.Scores.Generation;
+            }
             await Task.Delay(delayMilliseconds);
-            var sent = await RespawnGamePlayerAsync(roomId, actorUid, trigger);
+            var sent = await RespawnGamePlayerForMatchAsync(roomId, actorUid, trigger, generation);
             Log.Information(
                 "Channel auto respawn processed: roomId={RoomId} uid={Uid} trigger={Trigger} broadcastCount={BroadcastCount}",
                 roomId,
@@ -1869,10 +1877,14 @@ internal sealed partial class PracticeRoomManager
         }
     }
 
-    private async Task<int> RespawnGamePlayerAsync(
+    private Task<int> RespawnGamePlayerAsync(int roomId, byte actorUid, string trigger) =>
+        RespawnGamePlayerForMatchAsync(roomId, actorUid, trigger, null);
+
+    private async Task<int> RespawnGamePlayerForMatchAsync(
         int roomId,
         byte actorUid,
-        string trigger)
+        string trigger,
+        long? expectedGeneration)
     {
         KeyValuePair<PracticeRoomChannelProtocol, byte>[] targets;
         PracticeRoomSession? room;
@@ -1880,7 +1892,8 @@ internal sealed partial class PracticeRoomManager
 
         lock (_lock)
         {
-            if (!_roomsById.TryGetValue(roomId, out room) ||
+            if (!_roomsById.TryGetValue(roomId, out room) || room.Scores.Result is not null ||
+                expectedGeneration.HasValue && expectedGeneration.Value != room.Scores.Generation ||
                 !_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
                 !_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid) ||
                 !playersByUid.TryGetValue(actorUid, out var player))
@@ -2434,6 +2447,7 @@ internal sealed partial class PracticeRoomManager
         {
             return GameDamageAttempt.NotApplied("room-missing");
         }
+        if (room.Scores.Result is not null) return GameDamageAttempt.NotApplied("match-ended");
 
         if (!_gamePlayersByRoomId.TryGetValue(roomId, out var playersByUid))
         {
@@ -2516,7 +2530,7 @@ internal sealed partial class PracticeRoomManager
                 bestHitScore);
         }
 
-        var action = ApplyCombatDamageNoLock(attacker, victim, damage, true,
+        var action = ApplyCombatDamageNoLock(room, attacker, victim, damage, true,
             ResolveKnockback(attacker, victim, hitRule), combat, Environment.TickCount64, weaponHit);
         return new GameDamageAttempt(
             action,
@@ -3252,7 +3266,8 @@ internal sealed partial class PracticeRoomManager
         int VictimMaxHealth,
         bool Killed,
         GameKnockbackAction? Knockback,
-        GameWeaponHit? WeaponHit = null);
+        GameWeaponHit? WeaponHit = null,
+        GameKillScore? KillScore = null);
 
     internal readonly record struct GameKnockbackAction(
         short BuffType,
@@ -3376,6 +3391,7 @@ internal sealed partial class PracticeRoomManager
     internal sealed class PracticeRoomSession
     {
         private readonly List<PracticeRoomMember> _members = [];
+        internal GameMatchScores Scores { get; } = new();
 
         public PracticeRoomSession(
             int roomId,
