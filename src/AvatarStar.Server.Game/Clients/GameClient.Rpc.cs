@@ -1782,6 +1782,33 @@ internal partial class GameClient
 
         switch (rpcName)
         {
+            case "room_ai_fill":
+            {
+                var message = "参数无效";
+                var ok = int.TryParse(rpcArgs.GetValueOrDefault("roomUid"), out var roomUid) &&
+                    _practiceRoomManager.FillRoomWithBots(roomUid, _activeRoleId, _sysAvatarPayloadMonitor.CurrentValue, out message);
+                writer.WriteString($"ok = {(ok ? 1 : 0)}\nmessage = {LuaSerializer.Serialize(message)}");
+                await SendAsync(writer);
+                if (ok && _practiceRoomManager.TryGetAiRoom(roomUid, out var aiRoom))
+                    await _practiceRoomManager.BroadcastRoomSnapshotAsync(aiRoom.RoomId);
+                return;
+            }
+            case "room_ai_add":
+            case "room_ai_remove":
+            {
+                var message = "参数无效";
+                var ok = int.TryParse(rpcArgs.GetValueOrDefault("roomUid"), out var roomUid) &&
+                    int.TryParse(rpcArgs.GetValueOrDefault("team"), out var team) &&
+                    int.TryParse(rpcArgs.GetValueOrDefault("occupation"), out var occupation) &&
+                    int.TryParse(rpcArgs.GetValueOrDefault("count"), out var count) &&
+                    _practiceRoomManager.ManageBots(roomUid, _activeRoleId, team, occupation, count,
+                        rpcName == "room_ai_remove", _sysAvatarPayloadMonitor.CurrentValue, out message);
+                writer.WriteString($"ok = {(ok ? 1 : 0)}\nmessage = {LuaSerializer.Serialize(message)}");
+                await SendAsync(writer);
+                if (ok && _practiceRoomManager.TryGetAiRoom(roomUid, out var aiRoom))
+                    await _practiceRoomManager.BroadcastRoomSnapshotAsync(aiRoom.RoomId);
+                return;
+            }
             case "player_list":
             {
                 var characters = _accountId > 0
@@ -1866,7 +1893,8 @@ internal partial class GameClient
             case "skill_adjust":
             {
                 var player = GetActivePlayerStateOrDefault();
-                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                if (player.Character.Occupation == 4) player.EnsureStarterInventory();
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 4);
                 ApplySkillAdjustments(rpcArgs.GetValueOrDefault("adjustSkills"), player, occupation);
                 writer.WriteString("ok = 1");
                 await SendAsync(writer);
@@ -1876,7 +1904,8 @@ internal partial class GameClient
             case "skill_list":
             {
                 var player = GetActivePlayerStateOrDefault();
-                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                if (player.Character.Occupation == 4) player.EnsureStarterInventory();
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 4);
                 var definitions = SkillCatalog.GetSkills(occupation);
 
                 var skills = new object[definitions.Count];
@@ -2692,7 +2721,7 @@ internal partial class GameClient
                 var player = GetActivePlayerStateOrDefault();
                 // The client sends the chosen currency id as `t`; older builds name it `currency`.
                 var currency = GetIntArg(rpcArgs, "currency", GetIntArg(rpcArgs, "t", 0));
-                var occupation = Math.Clamp(player.Character.Occupation, 0, 3);
+                var occupation = Math.Clamp(player.Character.Occupation, 0, 4);
                 var cost = SkillCatalog.GetResetCosts(occupation)
                     .FirstOrDefault(entry => entry.Currency == currency)?.Cost ?? -1;
                 var spentPoints = player.GetSpentSkillPoints();

@@ -242,6 +242,7 @@ internal sealed class PracticeRoomChannelProtocol
     private const int GameObjectDeltaActionFlag = 0x00000008;
     private const int GameObjectDeltaSkipTargetFlag = 0x00000020;
     private const int GameObjectDeltaIntValueFlag = 0x00004000;
+    private const int GameObjectDeltaWeaponVictimHealthFlag = 0x00100000;
     private const int GameObjectDeltaSubtypeFlag = 0x01000000;
     private const int GameObjectDeltaOriginFlag = 0x00200000;
     private const int GameObjectDeltaVectorFlag = 0x00400000;
@@ -965,7 +966,7 @@ internal sealed class PracticeRoomChannelProtocol
         yield return Path.Combine(Directory.GetCurrentDirectory(), "src", "AvatarStar.Server.Game", "Config", CharacterWingFlightProfileConfigFileName);
     }
 
-    private sealed record GameWeaponRuntimeStats(
+    internal sealed record GameWeaponRuntimeStats(
         float CoolDown,
         float FireTime,
         float Range,
@@ -1504,6 +1505,15 @@ internal sealed class PracticeRoomChannelProtocol
             movement);
     }
 
+    internal async Task SendSamuraiMoveAsync(int roomId, PracticeRoomManager.GamePosition position)
+    {
+        if (_currentGameRoom?.RoomId != roomId || _clientDisconnected) return;
+        await SendPacket111GameTeleportAsync(RawToWorldCoordinate(position.XRaw),
+            RawToWorldCoordinate(position.YRaw), RawToWorldCoordinate(position.ZRaw),
+            (position.Facing0Raw ?? position.YawRaw ?? 0) / 8192f, "samurai");
+        await ApplyLocalTeleportAsync(position, position.LastSeenAt);
+    }
+
     private byte NextGameMovementTick()
     {
         unchecked
@@ -1803,7 +1813,7 @@ internal sealed class PracticeRoomChannelProtocol
         return text.Length > 0;
     }
 
-    private static (byte Flags, byte[] OptionalPayload) BuildTeleportMovementPayload(
+    internal static (byte Flags, byte[] OptionalPayload) BuildTeleportMovementPayload(
         PracticeRoomManager.GamePosition position)
     {
         var flags = (byte)0x04;
@@ -2321,6 +2331,7 @@ internal sealed class PracticeRoomChannelProtocol
             _localGameUid,
             ResolveGameTeamId(localMember),
             ResolveLocalGamePlayerMaxHealth(localPlayerState?.Character));
+        _practiceRoomManager.ConfigureSamurai(room.RoomId, _localGameUid, localPlayerState);
         UpdateLocalGameSpawnPosition(room, overwriteExisting: true, source);
         _localPlayerEnterPacketSent = false;
         _localPlayerEnterBroadcastSent = false;
@@ -3546,6 +3557,21 @@ internal sealed class PracticeRoomChannelProtocol
         var skillId = ResolveGameEquipmentSkillId(room, slot);
         var definition = ResolveGameEquipmentSkillDefinition(room, slot);
 
+        if (definition?.Id == SamuraiSkills.Counter) return;
+        if (definition is not null && SamuraiSkills.IsSamurai(definition.Id))
+        {
+            var state = room is null ? null : GetLocalPlayerState(room);
+            var level = ResolveGameEquipmentSkillLevel(room, slot);
+            if (room is null || state is null || !_practiceRoomManager.TryActivateSamurai(
+                    room.RoomId, this, _localGameUid, state, definition.Id, level, out var combat))
+                return;
+            await SendPacket160GameSkillActivateAsync(_localGameUid, slot, "samurai");
+            await _practiceRoomManager.BroadcastGameSkillActivateAsync(room.RoomId, this,
+                _localGameUid, slot, definition.Id, -1, level, "samurai");
+            await _practiceRoomManager.BroadcastSamuraiCombatAsync(room.RoomId, combat);
+            return;
+        }
+
         // Packet155 closes ability states, so whatever the previous quick slot left open is closed
         // first, exactly like the retail server (its packet155 for the old ability id arrives right
         // before the packet160 acknowledgement of the new slot).
@@ -3671,6 +3697,8 @@ internal sealed class PracticeRoomChannelProtocol
         var castBuffId = ResolveGameEquipmentSkillBuffId(room, castSlot);
         var castSkillId = ResolveGameEquipmentSkillId(room, castSlot);
         var castSkillLevel = ResolveGameEquipmentSkillLevel(room, castSlot);
+        // Samurai effects resolve atomically on 136; a replayed 152 cannot repeat the hit.
+        if (SamuraiSkills.IsSamurai(castSkillId) || castSkillId == SamuraiSkills.Counter) return;
         var broadcastCount = room is null
             ? 0
             : await _practiceRoomManager.BroadcastGameSkillCastAsync(
@@ -4034,6 +4062,7 @@ internal sealed class PracticeRoomChannelProtocol
                 _localGameUid,
                 ResolveGameTeamId(localMember),
                 ResolveLocalGamePlayerMaxHealth(localPlayerState?.Character));
+            _practiceRoomManager.ConfigureSamurai(_currentGameRoom.RoomId, _localGameUid, localPlayerState);
             UpdateLocalGameSpawnPosition(_currentGameRoom, overwriteExisting: true, "packet141");
         }
 
@@ -4051,6 +4080,7 @@ internal sealed class PracticeRoomChannelProtocol
         await SendPendingPlayerEnteringClearAsync("packet141");
         await SendPendingSilentLoadoutHudRefreshAsync("packet141");
         StartKnifeAutoRearmLoopIfNeeded("packet141");
+        if (_currentGameRoom is not null) await _practiceRoomManager.ActivateBotsAsync(_currentGameRoom.RoomId, this);
     }
 
     private async Task HandlePacket113GameActionScalarAsync(PacketReader reader)
@@ -4130,7 +4160,8 @@ internal sealed class PracticeRoomChannelProtocol
                      attackerUid,
                      slotOneBased,
                      out var damage,
-                     out var hitRule))
+                     out var hitRule,
+                     out var projectileShot))
         {
             reason = "recent-projectile-missing";
             damageResult = PracticeRoomManager.GameDamageBroadcastResult.NotApplied;
@@ -4148,7 +4179,8 @@ internal sealed class PracticeRoomChannelProtocol
                 attackerUid,
                 damage,
                 hitRule,
-                _localGameUid);
+                _localGameUid,
+                new PracticeRoomManager.GameWeaponHit(projectileShot, PlayShot: false, Projectile: true));
             reason = damageResult.Reason;
         }
 
@@ -4508,18 +4540,14 @@ internal sealed class PracticeRoomChannelProtocol
             vectorY,
             vectorZ,
             DateTimeOffset.UtcNow);
-        var broadcastCount = await _practiceRoomManager.BroadcastGameShootAsync(
-            _currentGameRoom.RoomId,
-            this,
-            shoot);
         var weaponItem = ResolveLocalLoadoutItem(slotOneBased);
         var weaponDamage = ResolveGameWeaponDamage(weaponItem);
         var hitRule = ResolveGameWeaponHitRule(weaponItem);
         var clientTargetUid = ResolveClientShootTargetUid(optionalTag, optionalValue);
-        var damageResult = await _practiceRoomManager.BroadcastGameDamageAsync(
+        var (broadcastCount, damageResult) = await _practiceRoomManager.BroadcastGameShotDamageAsync(
             _currentGameRoom.RoomId,
             this,
-            _localGameUid,
+            shoot,
             weaponDamage,
             hitRule,
             clientTargetUid);
@@ -4985,7 +5013,7 @@ internal sealed class PracticeRoomChannelProtocol
         return loadoutItems.FirstOrDefault(item => item.Slot == slotOneBased && IsSupportedGameEquipmentItem(item));
     }
 
-    private static int ResolveGameWeaponDamage(PlayerStore.PlayerState.GameLoadoutItem? item)
+    internal static int ResolveGameWeaponDamage(PlayerStore.PlayerState.GameLoadoutItem? item)
     {
         if (item is not null &&
             TryGetWeaponTipNumber(item.Resource, "output", out var output) &&
@@ -5008,7 +5036,7 @@ internal sealed class PracticeRoomChannelProtocol
         return optionalTag.Value;
     }
 
-    private static PracticeRoomManager.GameDamageHitRule ResolveGameWeaponHitRule(
+    internal static PracticeRoomManager.GameDamageHitRule ResolveGameWeaponHitRule(
         PlayerStore.PlayerState.GameLoadoutItem? item)
     {
         var subtype = item is null ? (byte)0 : NormalizeGameEquipmentSubtype(item.Subtype);
@@ -5953,17 +5981,26 @@ internal sealed class PracticeRoomChannelProtocol
         return SendPacketAsync(writer);
     }
 
-    internal Task SendPacket113RemoteShootAsync(PracticeRoomManager.GameShootAction shoot)
+    internal Task SendPacket113RemoteShootAsync(PracticeRoomManager.GameShootAction shoot,
+        PracticeRoomManager.GameDamageAction? damage = null, bool playShot = true)
     {
         using var writer = new PacketWriter();
         var vector = ResolveRemoteShootVector(shoot);
 
         writer.WriteShort(GameRemoteShootPacketId);
-        WriteGameObjectDeltaFlags(writer, GameRemoteShootObjectDeltaFlags);
+        // Packet 184 is the client's fixed Spurt hit, including its skill icon. Weapon hits
+        // belong to 113, where target health is bit 20 (bit 14 is the attacker's score).
+        var flags = damage.HasValue
+            ? (GameRemoteShootObjectDeltaFlags & ~GameObjectDeltaSkipTargetFlag) |
+              GameObjectDeltaTargetUidFlag | GameObjectDeltaWeaponVictimHealthFlag
+            : GameRemoteShootObjectDeltaFlags;
+        WriteGameObjectDeltaFlags(writer, flags);
         writer.WriteByte(shoot.Uid);
+        if (damage is { } hit) writer.WriteByte(hit.VictimUid);
         writer.WriteByte(shoot.SlotOneBased);
-        writer.WriteByte(GameRemoteShootActionByte);
-        writer.WriteByte(GameRemoteShootSkipTargetMarker);
+        writer.WriteByte(playShot ? GameRemoteShootActionByte : (byte)0);
+        if (damage is { } health) writer.WriteInt(health.VictimHealth);
+        else writer.WriteByte(GameRemoteShootSkipTargetMarker);
         WriteCompressedVector3Raw(writer, shoot.OriginXRaw, shoot.OriginYRaw, shoot.OriginZRaw);
         WriteCompressedVector3(writer, vector.X, vector.Y, vector.Z);
         writer.WriteShort(shoot.Facing0Raw);
@@ -6032,11 +6069,12 @@ internal sealed class PracticeRoomChannelProtocol
     /// <summary>
     /// Packet 160: in-game skill/equipment activation state (`0x40 &lt;slot&gt; 01 01`), matching the
     /// retail server reply to the client packet 136 activation request.
-    /// The byte right after the opcode is the activating player in-game uid, exactly like packet
-    /// 106/110/111/128/155/185.
+    /// This acknowledges the receiving client's quick-slot request. It must never be replayed to
+    /// peers: their local skill controller may activate the same slot. Peers receive 162/185 only.
     /// </summary>
     internal Task SendPacket160GameSkillActivateAsync(byte actorUid, byte slot, string trigger)
     {
+        if (actorUid != _localGameUid) return Task.CompletedTask;
         using var writer = new PacketWriter();
         writer.WriteShort(GameSkillActivateStatePacketId);
         writer.WriteByte(actorUid);
@@ -6703,8 +6741,18 @@ internal sealed class PracticeRoomChannelProtocol
         }
     }
 
-    internal Task SendPacket184RemoteDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
+    internal Task SendGameDamageHitAsync(PracticeRoomManager.GameDamageAction damage)
     {
+        if (damage.WeaponHit is { } weapon)
+        {
+            Log.Information(
+                "Channel weapon hit -> {Remote}: attackerUid={AttackerUid} victimUid={VictimUid} slot={Slot} projectile={Projectile} health={Health} killed={Killed}",
+                _remoteLabel, damage.AttackerUid, damage.VictimUid, weapon.Shot.SlotOneBased,
+                weapon.Projectile, damage.VictimHealth, damage.Killed);
+            return weapon.Projectile
+                ? SendPacket121WeaponImpactAsync(damage, weapon.Shot)
+                : SendPacket113RemoteShootAsync(weapon.Shot, damage, weapon.PlayShot);
+        }
         using var writer = new PacketWriter();
 
         writer.WriteShort(GameRemoteDamageHitPacketId);
@@ -6736,6 +6784,26 @@ internal sealed class PracticeRoomChannelProtocol
                 damage.VictimMaxHealth);
         }
 
+        return SendPacketAsync(writer);
+    }
+
+    private Task SendPacket121WeaponImpactAsync(PracticeRoomManager.GameDamageAction damage,
+        PracticeRoomManager.GameShootAction shot)
+    {
+        // A projectile can land after its owner switches weapons. The impact parser resolves
+        // the original slot directly and does not launch another projectile or switch guns.
+        using var writer = new PacketWriter();
+        writer.WriteShort(121);
+        WriteGameObjectDeltaFlags(writer, GameObjectDeltaActorUidFlag | GameObjectDeltaTargetUidFlag |
+            GameObjectDeltaWeaponSlotFlag | GameObjectDeltaWeaponVictimHealthFlag |
+            GameObjectDeltaOriginFlag | GameObjectDeltaVectorFlag);
+        writer.WriteByte(damage.AttackerUid);
+        writer.WriteByte(damage.VictimUid);
+        writer.WriteByte(shot.SlotOneBased);
+        writer.WriteInt(damage.VictimHealth);
+        WriteCompressedVector3Raw(writer, shot.OriginXRaw, shot.OriginYRaw, shot.OriginZRaw);
+        var vector = ResolveRemoteShootVector(shot);
+        WriteCompressedVector3(writer, vector.X, vector.Y, vector.Z);
         return SendPacketAsync(writer);
     }
 
@@ -7109,7 +7177,7 @@ internal sealed class PracticeRoomChannelProtocol
                 actorUid,
                 characterId,
                 member?.CharacterName ?? string.Empty,
-                null));
+                _practiceRoomManager.ListGamePlayers(room.RoomId).FirstOrDefault(p => p.Uid == actorUid).LastPosition));
 
         _knownGamePlayerUids.Add(actorUid);
         return SendPacket111GameSpawnAsync(room, player, trigger);
@@ -7602,11 +7670,12 @@ internal sealed class PracticeRoomChannelProtocol
             loadoutItems,
             equipmentItems,
             independentTrinketItems,
-            snapshot.LastPosition);
+            snapshot.LastPosition ?? _practiceRoomManager.GetAiRoomSpawn(room.RoomId, characterId));
     }
 
     private PlayerStore.PlayerState? ResolvePlayerState(long characterId)
     {
+        if (_practiceRoomManager.GetBotPlayer(characterId) is { } bot) return bot;
         if (characterId <= 0 || characterId > int.MaxValue)
         {
             return null;
@@ -7916,7 +7985,8 @@ internal sealed class PracticeRoomChannelProtocol
         writer.WriteFloat(definition?.ResolveDistance(item.SkillLevel) ?? 0f);
         // The retail equipment block reports 1 only for skills the player can really cast and 0 for
         // passive ones, so mirror the skill's active flag instead of always writing the usable flag.
-        writer.WriteByte(definition is null || definition.IsActive
+        writer.WriteByte((definition is null || definition.IsActive) &&
+            (!SamuraiSkills.IsSamurai(item.SkillId) || item.SkillLevel > 0)
             ? GameSkillEquipmentUsableFlag
             : (byte)0);
     }
@@ -8053,7 +8123,7 @@ internal sealed class PracticeRoomChannelProtocol
             : item.DisplayName;
     }
 
-    private static GameWeaponRuntimeStats ResolveGameWeaponRuntimeStats(PlayerStore.PlayerState.GameLoadoutItem item)
+    internal static GameWeaponRuntimeStats ResolveGameWeaponRuntimeStats(PlayerStore.PlayerState.GameLoadoutItem item)
     {
         var ammoOneClip = ResolveAmmoOneClip(item);
         var shootBulletCount = ResolveShootBulletCount(item);
@@ -9354,7 +9424,7 @@ internal sealed class PracticeRoomChannelProtocol
                 RawToWorldCoordinate(position.Value.YRaw),
                 RawToWorldCoordinate(position.Value.ZRaw),
                 position.Value.YawRaw.HasValue
-                    ? RawToWorldCoordinate(position.Value.YawRaw.Value)
+                    ? position.Value.YawRaw.Value / 8192f
                     : 0f);
         }
 
@@ -9397,6 +9467,7 @@ internal sealed class PracticeRoomChannelProtocol
             null,
             DateTimeOffset.UtcNow);
 
+        position = _practiceRoomManager.GetAiRoomSpawn(room.RoomId, GetLocalGameMember(room)?.CharacterId ?? room.HostCharacterId) ?? position;
         if (overwriteExisting)
         {
             _practiceRoomManager.UpdateGamePosition(room.RoomId, _localGameUid, position);

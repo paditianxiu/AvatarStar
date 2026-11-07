@@ -165,7 +165,9 @@ internal sealed class PlayerStore
             var resolvedAvatarId = string.IsNullOrWhiteSpace(avatarId)
                 ? GetDefaultAvatarId(occupation, avatarConfig)
                 : avatarId!;
-            var resolvedEquipAvatar = equipAvatar ?? BuildDefaultEquipAvatar(resolvedAvatarId);
+            var resolvedEquipAvatar = equipAvatar ?? (occupation == 4
+                ? SamuraiAppearance.Create(resolvedAvatarId == SamuraiAppearance.FemaleAvatarId)
+                : BuildDefaultEquipAvatar(resolvedAvatarId));
             player.Character = player.Character with { EquipAvatar = resolvedEquipAvatar };
             player.InitializeStarterInventory(
                 occupation,
@@ -237,7 +239,7 @@ internal sealed class PlayerStore
             1 => "100005",
             2 => "100003",
             3 => "100127",
-            4 => "100003", // Samurai currently shares the Assassin starter appearance.
+            4 => SamuraiAppearance.MaleAvatarId,
             _ => "100001"
         };
     }
@@ -895,6 +897,7 @@ internal sealed class PlayerStore
                         cardDesigner: Character.Name);
                 }
 
+                EnsureSamuraiStarterAppearance();
                 NormalizeLegacyStarterAvatarCard();
                 EnsureStarterSkinCard();
                 EnsureRefitMaterials();
@@ -903,6 +906,41 @@ internal sealed class PlayerStore
             {
                 _ensuringStarterInventory = false;
             }
+        }
+
+        private void EnsureSamuraiStarterAppearance()
+        {
+            const string flag = "samurai-appearance-v1";
+            if (Character.Occupation != 4 || RewardFlags.Contains(flag)) return;
+            var id = GetAvatarIdFrom(Character.EquipAvatar);
+            if (id is SamuraiAppearance.MaleAvatarId or SamuraiAppearance.FemaleAvatarId)
+            {
+                RewardFlags.Add(flag);
+                return;
+            }
+            var avatar = SamuraiAppearance.Create(id == "100004");
+            var useStarter = SamuraiAppearance.IsLegacyStarter(Character.EquipAvatar);
+            if (useStarter)
+            {
+                var old = JsonSerializer.SerializeToElement(Character.EquipAvatar);
+                foreach (var field in new[] { "skin", "eye", "mouth", "nose", "ear", "beard" })
+                    if (old.TryGetProperty(field, out var value) && value.ValueKind == JsonValueKind.String)
+                        avatar[field] = value.GetString() ?? "{}";
+            }
+            // Keep the old card and custom equipment; grant the new costume once.
+            foreach (var storageType in new[] { 5, 6 })
+            {
+                var slot = Storages.TryGetValue(storageType, out var slots) && slots.Count > 0
+                    ? slots.Keys.Max() + 1 : 1;
+                AddItem(storageType, slot, "humancard", 1, 1,
+                    StableSid(storageType, "samurai-v1:" + avatar["avatarId"]), storageType,
+                    avatar: avatar, position: 1, subType: 1, display: "Samurai",
+                    designer: Character.Name);
+                if (storageType == 5 && useStarter) EquipAvatarCard(Storages[5][slot].Pid);
+            }
+            foreach (var key in SkillLevels.Keys.Where(id => !SamuraiSkills.IsSamurai(id)).ToArray())
+                SkillLevels.Remove(key);
+            RewardFlags.Add(flag);
         }
 
         public void InitializeStarterInventory(
@@ -1659,7 +1697,12 @@ internal sealed class PlayerStore
         {
             lock (_stateLock)
             {
-                var occupation = Math.Clamp(Character.Occupation, 0, 3);
+                var occupation = Math.Clamp(Character.Occupation, 0, 4);
+                // Remove stale cross-profession skills left by the Samurai bootstrap.
+                foreach (var entry in _hotKeySlots.Where(x => x.Value is not null &&
+                             x.Value.Type == (int)ShopItemDatabase.ItemType.Skill &&
+                             FindSkill(x.Value.SkillId) is null).ToArray())
+                    _hotKeySlots.Remove(entry.Key);
                 var equippedSkillIds = new HashSet<int>(
                     _hotKeySlots.Values
                         .Where(slot => slot is not null && slot.Type == (int)ShopItemDatabase.ItemType.Skill)
@@ -1847,7 +1890,7 @@ internal sealed class PlayerStore
 
         private SkillDefinition? FindSkill(int skillId)
         {
-            var occupation = Math.Clamp(Character.Occupation, 0, 3);
+            var occupation = Math.Clamp(Character.Occupation, 0, 4);
             foreach (var definition in SkillCatalog.GetSkills(occupation))
             {
                 if (definition.Id == skillId)
@@ -2294,9 +2337,16 @@ internal sealed class PlayerStore
                     slot.Type == (int)ShopItemDatabase.ItemType.Equipment &&
                     IsBattleLoadoutResource(slot.Resource));
 
-                return hasEquipmentEntries
+                var result = (hasEquipmentEntries
                     ? hotKeyLoadout
-                    : MergeSkillLoadoutIntoBackpackFallback(GetBackpackGameLoadoutItems());
+                    : MergeSkillLoadoutIntoBackpackFallback(GetBackpackGameLoadoutItems())).ToList();
+                if (Character.Occupation == 4)
+                {
+                    result.Add(new GameLoadoutItem(SamuraiSkills.CounterSlot, 1, 0, "samurai_counter", 0,
+                        "id_datalist_Samurai_BladeGuard_01", 1, SamuraiSkills.Counter,
+                        GetSkillLevel(SamuraiSkills.BladeGuard)));
+                }
+                return result;
             }
         }
 

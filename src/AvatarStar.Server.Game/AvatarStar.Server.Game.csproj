@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <InternalsVisibleTo Include="AvatarStar.Game.Tests" />
       <ProjectReference Include="..\AvatarStar.Server\AvatarStar.Server.csproj" />
     </ItemGroup>
 
@@ -20,6 +21,10 @@
     </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Config\AiNavigation\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <Content Include="Config\*.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>

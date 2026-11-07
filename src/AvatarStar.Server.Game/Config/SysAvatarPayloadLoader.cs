@@ -71,13 +71,14 @@ internal static class SysAvatarPayloadLoader
             {
                 profession = new OfficialProfession
                 {
-                    Occupation = Math.Clamp(jobId - 1, 0, 3),
+                    Occupation = Math.Clamp(jobId - 1, 0, 4),
                     DisplayName = jobId switch
                     {
                         1 => "UI_profession_Guardian",
                         2 => "UI_profession_Gunner",
                         3 => "UI_profession_Assassin",
                         4 => "UI_profession_Biochemical",
+                        5 => "Samurai",
                         _ => "UI_profession_Guardian"
                     },
                     Description = jobId switch
@@ -86,6 +87,7 @@ internal static class SysAvatarPayloadLoader
                         2 => "UI_profession_Gunner_desc",
                         3 => "UI_profession_Assassin_desc",
                         4 => "UI_profession_Biochemical_desc",
+                        5 => "UI_profession_Samurai_desc",
                         _ => "UI_profession_Guardian_desc"
                     }
                 };

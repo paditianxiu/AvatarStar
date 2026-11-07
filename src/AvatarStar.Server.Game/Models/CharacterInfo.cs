@@ -14,6 +14,7 @@ internal sealed record CharacterInfo(int Id, string Name, int Level, int Occupat
     {
         return occupation switch
         {
+            4 => 1900,
             _ => DefaultMaxHealth
         };
     }
@@ -51,7 +52,7 @@ internal sealed record CharacterInfo(int Id, string Name, int Level, int Occupat
             Level: DefaultLevel,
             Occupation: occupation,
             BattleForce: "0",
-            EquipAvatar: equipAvatar,
+            EquipAvatar: occupation == 4 ? SamuraiAppearance.Create(false) : equipAvatar,
             MaxHealth: ResolveDefaultMaxHealth(occupation));
     }
 }

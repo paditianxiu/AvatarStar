@@ -74,7 +74,7 @@ internal sealed record SkillResetCost(int Currency, int Cost);
 
 /// <summary>
 /// Per-occupation skill tables for the `skill_list` RPC.
-/// Occupations match the client profession ids: 0=Guardian, 1=Heavy, 2=Assault, 3=Biochemical.
+/// Occupations match the client profession ids: 0=Guardian, 1=Heavy, 2=Assault, 3=Biochemical, 4=Samurai.
 /// </summary>
 internal static class SkillCatalog
 {
@@ -146,7 +146,7 @@ internal static class SkillCatalog
     // only know a skill id (e.g. the in-game equipment block).
     private static readonly SkillDefinition[] AllSkills =
     [
-        .. GuardianSkills, .. HeavySkills, .. AssaultSkills, .. BiochemicalSkills
+        .. GuardianSkills, .. HeavySkills, .. AssaultSkills, .. BiochemicalSkills, .. SamuraiSkills.Definitions, SamuraiSkills.CounterDefinition
     ];
 
     public static IReadOnlyList<SkillDefinition> GetSkills(int occupation)
@@ -156,6 +156,7 @@ internal static class SkillCatalog
             1 => HeavySkills,
             2 => AssaultSkills,
             3 => BiochemicalSkills,
+            4 => SamuraiSkills.Definitions,
             _ => GuardianSkills
         };
     }
@@ -167,6 +168,7 @@ internal static class SkillCatalog
             1 => HeavyResetCosts,
             2 => AssaultResetCosts,
             3 => BiochemicalResetCosts,
+            4 => BiochemicalResetCosts,
             _ => GuardianResetCosts
         };
     }

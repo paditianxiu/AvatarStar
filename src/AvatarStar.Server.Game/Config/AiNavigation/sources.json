@@ -1,0 +1,46 @@
+[
+  {
+    "level": "LEVEL53",
+    "nodes": 5265,
+    "triangles": 44359,
+    "sources": [
+      {
+        "file": "scene_main.physx.cache",
+        "sha256": "bb42f6f76f25b7179642775bec957ab6433fb93ba1fead40683e7ca4a80205fe"
+      }
+    ]
+  },
+  {
+    "level": "LEVEL52",
+    "nodes": 11617,
+    "triangles": 38934,
+    "sources": [
+      {
+        "file": "scene_main.physx.cache",
+        "sha256": "0d7e46b631440270533c7c26dd47ca92c0fc37efdf9f8dfed853f2ec5ffe6fea"
+      }
+    ]
+  },
+  {
+    "level": "LEVEL51",
+    "nodes": 13550,
+    "triangles": 21150,
+    "sources": [
+      {
+        "file": "scene_main.physx.cache",
+        "sha256": "6cfc53d44b604229b35f95de7106e579f19c72651e2ea7fcad4afe26bf82e149"
+      }
+    ]
+  },
+  {
+    "level": "LEVEL50",
+    "nodes": 28479,
+    "triangles": 61410,
+    "sources": [
+      {
+        "file": "scene_baopo24.physx.cache",
+        "sha256": "8fa83ce61ed5ef94ad50ae8b8211352b67837c912160dfdaba64d6ef7207cbe5"
+      }
+    ]
+  }
+]

@@ -4,7 +4,7 @@ using Serilog;
 
 namespace AvatarStar.Server.Game;
 
-internal sealed class PracticeRoomManager
+internal sealed partial class PracticeRoomManager
 {
     private const byte DefaultHostSlotIndex = 1;
     private const byte MaxRoomSlotIndex = 24;
@@ -408,6 +408,13 @@ internal sealed class PracticeRoomManager
                 return false;
             }
 
+            if (_botsByRoom.TryGetValue(roomId, out var bots) && bots.Count > 0 &&
+                (AiNavigation.ForLevel(request.LevelId) is null || request.GameType == LobbyLevelCatalog.BossGameType ||
+                 request.MaxClientNum > 0 && request.MaxClientNum < room.Members.Count))
+            {
+                resultCode = 2;
+                return false;
+            }
             room.RoomName = request.RoomName;
             room.UsePassword = request.UsePassword;
             room.Password = request.Password;
@@ -524,6 +531,11 @@ internal sealed class PracticeRoomManager
 
             room.EnsureHostMember(room.GetHostSlotIndexOrDefault(DefaultHostSlotIndex));
             AssignRandomBattleLevelNoLock(room);
+            if (!PrepareBotsNoLock(room))
+            {
+                resultCode = 1;
+                return false;
+            }
             room.RoomState = 2;
             foreach (var member in room.Members)
             {
@@ -600,6 +612,7 @@ internal sealed class PracticeRoomManager
             }
 
             var used = channels.Values.ToHashSet();
+            if (_gamePlayersByRoomId.TryGetValue(roomId, out var occupiedPlayers)) used.UnionWith(occupiedPlayers.Keys);
             _retiredGameUidsByRoomId.TryGetValue(roomId, out var retiredUids);
             var preferredUid = ResolvePreferredGameUidNoLock(room, characterId);
             if (preferredUid != 0 &&
@@ -1557,20 +1570,40 @@ internal sealed class PracticeRoomManager
         return sent;
     }
 
+    public async Task<(int ShootBroadcastCount, GameDamageBroadcastResult Damage)> BroadcastGameShotDamageAsync(
+        int roomId, PracticeRoomChannelProtocol source, GameShootAction shoot, int damage,
+        GameDamageHitRule hitRule, byte clientTargetUid)
+    {
+        lock (_lock)
+        {
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
+                !channels.TryGetValue(source, out var uid) || uid != shoot.Uid ||
+                !_gamePlayersByRoomId.TryGetValue(roomId, out var players) ||
+                !players.TryGetValue(uid, out var player)) return (0, GameDamageBroadcastResult.NotApplied);
+            player.LastShoot = shoot;
+        }
+        // A hit carries the shot and health together, so peers play the attack only once.
+        var result = await BroadcastGameDamageAsync(roomId, source, shoot.Uid, damage, hitRule,
+            clientTargetUid, new GameWeaponHit(shoot, PlayShot: true));
+        var sent = result.Applied ? result.BroadcastCount : await BroadcastGameShootAsync(roomId, source, shoot);
+        return (sent, result);
+    }
+
     public async Task<GameDamageBroadcastResult> BroadcastGameDamageAsync(
         int roomId,
         PracticeRoomChannelProtocol source,
         byte attackerUid,
         int damage,
         GameDamageHitRule? hitRule = null,
-        byte clientTargetUid = 0)
+        byte clientTargetUid = 0,
+        GameWeaponHit? weaponHit = null)
     {
-        PracticeRoomChannelProtocol[] targets;
         GameDamageAttempt damageAttempt;
+        var combat = new SamuraiCombatBatch();
 
         lock (_lock)
         {
-            if (hitRule is { KnockbackDistance: > 0f })
+            if (hitRule is { KnockbackDistance: > 0f } && weaponHit is not { Projectile: true })
             {
                 RememberRecentProjectileDamageNoLock(roomId, attackerUid, damage, hitRule.Value);
             }
@@ -1580,48 +1613,20 @@ internal sealed class PracticeRoomManager
                 return CreateGameDamageNotAppliedResult(GameDamageAttempt.NotApplied("await-projectile-confirm"));
             }
 
-            damageAttempt = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage, hitRule, clientTargetUid);
+            if (weaponHit is null && _gamePlayersByRoomId.TryGetValue(roomId, out var players) &&
+                players.TryGetValue(attackerUid, out var attacker) && attacker.LastShoot is { } shot)
+                weaponHit = new GameWeaponHit(shot, PlayShot: false);
+            damageAttempt = TryApplyEnemyDamageNoLock(roomId, attackerUid, damage, hitRule, clientTargetUid, combat, weaponHit);
             if (damageAttempt.Action is null ||
-                !_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+                !_gameChannelsByRoomId.ContainsKey(roomId))
             {
                 return CreateGameDamageNotAppliedResult(damageAttempt);
             }
 
-            targets = channels.Keys.ToArray();
         }
 
-        var sent = 0;
-        var deathSent = 0;
-        foreach (var target in targets)
-        {
-            try
-            {
-                await target.SendPacket184RemoteDamageHitAsync(damageAttempt.Action.Value);
-                if (damageAttempt.Action.Value.Knockback is { } knockback)
-                {
-                    await target.SendPacket162RemoteKnockbackAsync(damageAttempt.Action.Value, knockback);
-                }
-
-                sent++;
-                if (damageAttempt.Action.Value.Killed)
-                {
-                    deathSent++;
-                }
-            }
-            catch
-            {
-                UnregisterGameChannel(roomId, target, out _);
-            }
-        }
-
-        if (damageAttempt.Action.Value.Killed)
-        {
-            _ = RespawnGamePlayerAfterDelayAsync(
-                roomId,
-                damageAttempt.Action.Value.VictimUid,
-                GameAutoRespawnDelayMilliseconds,
-                "auto-respawn-after-kill");
-        }
+        var sent = await BroadcastSamuraiCombatAsync(roomId, combat);
+        var deathSent = damageAttempt.Action.Value.Killed ? sent : 0;
 
         return new GameDamageBroadcastResult(
             Applied: true,
@@ -1644,7 +1649,8 @@ internal sealed class PracticeRoomManager
         byte attackerUid,
         byte slotOneBased,
         out int damage,
-        out GameDamageHitRule hitRule)
+        out GameDamageHitRule hitRule,
+        out GameShootAction shot)
     {
         lock (_lock)
         {
@@ -1653,7 +1659,8 @@ internal sealed class PracticeRoomManager
                 attackerUid,
                 slotOneBased,
                 out damage,
-                out hitRule);
+                out hitRule,
+                out shot);
         }
     }
 
@@ -1713,7 +1720,7 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket184RemoteDamageHitAsync(action);
+                await target.SendGameDamageHitAsync(action);
                 sent++;
             }
             catch
@@ -1887,6 +1894,12 @@ internal sealed class PracticeRoomManager
             }
 
             player.CurrentHealth = Math.Max(1, player.MaxHealth);
+            player.Samurai.Clear();
+            var bot = _botsByRoom.GetValueOrDefault(roomId)?.FirstOrDefault(b => b.Uid == actorUid);
+            if (bot is not null && AiNavigation.ForLevel(room.LevelId) is { } navigation)
+                ResetBotNoLock(bot, player, navigation, bot.SpawnOrdinal, playersByUid.Values
+                    .Where(p => p.Uid != actorUid && p.CurrentHealth > 0 && p.LastPosition.HasValue)
+                    .Select(p => BotWorld(p.LastPosition!.Value)).ToArray());
             characterId = player.CharacterId;
             if (characterId == 0)
             {
@@ -2062,7 +2075,8 @@ internal sealed class PracticeRoomManager
 
         lock (_lock)
         {
-            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
+            if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels) ||
+                !channels.TryGetValue(source, out var sourceUid) || sourceUid != actorUid)
             {
                 return 0;
             }
@@ -2077,7 +2091,8 @@ internal sealed class PracticeRoomManager
         {
             try
             {
-                await target.SendPacket160GameSkillActivateAsync(actorUid, slot, trigger);
+                // 160 is the owner's activation acknowledgement, not a remote animation event.
+                // Keep peer effects attached to the caster through the actor/target IDs in 162.
                 // A negative ability id means the slot holds no skill (a weapon, an empty slot), so
                 // there is no ability frame to relay. The guardian Battlefield Heal really is ability
                 // 0, which is why the gate is "at least 0" and not "greater than 0".
@@ -2197,6 +2212,7 @@ internal sealed class PracticeRoomManager
             return;
         }
 
+        RemoveBotsNoLock(roomId);
         _roomsById.Remove(roomId);
         _roomIdByChannelToken.Remove(room.ChannelToken);
         _roomIdByHostCharacterId.Remove(room.HostCharacterId);
@@ -2234,6 +2250,7 @@ internal sealed class PracticeRoomManager
 
     private bool UnregisterGameChannelNoLock(int roomId, PracticeRoomChannelProtocol channel, out byte removedUid)
     {
+        _botReadyChannels.Remove(channel);
         removedUid = 0;
         if (!_gameChannelsByRoomId.TryGetValue(roomId, out var channels))
         {
@@ -2276,6 +2293,16 @@ internal sealed class PracticeRoomManager
         channels.Remove(channel);
         if (channels.Count == 0)
         {
+            StopBotsNoLock(roomId);
+            if (_botsByRoom.ContainsKey(roomId) && _roomsById.TryGetValue(roomId, out var botRoom))
+            {
+                botRoom.RoomState = 1;
+                foreach (var member in botRoom.Members)
+                {
+                    member.InGame = false;
+                    member.Ready = _botPlayers.ContainsKey(member.CharacterId);
+                }
+            }
             _gameChannelsByRoomId.Remove(roomId);
             _retiredGameUidsByRoomId.Remove(roomId);
         }
@@ -2345,7 +2372,7 @@ internal sealed class PracticeRoomManager
         _recentProjectileDamageByPlayer[(roomId, attackerUid)] = new RecentProjectileDamage(
             damage,
             hitRule,
-            shoot.SlotOneBased,
+            shoot,
             DateTimeOffset.UtcNow);
     }
 
@@ -2354,10 +2381,12 @@ internal sealed class PracticeRoomManager
         byte attackerUid,
         byte slotOneBased,
         out int damage,
-        out GameDamageHitRule hitRule)
+        out GameDamageHitRule hitRule,
+        out GameShootAction shot)
     {
         damage = 0;
         hitRule = default;
+        shot = default;
         if (!_recentProjectileDamageByPlayer.TryGetValue((roomId, attackerUid), out var recent))
         {
             return false;
@@ -2369,8 +2398,11 @@ internal sealed class PracticeRoomManager
             return false;
         }
 
+        if (recent.Shot.SlotOneBased != slotOneBased) return false;
+
         damage = recent.Damage;
         hitRule = recent.HitRule;
+        shot = recent.Shot;
         return true;
     }
 
@@ -2389,7 +2421,9 @@ internal sealed class PracticeRoomManager
         byte attackerUid,
         int damage,
         GameDamageHitRule? hitRule,
-        byte clientTargetUid)
+        byte clientTargetUid,
+        SamuraiCombatBatch combat,
+        GameWeaponHit? weaponHit)
     {
         if (damage <= 0)
         {
@@ -2406,7 +2440,7 @@ internal sealed class PracticeRoomManager
             return GameDamageAttempt.NotApplied("player-state-missing");
         }
 
-        if (!playersByUid.TryGetValue(attackerUid, out var attacker))
+        if (!playersByUid.TryGetValue(attackerUid, out var attacker) || attacker.CurrentHealth <= 0)
         {
             return GameDamageAttempt.NotApplied("attacker-missing");
         }
@@ -2482,22 +2516,10 @@ internal sealed class PracticeRoomManager
                 bestHitScore);
         }
 
-        var previousHealth = victim.CurrentHealth;
-        var maxHealth = Math.Max(1, victim.MaxHealth);
-        var appliedDamage = Math.Clamp(damage, 1, maxHealth);
-        victim.CurrentHealth = Math.Max(0, victim.CurrentHealth - appliedDamage);
-        var killed = previousHealth > 0 && victim.CurrentHealth == 0;
-        var knockback = ResolveKnockback(attacker, victim, hitRule);
-
+        var action = ApplyCombatDamageNoLock(attacker, victim, damage, true,
+            ResolveKnockback(attacker, victim, hitRule), combat, Environment.TickCount64, weaponHit);
         return new GameDamageAttempt(
-            new GameDamageAction(
-                AttackerUid: attackerUid,
-                VictimUid: victim.Uid,
-                Damage: appliedDamage,
-                VictimHealth: victim.CurrentHealth,
-                VictimMaxHealth: maxHealth,
-                Killed: killed,
-                Knockback: knockback),
+            action,
             reason,
             candidates.Length,
             positionedCandidateCount,
@@ -3217,8 +3239,10 @@ internal sealed class PracticeRoomManager
     private readonly record struct RecentProjectileDamage(
         int Damage,
         GameDamageHitRule HitRule,
-        byte SlotOneBased,
+        GameShootAction Shot,
         DateTimeOffset SeenAt);
+
+    internal readonly record struct GameWeaponHit(GameShootAction Shot, bool PlayShot, bool Projectile = false);
 
     internal readonly record struct GameDamageAction(
         byte AttackerUid,
@@ -3227,7 +3251,8 @@ internal sealed class PracticeRoomManager
         int VictimHealth,
         int VictimMaxHealth,
         bool Killed,
-        GameKnockbackAction? Knockback);
+        GameKnockbackAction? Knockback,
+        GameWeaponHit? WeaponHit = null);
 
     internal readonly record struct GameKnockbackAction(
         short BuffType,
@@ -3345,6 +3370,7 @@ internal sealed class PracticeRoomManager
         public int CurrentHealth { get; set; } = DefaultGamePlayerHealth;
         public GamePosition? LastPosition { get; set; }
         public GameShootAction? LastShoot { get; set; }
+        public SamuraiCombatState Samurai { get; } = new();
     }
 
     internal sealed class PracticeRoomSession
