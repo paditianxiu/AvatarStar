@@ -177,6 +177,7 @@ internal sealed partial class PracticeRoomManager
                 if (!_roomsById.TryGetValue(roomId, out var current) || !ReferenceEquals(current, room) ||
                     batch.Generation != room.Scores.Generation || room.Scores.EndAnnounced) return 0;
             var sent = await BroadcastSamuraiCombatCoreAsync(roomId, batch);
+            await SendFiveKillFeedbackAsync(roomId, batch);
             if (batch.MatchResult is { } result) await AnnounceMatchEndAsync(room, result);
             return sent;
         }

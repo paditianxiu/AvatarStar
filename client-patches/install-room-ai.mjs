@@ -4,11 +4,16 @@ import {spawnSync} from 'node:child_process';
 import {PdeArchive, luaStrings, sha256} from './pde-format.mjs';
 import {prototypes, embedOriginal} from './lua-chunk.mjs';
 
-const resource = 'scripts/lobby/playgame.lua';
-const marker = 'AS_ROOM_AI_V2';
-const [mode, filename, stage = '.tmpbuild/room-ai/client-patch'] = process.argv.slice(2);
+const [mode, filename, stage = '.tmpbuild/room-ai/client-patch', patch = 'room-ai'] = process.argv.slice(2);
+const patches = {
+  'room-ai': {resource:'scripts/lobby/playgame.lua', marker:'AS_ROOM_AI_V2', hook:'room-ai.lua', output:'playgame-ai', verify:'room_ai_'},
+  'kill-feedback': {resource:'scripts/lobby/push_cmd.lua', marker:'AS_KILL_FEEDBACK_V1', hook:'kill-feedback.lua', output:'kill-feedback', verify:'kill_streak'},
+};
+const config = patches[patch];
+if (!config) throw new Error('Unknown client patch: '+patch);
+const {resource, marker} = config;
 if (!filename || !['prepare','apply','rollback'].includes(mode))
-  throw new Error('Usage: node client-patches/install-room-ai.mjs prepare|apply|rollback <AvatarStar.pde> [stage-directory]');
+  throw new Error('Usage: node client-patches/install-room-ai.mjs prepare|apply|rollback <AvatarStar.pde> [stage-directory] [room-ai|kill-feedback]');
 
 function encodedWrite(fd, key, offset, bytes) {
   const encrypted = Buffer.from(bytes);
@@ -75,15 +80,15 @@ if(mode==='prepare') {
   if(!original)throw new Error('Previous patch has no preserved original bytecode');
   fs.writeFileSync(path.join(stage,'before.luac'),current);
   fs.writeFileSync(path.join(stage,'original.luac'),original);
-  const hook=fs.readFileSync('client-patches/room-ai.lua','utf8');
-  const wrapper=`local marker = "${marker}"\nlocal function original() end\nlocal function install()\n${hook}\nend\noriginal()\nlocal ok, err = pcall(install)\nif not ok then print("Room AI UI: " .. tostring(err)) end\n`;
-  const source=path.resolve(stage,'playgame-ai.lua'), binary=path.resolve(stage,'playgame-ai.luac');
+  const hook=fs.readFileSync(path.join('client-patches',config.hook),'utf8');
+  const wrapper=`local marker = "${marker}"\nlocal function original() end\nlocal function install()\n${hook}\nend\noriginal()\nlocal ok, err = pcall(install)\nif not ok then print("${patch}: " .. tostring(err)) end\n`;
+  const source=path.resolve(stage,config.output+'.lua'), binary=path.resolve(stage,config.output+'.luac');
   fs.writeFileSync(source,wrapper);
   const compile=spawnSync(path.resolve('tools/Lua/luac.exe'),['-o',binary,source],{encoding:'utf8'});
   if(compile.status!==0)throw new Error('Lua compile failed: '+compile.stderr+compile.stdout);
   const replacement=embedOriginal(fs.readFileSync(binary),original), constants=luaStrings(replacement);
   fs.writeFileSync(binary,replacement);
-  if(!constants.some(s=>s.text==='room_ai_'))throw new Error('AI hook missing');
+  if(!constants.some(s=>s.text===config.verify))throw new Error('Client hook missing');
   const testFile=path.join(stage,'verified-client.pde');
   fs.copyFileSync(filename,testFile);
   const allocation=replaceEntry(testFile,replacement,sha256(current));
@@ -94,7 +99,7 @@ if(mode==='prepare') {
 } else {
   const manifest=JSON.parse(fs.readFileSync(manifestFile,'utf8'));
   if(path.resolve(filename)!==manifest.filename||!manifest.verified)throw new Error('Manifest target mismatch');
-  const replacement=fs.readFileSync(path.join(stage,'playgame-ai.luac'));
+  const replacement=fs.readFileSync(path.join(stage,config.output+'.luac'));
   if(sha256(replacement)!==manifest.replacementHash)throw new Error('Compiled patch changed');
   if(mode==='apply') {
     manifest.applied=replaceEntry(filename,replacement,manifest.beforeHash);

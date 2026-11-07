@@ -30,8 +30,9 @@ internal sealed partial class PracticeRoomManager
     {
         lock (_lock)
         {
-            if (!_botsByRoom.TryGetValue(roomId, out var bots) || bots.Count == 0 ||
-                !_roomsById.TryGetValue(roomId, out var room)) return null;
+            if (!_roomsById.TryGetValue(roomId, out var room)) return null;
+            if ((!_botsByRoom.TryGetValue(roomId, out var bots) || bots.Count == 0) &&
+                !LobbyLevelCatalog.IsImported(room.LevelId)) return null;
             var member = room.Members.FirstOrDefault(m => m.CharacterId == characterId);
             var nav = AiNavigation.ForLevel(room.LevelId);
             if (member is null || nav is null) return null;

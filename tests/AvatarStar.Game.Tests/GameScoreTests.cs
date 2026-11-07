@@ -47,11 +47,12 @@ internal static class GameScoreTests
         check(manager.TryActivateSamurai(room.RoomId, host, hostUid, samurai, 80, 3, out var slash), "lethal area skill accepted");
         check(slash.Damage.Count == 2 && slash.Damage.All(d => d.Killed), "one area skill kills two living enemies");
         await manager.BroadcastSamuraiCombatAsync(room.RoomId, slash);
-        check(manager.GetGamePlayerScore(room.RoomId, 1) == new PracticeRoomManager.GamePlayerScore(2, 0) &&
+        check(manager.GetGamePlayerScore(room.RoomId, 1) == new PracticeRoomManager.GamePlayerScore(2, 0, 2, 2) &&
             manager.GetGameTeamScore(room.RoomId) == new PracticeRoomManager.GameTeamScore(2, 0), "area kill counts each victim once");
         var fatal = packets[hostUid].Where(p => BitConverter.ToInt16(p) == 184).ToArray();
-        check(fatal.Length == 2 && fatal.All(p => p.Length == 16 && BinaryPrimitives.ReadInt32BigEndian(p.AsSpan(2)) == 0x4603 &&
-            BitConverter.ToInt16(p, 10) == 1 && BitConverter.ToInt32(p, 12) == 0) &&
+        check(fatal.Length == 2 && fatal.All(p => p.Length == 20 && BinaryPrimitives.ReadInt32BigEndian(p.AsSpan(2)) == 0x5E03 &&
+            BitConverter.ToInt16(p, 10) == 1 && BitConverter.ToInt32(p, 16) == 0 &&
+            BitConverter.ToInt16(p, 12) == BitConverter.ToInt16(p, 8) && BitConverter.ToInt16(p, 14) == BitConverter.ToInt16(p, 8)) &&
             fatal.Select(p => BitConverter.ToInt16(p, 8)).SequenceEqual(new short[] { 1, 2 }), "skill delta uses its native kills/deaths bits before health");
         var duplicate = await manager.BroadcastGameDamageAsync(room.RoomId, host, hostUid, 9999, clientTargetUid: enemyUid);
         check(!duplicate.Applied && manager.GetGamePlayerScore(room.RoomId, 2).Deaths == 1 &&
@@ -71,8 +72,8 @@ internal static class GameScoreTests
 
         await (Task<int>)respawn.Invoke(manager, new object[] { room.RoomId, otherUid, "score-test" })!;
         await manager.BroadcastGameDamageAsync(room.RoomId, other, otherUid, 2000, clientTargetUid: hostUid);
-        check(manager.GetGamePlayerScore(room.RoomId, 1) == new PracticeRoomManager.GamePlayerScore(3, 1) &&
-            manager.GetGamePlayerScore(room.RoomId, 3) == new PracticeRoomManager.GamePlayerScore(1, 1) &&
+        check(manager.GetGamePlayerScore(room.RoomId, 1) == new PracticeRoomManager.GamePlayerScore(3, 1, 0, 3) &&
+            manager.GetGamePlayerScore(room.RoomId, 3) == new PracticeRoomManager.GamePlayerScore(1, 1, 1, 1) &&
             manager.GetGameTeamScore(room.RoomId) == new PracticeRoomManager.GameTeamScore(3, 1), "opposing team kill increments blue and preserves prior records");
         check(packets.Values.All(frames => frames.Last(p => BitConverter.ToInt16(p) == 165)
                 .SequenceEqual(new byte[] { 165, 0, 100, 0, 3, 0, 1, 0 })) &&

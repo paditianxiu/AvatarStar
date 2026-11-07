@@ -946,7 +946,18 @@ internal partial class GameClient : Client, IDisconnectAwareClient
         return new GameClientBuffer();
     }
 
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
+
     protected override async Task SendAsync(ArraySegment<byte> data)
+    {
+        // Match feedback arrives from the combat loop while lobby RPC replies can
+        // still be sending. Keep stream encryption and socket order together.
+        await _sendGate.WaitAsync();
+        try { await SendEncryptedAsync(data); }
+        finally { _sendGate.Release(); }
+    }
+
+    private async Task SendEncryptedAsync(ArraySegment<byte> data)
     {
         const int MaxLengthSize = 3;
 

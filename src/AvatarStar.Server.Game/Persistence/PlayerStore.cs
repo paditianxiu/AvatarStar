@@ -1859,7 +1859,7 @@ internal sealed class PlayerStore
                             itemid = entry.ItemId,
                             display = string.IsNullOrWhiteSpace(hotKeyItem?.Display) ? entry.Resource : hotKeyItem!.Display,
                             resource = entry.Resource,
-                            grade = hotKeyItem?.Grade ?? entry.Grade,
+                            grade = hotKeyItem?.Grade ?? WeaponQuality.Resolve(entry.Type, entry.Subtype, entry.Grade),
                             quantity = entry.Quantity,
                             unitType = hotKeyItem?.UnitType ?? entry.UnitType,
                             unit = hotKeyItem?.Unit ?? entry.Unit,
@@ -2421,7 +2421,7 @@ internal sealed class PlayerStore
                 ItemType: (byte)Math.Clamp(item?.Type ?? slot.Type, 0, byte.MaxValue),
                 ItemId: TryParsePidAsLong(item?.Pid ?? slot.ItemId),
                 Resource: resource,
-                Grade: (byte)Math.Clamp(item?.Grade ?? slot.Grade, 0, byte.MaxValue),
+                Grade: (byte)Math.Clamp(item?.Grade ?? WeaponQuality.Resolve(slot.Type, slot.Subtype, slot.Grade), 0, byte.MaxValue),
                 DisplayName: string.IsNullOrWhiteSpace(item?.Display) ? resource : item!.Display,
                 Subtype: (byte)Math.Clamp(item?.Subtype ?? slot.Subtype, 0, byte.MaxValue),
                 RefitLevel: Math.Max(0, item?.RefitLevel ?? slot.RefitLevel));

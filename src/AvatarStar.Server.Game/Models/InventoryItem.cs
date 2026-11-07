@@ -67,7 +67,14 @@ internal sealed record InventoryItem
     public string Resource { get; init; } = string.Empty;
     public int Subtype { get; init; }
     public int SubType { get; init; }
-    public int Grade { get; init; }
+    private int _grade;
+    public int Grade
+    {
+        // Legacy saves retain their item IDs, upgrades and attributes. Resolve
+        // weapon rarity at the model boundary for storage, tips and loadouts.
+        get => WeaponQuality.Resolve(Type, Subtype > 0 ? Subtype : SubType, _grade);
+        init => _grade = value;
+    }
     public int Quantity { get; init; }
     public int UnitType { get; init; }
     public int Unit { get; init; }

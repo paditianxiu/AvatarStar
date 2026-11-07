@@ -364,8 +364,8 @@ internal static class AvatarStarClientProtocol
         writer.WriteByte(member.InGame ? (byte)1 : (byte)0);
         writer.WriteByte(member.Host ? (byte)1 : (byte)0);
         writer.WriteInt(member.Level);
-        writer.WriteByte(member.RankType);
-        writer.WriteInt(member.RankLevel);
+        writer.WriteByte(PlayerDisplayRank.Gold);
+        writer.WriteInt(PlayerDisplayRank.HighestMilitaryRank);
         writer.WriteByte(member.VipLevel);
         writer.WriteInt(member.ExtraValue0);
         writer.WriteInt(member.ExtraValue1);

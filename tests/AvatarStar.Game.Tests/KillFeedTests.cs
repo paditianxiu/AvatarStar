@@ -45,11 +45,12 @@ internal static class KillFeedTests
                 check(hit.Applied && hit.Killed == (amount == 600), "weapon hit preserves damage and lethal state");
                 check(frames.All(p => p.Count == (hit.Killed ? 2 : 1) && BitConverter.ToInt16(p[0]) == 113),
                     "one combined weapon shot/hit reaches owner, victim and spectator without Spurt packet");
-                check(frames.All(p => Flags(p[0]) == (hit.Killed ? 0x00F0300F : 0x00F0000F) && p[0].Length == (hit.Killed ? 34 : 30) &&
+                check(frames.All(p => Flags(p[0]) == (hit.Killed ? 0x00F03C0F : 0x00F0000F) && p[0].Length == (hit.Killed ? 38 : 30) &&
                     p[0][6] == attacker && p[0][7] == victim && p[0][8] == slot && p[0][9] == 1 &&
-                    BitConverter.ToInt32(p[0], hit.Killed ? 14 : 10) == hit.VictimHealth), "native weapon-hit layout carries correct slot and victim health at bit 20");
+                    BitConverter.ToInt32(p[0], hit.Killed ? 18 : 10) == hit.VictimHealth), "native weapon-hit layout carries correct slot and victim health at bit 20");
                 if (hit.Killed)
                     check(frames.All(p => BitConverter.ToInt16(p[0], 10) == slot && BitConverter.ToInt16(p[0], 12) == slot &&
+                        BitConverter.ToInt16(p[0], 14) == slot && BitConverter.ToInt16(p[0], 16) == slot &&
                         BitConverter.ToInt16(p[1]) == 165 && BitConverter.ToInt16(p[1], 4) == slot && BitConverter.ToInt16(p[1], 6) == 0),
                         "lethal weapon delta and team HUD carry cumulative authoritative scores");
             }
@@ -71,12 +72,13 @@ internal static class KillFeedTests
         Clear();
         var impact = await manager.BroadcastGameDamageAsync(room.RoomId, victimChannel, attacker, damage, rule, victim,
             new(originalShot, PlayShot: false, Projectile: true));
-        check(impact.Killed && frames.All(p => BitConverter.ToInt16(p[0]) == 121 && Flags(p[0]) == 0x00700C07 &&
-            p[0][6] == attacker && p[0][7] == victim && p[0][8] == 2 && BitConverter.ToInt32(p[0], 13) == 0),
+        check(impact.Killed && frames.All(p => BitConverter.ToInt16(p[0]) == 121 && Flags(p[0]) == 0x00703C07 &&
+            p[0][6] == attacker && p[0][7] == victim && p[0][8] == 2 && BitConverter.ToInt32(p[0], 17) == 0),
             "projectile impact resolves original equipment slot for kill icon");
         check(frames.All(p => p.All(f => BitConverter.ToInt16(f) is not (113 or 184))), "impact does not replay shooting or use Spurt hit");
         check(frames.All(p => BitConverter.ToInt16(p[0], 9) == 4 && BitConverter.ToInt16(p[0], 11) == 4 &&
-            BitConverter.ToInt16(p[1], 4) == 4), "projectile uses its own native kill/death delta bits");
+            BitConverter.ToInt16(p[0], 13) == 4 && BitConverter.ToInt16(p[0], 15) == 4 &&
+            BitConverter.ToInt16(p[1], 4) == 4), "projectile uses its own native kill/death/streak delta bits");
         manager.RemoveRoom(room.RoomId);
 
         // Drive a real AI attack, then decode its broadcast rather than manufacturing its source.
@@ -115,7 +117,7 @@ internal static class KillFeedTests
         Clear();
         await manager.BroadcastSamuraiCombatAsync(room.RoomId, combat);
         check(frames[0].Count == 2 && BitConverter.ToInt16(frames[0][0]) == 113 && frames[0][0][8] == weapon.Slot &&
-            BitConverter.ToInt32(frames[0][0], 14) == 0, "AI kill broadcasts weapon icon and zero health together");
+            BitConverter.ToInt32(frames[0][0], 18) == 0, "AI kill broadcasts weapon icon and zero health together");
         check(manager.GetGamePlayerScore(room.RoomId, bot.CharacterId).Kills == 1 &&
             manager.GetGamePlayerScore(room.RoomId, 1).Deaths == 1 &&
             BitConverter.ToInt16(frames[0][1], 4) == 0 && BitConverter.ToInt16(frames[0][1], 6) == 1,

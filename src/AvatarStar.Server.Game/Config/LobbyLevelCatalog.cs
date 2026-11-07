@@ -23,7 +23,8 @@ internal static class LobbyLevelCatalog
         string ShowName,
         string Description,
         int Difficulty,
-        int Group);
+        int Group,
+        bool Imported = false);
 
     private const string ConfigFileName = "lobby_levels.json";
 
@@ -39,6 +40,8 @@ internal static class LobbyLevelCatalog
     internal static IReadOnlyList<Entry> Levels => LevelsLazy.Value;
 
     internal static bool HasLevels => Levels.Count > 0;
+
+    internal static bool IsImported(long levelId) => Levels.Any(level => level.Id == levelId && level.Imported);
 
     /// <summary>关卡 id → 关卡码（packet102 的 levelCode，例如 10001 / 20001 都映射到 LEVEL10001）。</summary>
     internal static string? ResolveLevelCode(long levelId)
@@ -111,7 +114,8 @@ internal static class LobbyLevelCatalog
                     level.ShowName ?? string.Empty,
                     level.Description ?? string.Empty,
                     level.Difficulty,
-                    level.Group));
+                    level.Group,
+                    level.Imported));
             }
 
             Log.Information(
@@ -161,5 +165,6 @@ internal static class LobbyLevelCatalog
         public string? Description { get; set; }
         public int Difficulty { get; set; }
         public int Group { get; set; }
+        public bool Imported { get; set; }
     }
 }

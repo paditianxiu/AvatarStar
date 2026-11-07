@@ -40,7 +40,7 @@ function intersection(origin, delta, t) {
   const d=(fx*qx+fy*qy+fz*qz)/det;return d>=0&&d<=1?d:null;
 }
 
-export function bake(triangles) {
+export function bake(triangles, deadVolumes = [], playableBounds = [-120, -120, 120, 120]) {
   const buckets=new Map();
   for(const t of triangles){
     const xs=[t[0],t[3],t[6]],zs=[t[2],t[5],t[8]];
@@ -65,12 +65,14 @@ export function bake(triangles) {
   const bounds=v=>v.reduce((a,x)=>[Math.min(a[0],x),Math.max(a[1],x)],[Infinity,-Infinity]);
   const [minX,maxX]=bounds(xs),[minZ,maxZ]=bounds(zs);
   for(let x=Math.max(-120,Math.ceil(minX));x<=Math.min(120,Math.floor(maxX));x++)for(let z=Math.max(-120,Math.ceil(minZ));z<=Math.min(120,Math.floor(maxZ));z++){
+    if(x<playableBounds[0]||z<playableBounds[1]||x>playableBounds[2]||z>playableBounds[3])continue;
     const floors=[];
     for(const t of buckets.get(Math.floor(x/2)+','+Math.floor(z/2))||[]){
       const normal=cross(sub(t.slice(3,6),t.slice(0,3)),sub(t.slice(6,9),t.slice(0,3)));
       if(Math.abs(normal[1])<Math.hypot(...normal)*.65)continue;
       const hit=intersection([x,120,z],[0,-240,0],t);if(hit===null)continue;
       const y=120-hit*240;if(floors.some(v=>Math.abs(v-y)<.2))continue;
+      if(deadVolumes.some(v=>x>=v[0]&&x<=v[3]&&y+.2>=v[1]&&y+.2<=v[4]&&z>=v[2]&&z<=v[5]))continue;
       const p=[x,y+.03,z];
       if(!clear([x,y+.08,z],[x,y+1.9,z]))continue;
       let free=true;for(let i=0;i<8;i++)for(const h of [.65,1.5]){

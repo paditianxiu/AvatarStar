@@ -73,8 +73,13 @@ public class ShopItemDatabase
         /// <summary>鑱屼笟闄愬埗 (-1 表示不限)</summary>
         public int Occupation { get; set; } = -1;
 
-        /// <summary>价格等级 (1=普通, 2=稀有, 3=传奇)</summary>
-        public int Grade { get; set; }
+        /// <summary>品质：1 白、2 绿、3 蓝、4 紫、5 橙；武器统一为橙色。</summary>
+        private int _grade;
+        public int Grade
+        {
+            get => WeaponQuality.Resolve((int)Type, Subtype, _grade);
+            set => _grade = value;
+        }
 
         /// <summary>商品描述文本ID</summary>
         public string Description { get; set; } = string.Empty;

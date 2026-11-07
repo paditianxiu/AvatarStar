@@ -1,0 +1,352 @@
+[
+  {
+    "level": "LEVEL54",
+    "nodes": 2556,
+    "triangles": 83429,
+    "physics": "c7cebd3ab6cb2712937e9c0cd7bc6a7d38f310a546408e1d0749849c026b4625",
+    "regionHash": "304bfc6bba7ba07ce7b7b2640019f137a067bd94ff95e6ca3a6f7915cb30137f"
+  },
+  {
+    "level": "LEVEL55",
+    "nodes": 4212,
+    "triangles": 90538,
+    "physics": "6a49e53273861716bcbd23fd19f8417fa7efd9069d6578ecc6d026e95b701a47",
+    "regionHash": "dcaef25ceacd95631012c46c61ed241d944b1d7cfee75c854a7482ac6e9e86eb"
+  },
+  {
+    "level": "LEVEL56",
+    "nodes": 2957,
+    "triangles": 90378,
+    "physics": "315e683f8e2d81ed477d70b4a215e1081999495ff5016abd1f8bcff2179f8a88",
+    "regionHash": "cbf67243f193b7b43ff4be3636f1644511918fcfa41387d3cec8fb792558c5a0"
+  },
+  {
+    "level": "LEVEL57",
+    "nodes": 2650,
+    "triangles": 70354,
+    "physics": "94a9834d34e224264a60d6c6f84adb5b8c5cadca03f6c7942600c71979d343f7",
+    "regionHash": "6ace3c1095719f2801169ec48d0ca59f6a95775e6951ba779f7a8ed298c54159"
+  },
+  {
+    "level": "LEVEL58",
+    "nodes": 3154,
+    "triangles": 61057,
+    "physics": "96964f057ea78681db70f12c75ac30fb789984a1b16f849ed726469969592be1",
+    "regionHash": "0cf235a6fda1c5214816b66f1a9eea271a1a1ad140d618d82555f97c83488439"
+  },
+  {
+    "level": "LEVEL59",
+    "nodes": 2624,
+    "triangles": 68796,
+    "physics": "efc1f4935052d25bbca781a06cb92d80df51d0dc31854d414b16c18433b598b2",
+    "regionHash": "4b1e692b570433c5c095e21c82398dd6cc4cead7c9e74390f911e56a9d33ebe4"
+  },
+  {
+    "level": "LEVEL60",
+    "nodes": 4229,
+    "triangles": 91477,
+    "physics": "dce3f6d091ce504de98f91e411b4ae7fc92543e57b692dc3fe98082041f55b14",
+    "regionHash": "567807ac38765660004e087946e0cbb0c4299a9a78a7e97938bca8a3f7f58854"
+  },
+  {
+    "level": "LEVEL61",
+    "nodes": 2506,
+    "triangles": 83298,
+    "physics": "3505dd741a55057d2b4c0f6e2f56b498c4fd55c399852260ed2be829253df8ad",
+    "regionHash": "ac0edc8bdd351fade5df37fefcd03add1df9ffc5b7346433d4cadcdab468dc78"
+  },
+  {
+    "level": "LEVEL62",
+    "nodes": 1514,
+    "triangles": 39251,
+    "physics": "1f9ec7227116be2449f58e422f3543c9cf05e6133c7cb7b1982de1c86601d775",
+    "regionHash": "7e6b932c14f78c7daf5ee58c17b0e86ce55d86faec4bd35073727955af460cca"
+  },
+  {
+    "level": "LEVEL63",
+    "nodes": 7935,
+    "triangles": 83593,
+    "physics": "1c75ab6f99f90f1ebabf281a3b6cae21c0cd0b42ef32a563a569287c6079660a",
+    "regionHash": "ab64bba230f2f60c5d14cc947c70f9befcc3dda2159997bd8b2ef14985caafe6"
+  },
+  {
+    "level": "LEVEL64",
+    "nodes": 4195,
+    "triangles": 90450,
+    "physics": "4624b021d8874f291905296c75727f38b55fe8bfd2ed49e0ef0233af79b98154",
+    "regionHash": "bdc91d74f7ba1cbef48e035a8c98bba1871f80b771563480664eb46195f58929"
+  },
+  {
+    "level": "LEVEL65",
+    "nodes": 2948,
+    "triangles": 50994,
+    "physics": "6ac6b60eb6d5fb2e4404ebf7e88eea3a70559bf4bb14aacbc806c3d535e56d06",
+    "regionHash": "a302b04c5a781b2ad93f58d0fdbc3b90712276ea6ad50be2e4575dd1b1c69ac6"
+  },
+  {
+    "level": "LEVEL66",
+    "nodes": 2000,
+    "triangles": 41303,
+    "physics": "1e0ca06aaf092e1b877f7b29cb29942c6d0c73203d7bf25edeb0572474ece576",
+    "regionHash": "32a8c2b9732fef8434dd84998607eaa06fcfb8f4a974d8a1743cac29d5f3efe0"
+  },
+  {
+    "level": "LEVEL67",
+    "nodes": 5425,
+    "triangles": 80391,
+    "physics": "fd1d7ceaf2487be4d4d9a22a4699331e4b5eb083267f6a00a74cecdc18f2a572",
+    "regionHash": "ebf1e11aac5c16043e22d95a495f7c3c5c245d85003fe875fd6d4c796d7522ff"
+  },
+  {
+    "level": "LEVEL68",
+    "nodes": 3540,
+    "triangles": 81146,
+    "physics": "f81ade18d9ed46c9eaecf1caa991e076a6835b761440312bbb4f87c7bc550513",
+    "regionHash": "6e6d1cd2626046d3bfbe5b9ffa8f022d9e232609423c41ed8fbd74dda3fee798"
+  },
+  {
+    "level": "LEVEL69",
+    "nodes": 1544,
+    "triangles": 56494,
+    "physics": "8567532e97b1439d540d5262d4bc7eeaba0c9ee19c2113e8ec9b7953dbea5132",
+    "regionHash": "c8acf606d5253674129f6046df9335895cc1dc68dc06a3d4ac1087d4d4ede08e"
+  },
+  {
+    "level": "LEVEL70",
+    "nodes": 6061,
+    "triangles": 105560,
+    "physics": "f2909cebabdfe754b71a4984af26d6ac97e8e03e27429911152f3a55791d6784",
+    "regionHash": "ab23ebd328abfa313bfc36d36042bc66c37b452b1699546dfcba5f36fcc8f30a"
+  },
+  {
+    "level": "LEVEL71",
+    "nodes": 4021,
+    "triangles": 73955,
+    "physics": "32c96c95956363670c0915f60bd4968b966c9bb2506995ad6187034d6bd63cf2",
+    "regionHash": "1461e307bb89d3f330488f8477ad88d03a9a2f25fb702057dab47074f7eb4a10"
+  },
+  {
+    "level": "LEVEL72",
+    "nodes": 2333,
+    "triangles": 104906,
+    "physics": "16e6bd09aac402523a6ac505bf957f9b5a3cb44751670af34505954181f6211b",
+    "regionHash": "d14eba657f807737030294f27f871449f50e6b663f107e28390d4f7c50a93134"
+  },
+  {
+    "level": "LEVEL73",
+    "nodes": 5367,
+    "triangles": 96992,
+    "physics": "9510db085d8902997ba2363f94e2df7b4d53fc8c433680296cf1d12d048ec706",
+    "regionHash": "8cece02a9e765c6afd8b8bf366e231de310f3efd1f52d2f4f507fbcc9cab3b65"
+  },
+  {
+    "level": "LEVEL74",
+    "nodes": 6793,
+    "triangles": 86988,
+    "physics": "ee436c0378d09e4002f17b67b8e3b986e1b2bd453d313abb2ef21ee56b070776",
+    "regionHash": "d4ce839d7ce2b04a9735c5060dcc25f4c404322d5942268dd86c0c6dcf8962d1"
+  },
+  {
+    "level": "LEVEL75",
+    "nodes": 4336,
+    "triangles": 24183,
+    "physics": "51ba5e7e6b45b41391d59b71eeff2f40c04bed0e5c4cd4c97550535532fc4b74",
+    "regionHash": "86ef376a07473e5c74ac750f0d79493fa12425c8650e51e18c0d0a2d4da30ad2"
+  },
+  {
+    "level": "LEVEL76",
+    "nodes": 4370,
+    "triangles": 70025,
+    "physics": "97264379983f864b6e3af467df78b9438155c7c8f7697c2708d7618c5ea2934d",
+    "regionHash": "ed43725af0d36498bf925618f860f82b57159ba8246e4513b04b0dd1bf506344"
+  },
+  {
+    "level": "LEVEL77",
+    "nodes": 11243,
+    "triangles": 69381,
+    "physics": "d84ab7544ff57d2b78e5b2cce1af9eb715915d712a2c66fac3a5adc1bd7804b2",
+    "regionHash": "f0c559a25f2259773fd48a9234e970d1d618eec10a57a9e0d71786a2a5415bfb"
+  },
+  {
+    "level": "LEVEL78",
+    "nodes": 28079,
+    "triangles": 59127,
+    "physics": "7f89b7cf613187f6d31bd020e82a911b580bb7547788f100d6ce266c4e61f104",
+    "regionHash": "b09b97722b48e56f4574ac61be9c1e37469350c27f8d54c2f6f833acd7c8c649"
+  },
+  {
+    "level": "LEVEL79",
+    "nodes": 5065,
+    "triangles": 75051,
+    "physics": "50adc607f613b150130479bdd0c41110b01d5145eb010f1a41a2c5ded4f8a800",
+    "regionHash": "1ea06b3242689618eec7a532b5ed9ff2fbc6fc87e01d943727983da4e66cdc5f"
+  },
+  {
+    "level": "LEVEL80",
+    "nodes": 15361,
+    "triangles": 65144,
+    "physics": "ebdd5271518617d5d532cbfe0f1681bf8fcefbaf9c4a6e2ecfcc52173134f028",
+    "regionHash": "7542a9d1975f739c8d4ba11901f7f9f9dc0b4fd9002c97301b093bb5b28952a0"
+  },
+  {
+    "level": "LEVEL81",
+    "nodes": 2952,
+    "triangles": 65134,
+    "physics": "b30f6b594edfe4f8698ff7e8de594157181bbab4c5a6b0690389fc8123461c8c",
+    "regionHash": "b42292392042b014cf6a9976ff234bac9059d73990911adac27bc21807d6221a"
+  },
+  {
+    "level": "LEVEL82",
+    "nodes": 11284,
+    "triangles": 100850,
+    "physics": "57261cf6bae4b93fd30cc47d2de237a82ba8174aba59270ef456c5fd1e3932c3",
+    "regionHash": "7f5c776795889950959fe66d482a765ff71d23bb580d634ea1c72a4028545566"
+  },
+  {
+    "level": "LEVEL83",
+    "nodes": 7190,
+    "triangles": 73758,
+    "physics": "bea9c21f4ee1a8760601ea775f7b182176e71fda1d5bf896d9ffb0d6a2fbb640",
+    "regionHash": "1df16006471b725be56574ba75639a81b14521e913126c16f9ce059b93e0eb27"
+  },
+  {
+    "level": "LEVEL84",
+    "nodes": 19784,
+    "triangles": 81627,
+    "physics": "a389cd92fd98f07081e7f1c09130729d8a7ba1fcd93d8d0ae73841666eaef0c4",
+    "regionHash": "cb66ea4a43367b0642a9d10e05c21c62d3172cf3dc8b21a07128c6dc6649607f"
+  },
+  {
+    "level": "LEVEL85",
+    "nodes": 9519,
+    "triangles": 58171,
+    "physics": "04fcdfe06737228023fe50c3331dfd3c2833f5e031ab955259b90bc4dccc30cf",
+    "regionHash": "7ee86bc0d6ca10b8085b3c67831e6665922f5a1ad529d7d394db6be2564a935e"
+  },
+  {
+    "level": "LEVEL86",
+    "nodes": 9386,
+    "triangles": 90147,
+    "physics": "dcdde7938d694a1da2f4608d805d0b2bae49d454adc09efc20436260d74500e0",
+    "regionHash": "d774b5ec0a1d35a4bf037741697939b78ec2df85ae46df062e2892ee07938adb"
+  },
+  {
+    "level": "LEVEL87",
+    "nodes": 15296,
+    "triangles": 75527,
+    "physics": "3db6348b8543443a3c3e2d42d3b79aa28efd8c9ff04fbc9e6322dbd9059f5e7e",
+    "regionHash": "f5653cad41a513cfe336133f4bb7a81f465d7b2a139b161a0588da3cde4b8450"
+  },
+  {
+    "level": "LEVEL88",
+    "nodes": 4666,
+    "triangles": 54051,
+    "physics": "a42ab9a2c31140b6c8d75b032c7621a6c3aa0f63fa2d04579bb004cf94576559",
+    "regionHash": "16dea3a7b28887daccbab289d93d5fb7694db94686a685cd704eecd0dc5852bc"
+  },
+  {
+    "level": "LEVEL89",
+    "nodes": 3061,
+    "triangles": 81498,
+    "physics": "1b0159f9300d6af480f6962cb9dfa4ab702453103a35598b88d67e8dc3a9c861",
+    "regionHash": "6555b62da9ea3c05ad22a97e17cbdfa9aa636cdd8c4598f40958264216106a1e"
+  },
+  {
+    "level": "LEVEL90",
+    "nodes": 9930,
+    "triangles": 73786,
+    "physics": "d9f82a36d50ffadf6e1a663a13abf4afd0e1677eb306170e4283936a2a609eb8",
+    "regionHash": "c775a2e833981e438a09664e8ffb0f9b900952f1b6d4c98e7cb9043f5528ea25"
+  },
+  {
+    "level": "LEVEL91",
+    "nodes": 8345,
+    "triangles": 80035,
+    "physics": "0d894ce47c33627969897d250752a221dd6d0648fef73d770f4441c5098721f0",
+    "regionHash": "96de853ca605853d55c10ca23d2d95a7d3cc662809baeca69049edc59698df68"
+  },
+  {
+    "level": "LEVEL92",
+    "nodes": 5656,
+    "triangles": 50858,
+    "physics": "c992a0f4b0e346e7f92618c1ed9b4ea36073df32ba340647d1a5db9be119685f",
+    "regionHash": "cf7802d5622eda3db841e819bbfaa45860a5a45829ef72f1fe486b8a2ab20520"
+  },
+  {
+    "level": "LEVEL93",
+    "nodes": 2019,
+    "triangles": 46309,
+    "physics": "fea1e257753f9e2c1617ab0ffcae92f3afdaf91435dc87117c38bb73ff06b84c",
+    "regionHash": "7e9ca9340ba44c1cd90a8e58bd3fa6ac5e2a94b18e879ed1a57514a480931554"
+  },
+  {
+    "level": "LEVEL94",
+    "nodes": 6880,
+    "triangles": 39866,
+    "physics": "b9b2baae85f28b4911587762e70470b9ecb9e96139da893abf5ccbb6aba8297b",
+    "regionHash": "a43cbcc56353cdc396194f2e118cbede8aa14d4a1f22655552e2ce7f502917de"
+  },
+  {
+    "level": "LEVEL95",
+    "nodes": 6502,
+    "triangles": 55159,
+    "physics": "0a3b9bbdc8ee7c0da933e4051c87339dfba916e309c2ab3f18aea4ece4fe02e3",
+    "regionHash": "2fe68051bccc5e3c37177c5af154687d1733edfce2778f5e8c76af4a205cc475"
+  },
+  {
+    "level": "LEVEL96",
+    "nodes": 33139,
+    "triangles": 38226,
+    "physics": "edd0f3e1dde59808eb4bffd2370360a3bc6f783a6385ca40ad4ded0327c30530",
+    "regionHash": "0955854b06b97b74b4db0abd6574a3a73c2125df9bf12a41e8d43ba32d26222e"
+  },
+  {
+    "level": "LEVEL97",
+    "nodes": 33139,
+    "triangles": 38226,
+    "physics": "7a69a2c2b6311a3596670c42fbb6c775dd1351baf4b2abd94d3876e1307a0110",
+    "regionHash": "0955854b06b97b74b4db0abd6574a3a73c2125df9bf12a41e8d43ba32d26222e"
+  },
+  {
+    "level": "LEVEL98",
+    "nodes": 39619,
+    "triangles": 99020,
+    "physics": "799217ae78f5dd9c6d543cb7bca377d856b3e86f8366ae40fbfc904946a6a4e0",
+    "regionHash": "3cd791af99f9fb4a90a521ffca8753dbdf24fa9363057b30f87b2f1fa104ef41"
+  },
+  {
+    "level": "LEVEL100",
+    "nodes": 33884,
+    "triangles": 52839,
+    "physics": "c304e23add0590484fd461b08db284c81401b193a26ae356756a86848e1037c1",
+    "regionHash": "0955854b06b97b74b4db0abd6574a3a73c2125df9bf12a41e8d43ba32d26222e"
+  },
+  {
+    "level": "LEVEL101",
+    "nodes": 5563,
+    "triangles": 70609,
+    "physics": "a9c80e4cb87141924dcf43e46ab7c965b95797d20045f3f7594ba90a9c490329",
+    "regionHash": "4650f7b6794dcf3038ac9dfcb79a454823991de1e465afa316cecc103a237887"
+  },
+  {
+    "level": "LEVEL102",
+    "nodes": 4860,
+    "triangles": 63843,
+    "physics": "83af5602d138e0aa48e17c0b6c469c5221714d0d80095d64d9cc16011b2a654b",
+    "regionHash": "048522f9b72ae8307ba74965debf669c1d7b235751ed2f006bb41cf7ea7e58ec"
+  },
+  {
+    "level": "LEVEL103",
+    "nodes": 2793,
+    "triangles": 37556,
+    "physics": "45f327a2427d0b915936341c452639af8cdf69c767946289497fd35a8f2f3c4b",
+    "regionHash": "1e1948731aa342150e283e412b46062f4bede328c9efdf0b3e29506eb8c3345b"
+  },
+  {
+    "level": "LEVEL104",
+    "nodes": 3918,
+    "triangles": 47326,
+    "physics": "6234871d9aecb649f62dd86f967d52be1568699bd06a9f3160e864a29cf38bfa",
+    "regionHash": "ec4a7248b3b9fde5a0b4204b09bdb6bb486e02120323fe61e90f37618c0aa90c"
+  }
+]

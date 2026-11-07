@@ -54,7 +54,9 @@ internal static class AiCrowdTests
                 avatar.TryGetProperty(p.Name, out var actual) && actual.GetString() ==
                 (string.IsNullOrWhiteSpace(p.Value.GetString()) ? "{}" : p.Value.GetString()))), "AI wears a complete shop card, not mixed starter parts");
             check(player.Character.Occupation == occupation && player.GetEquippedAvatarItem() is not null, "shop appearance keeps selected career and equipped card");
-            outfits.Add(avatar.GetProperty("outerwear").GetString()!);
+            outfits.Add(string.Join("|", avatar.EnumerateObject()
+                .Where(p => p.Name != "avatarId").OrderBy(p => p.Name)
+                .Select(p => p.Name + "=" + p.Value.GetString())));
         }
         check(outfits.Count >= 5, "shop outfits vary across AI players");
         var manager = new PracticeRoomManager();

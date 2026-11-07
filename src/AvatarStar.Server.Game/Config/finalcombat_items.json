@@ -1,0 +1,6740 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "sid": 320000,
+      "name": "大冲锋·机枪手·巴洛克02（红）",
+      "source": "character/butcher_0/baroque02.lua.cache",
+      "display": "id_fca_butcher_0_baroque02"
+    },
+    {
+      "sid": 320001,
+      "name": "大冲锋·机枪手·经典01（红）",
+      "source": "character/butcher_0/body01.lua.cache",
+      "display": "id_fca_butcher_0_body01"
+    },
+    {
+      "sid": 320002,
+      "name": "大冲锋·机枪手·butcher_01（红）",
+      "source": "character/butcher_0/butcher_01.lua.cache",
+      "display": "id_fca_butcher_0_butcher_01"
+    },
+    {
+      "sid": 320003,
+      "name": "大冲锋·机枪手·celestial02_a（红）",
+      "source": "character/butcher_0/celestial02_a.lua.cache",
+      "display": "id_fca_butcher_0_celestial02_a"
+    },
+    {
+      "sid": 320004,
+      "name": "大冲锋·机枪手·celestial02_b（红）",
+      "source": "character/butcher_0/celestial02_b.lua.cache",
+      "display": "id_fca_butcher_0_celestial02_b"
+    },
+    {
+      "sid": 320005,
+      "name": "大冲锋·机枪手·天神02（红）",
+      "source": "character/butcher_0/celestial02.lua.cache",
+      "display": "id_fca_butcher_0_celestial02"
+    },
+    {
+      "sid": 320006,
+      "name": "大冲锋·机枪手·classics02_s（红）",
+      "source": "character/butcher_0/classics02_s.lua.cache",
+      "display": "id_fca_butcher_0_classics02_s"
+    },
+    {
+      "sid": 320007,
+      "name": "大冲锋·机枪手·经典02（红）",
+      "source": "character/butcher_0/classics02.lua.cache",
+      "display": "id_fca_butcher_0_classics02"
+    },
+    {
+      "sid": 320008,
+      "name": "大冲锋·机枪手·darkmetal02_g（红）",
+      "source": "character/butcher_0/darkmetal02_g.lua.cache",
+      "display": "id_fca_butcher_0_darkmetal02_g"
+    },
+    {
+      "sid": 320009,
+      "name": "大冲锋·机枪手·暗黑金属02（红）",
+      "source": "character/butcher_0/darkmetal02.lua.cache",
+      "display": "id_fca_butcher_0_darkmetal02"
+    },
+    {
+      "sid": 320010,
+      "name": "大冲锋·机枪手·egao02（红）",
+      "source": "character/butcher_0/egao02.lua.cache",
+      "display": "id_fca_butcher_0_egao02"
+    },
+    {
+      "sid": 320011,
+      "name": "大冲锋·机枪手·fashion02（红）",
+      "source": "character/butcher_0/fashion02.lua.cache",
+      "display": "id_fca_butcher_0_fashion02"
+    },
+    {
+      "sid": 320012,
+      "name": "大冲锋·机枪手·fca02（红）",
+      "source": "character/butcher_0/fca02.lua.cache",
+      "display": "id_fca_butcher_0_fca02"
+    },
+    {
+      "sid": 320013,
+      "name": "大冲锋·机枪手·gangdom02（红）",
+      "source": "character/butcher_0/gangdom02.lua.cache",
+      "display": "id_fca_butcher_0_gangdom02"
+    },
+    {
+      "sid": 320014,
+      "name": "大冲锋·机枪手·kingboxing（红）",
+      "source": "character/butcher_0/kingboxing.lua.cache",
+      "display": "id_fca_butcher_0_kingboxing"
+    },
+    {
+      "sid": 320015,
+      "name": "大冲锋·机枪手·korea02（红）",
+      "source": "character/butcher_0/korea02.lua.cache",
+      "display": "id_fca_butcher_0_korea02"
+    },
+    {
+      "sid": 320016,
+      "name": "大冲锋·机枪手·新年201302（红）",
+      "source": "character/butcher_0/newyear201302.lua.cache",
+      "display": "id_fca_butcher_0_newyear201302"
+    },
+    {
+      "sid": 320017,
+      "name": "大冲锋·机枪手·新年20132（红）",
+      "source": "character/butcher_0/newyear20132.lua.cache",
+      "display": "id_fca_butcher_0_newyear20132"
+    },
+    {
+      "sid": 320018,
+      "name": "大冲锋·机枪手·新年20152（红）",
+      "source": "character/butcher_0/newyear20152.lua.cache",
+      "display": "id_fca_butcher_0_newyear20152"
+    },
+    {
+      "sid": 320019,
+      "name": "大冲锋·机枪手·新年20162（红）",
+      "source": "character/butcher_0/newyear20162.lua.cache",
+      "display": "id_fca_butcher_0_newyear20162"
+    },
+    {
+      "sid": 320020,
+      "name": "大冲锋·机枪手·新年20172（红）",
+      "source": "character/butcher_0/newyear20172.lua.cache",
+      "display": "id_fca_butcher_0_newyear20172"
+    },
+    {
+      "sid": 320021,
+      "name": "大冲锋·机枪手·riot（红）",
+      "source": "character/butcher_0/riot.lua.cache",
+      "display": "id_fca_butcher_0_riot"
+    },
+    {
+      "sid": 320022,
+      "name": "大冲锋·机枪手·steampunk02_f（红）",
+      "source": "character/butcher_0/steampunk02_f.lua.cache",
+      "display": "id_fca_butcher_0_steampunk02_f"
+    },
+    {
+      "sid": 320023,
+      "name": "大冲锋·机枪手·蒸汽朋克02（红）",
+      "source": "character/butcher_0/steampunk02.lua.cache",
+      "display": "id_fca_butcher_0_steampunk02"
+    },
+    {
+      "sid": 320024,
+      "name": "大冲锋·机枪手·vampire02（红）",
+      "source": "character/butcher_0/vampire02.lua.cache",
+      "display": "id_fca_butcher_0_vampire02"
+    },
+    {
+      "sid": 320025,
+      "name": "大冲锋·机枪手·巴洛克02（蓝）",
+      "source": "character/butcher_1/baroque02.lua.cache",
+      "display": "id_fca_butcher_1_baroque02"
+    },
+    {
+      "sid": 320026,
+      "name": "大冲锋·机枪手·经典01（蓝）",
+      "source": "character/butcher_1/body01.lua.cache",
+      "display": "id_fca_butcher_1_body01"
+    },
+    {
+      "sid": 320027,
+      "name": "大冲锋·机枪手·butcher_01（蓝）",
+      "source": "character/butcher_1/butcher_01.lua.cache",
+      "display": "id_fca_butcher_1_butcher_01"
+    },
+    {
+      "sid": 320028,
+      "name": "大冲锋·机枪手·celestial02_a（蓝）",
+      "source": "character/butcher_1/celestial02_a.lua.cache",
+      "display": "id_fca_butcher_1_celestial02_a"
+    },
+    {
+      "sid": 320029,
+      "name": "大冲锋·机枪手·celestial02_b（蓝）",
+      "source": "character/butcher_1/celestial02_b.lua.cache",
+      "display": "id_fca_butcher_1_celestial02_b"
+    },
+    {
+      "sid": 320030,
+      "name": "大冲锋·机枪手·天神02（蓝）",
+      "source": "character/butcher_1/celestial02.lua.cache",
+      "display": "id_fca_butcher_1_celestial02"
+    },
+    {
+      "sid": 320031,
+      "name": "大冲锋·机枪手·classics02_s（蓝）",
+      "source": "character/butcher_1/classics02_s.lua.cache",
+      "display": "id_fca_butcher_1_classics02_s"
+    },
+    {
+      "sid": 320032,
+      "name": "大冲锋·机枪手·经典02（蓝）",
+      "source": "character/butcher_1/classics02.lua.cache",
+      "display": "id_fca_butcher_1_classics02"
+    },
+    {
+      "sid": 320033,
+      "name": "大冲锋·机枪手·darkmetal02_g（蓝）",
+      "source": "character/butcher_1/darkmetal02_g.lua.cache",
+      "display": "id_fca_butcher_1_darkmetal02_g"
+    },
+    {
+      "sid": 320034,
+      "name": "大冲锋·机枪手·暗黑金属02（蓝）",
+      "source": "character/butcher_1/darkmetal02.lua.cache",
+      "display": "id_fca_butcher_1_darkmetal02"
+    },
+    {
+      "sid": 320035,
+      "name": "大冲锋·机枪手·egao02（蓝）",
+      "source": "character/butcher_1/egao02.lua.cache",
+      "display": "id_fca_butcher_1_egao02"
+    },
+    {
+      "sid": 320036,
+      "name": "大冲锋·机枪手·fashion02（蓝）",
+      "source": "character/butcher_1/fashion02.lua.cache",
+      "display": "id_fca_butcher_1_fashion02"
+    },
+    {
+      "sid": 320037,
+      "name": "大冲锋·机枪手·fca02（蓝）",
+      "source": "character/butcher_1/fca02.lua.cache",
+      "display": "id_fca_butcher_1_fca02"
+    },
+    {
+      "sid": 320038,
+      "name": "大冲锋·机枪手·gangdom02（蓝）",
+      "source": "character/butcher_1/gangdom02.lua.cache",
+      "display": "id_fca_butcher_1_gangdom02"
+    },
+    {
+      "sid": 320039,
+      "name": "大冲锋·机枪手·kingboxing（蓝）",
+      "source": "character/butcher_1/kingboxing.lua.cache",
+      "display": "id_fca_butcher_1_kingboxing"
+    },
+    {
+      "sid": 320040,
+      "name": "大冲锋·机枪手·korea02（蓝）",
+      "source": "character/butcher_1/korea02.lua.cache",
+      "display": "id_fca_butcher_1_korea02"
+    },
+    {
+      "sid": 320041,
+      "name": "大冲锋·机枪手·新年201302（蓝）",
+      "source": "character/butcher_1/newyear201302.lua.cache",
+      "display": "id_fca_butcher_1_newyear201302"
+    },
+    {
+      "sid": 320042,
+      "name": "大冲锋·机枪手·新年20132（蓝）",
+      "source": "character/butcher_1/newyear20132.lua.cache",
+      "display": "id_fca_butcher_1_newyear20132"
+    },
+    {
+      "sid": 320043,
+      "name": "大冲锋·机枪手·新年20152（蓝）",
+      "source": "character/butcher_1/newyear20152.lua.cache",
+      "display": "id_fca_butcher_1_newyear20152"
+    },
+    {
+      "sid": 320044,
+      "name": "大冲锋·机枪手·新年20162（蓝）",
+      "source": "character/butcher_1/newyear20162.lua.cache",
+      "display": "id_fca_butcher_1_newyear20162"
+    },
+    {
+      "sid": 320045,
+      "name": "大冲锋·机枪手·新年20172（蓝）",
+      "source": "character/butcher_1/newyear20172.lua.cache",
+      "display": "id_fca_butcher_1_newyear20172"
+    },
+    {
+      "sid": 320046,
+      "name": "大冲锋·机枪手·riot（蓝）",
+      "source": "character/butcher_1/riot.lua.cache",
+      "display": "id_fca_butcher_1_riot"
+    },
+    {
+      "sid": 320047,
+      "name": "大冲锋·机枪手·steampunk02_f（蓝）",
+      "source": "character/butcher_1/steampunk02_f.lua.cache",
+      "display": "id_fca_butcher_1_steampunk02_f"
+    },
+    {
+      "sid": 320048,
+      "name": "大冲锋·机枪手·蒸汽朋克02（蓝）",
+      "source": "character/butcher_1/steampunk02.lua.cache",
+      "display": "id_fca_butcher_1_steampunk02"
+    },
+    {
+      "sid": 320049,
+      "name": "大冲锋·机枪手·vampire02（蓝）",
+      "source": "character/butcher_1/vampire02.lua.cache",
+      "display": "id_fca_butcher_1_vampire02"
+    },
+    {
+      "sid": 320050,
+      "name": "大冲锋·工程兵·巴洛克07（红）",
+      "source": "character/engineer_0/baroque07.lua.cache",
+      "display": "id_fca_engineer_0_baroque07"
+    },
+    {
+      "sid": 320051,
+      "name": "大冲锋·工程兵·经典01（红）",
+      "source": "character/engineer_0/body01.lua.cache",
+      "display": "id_fca_engineer_0_body01"
+    },
+    {
+      "sid": 320052,
+      "name": "大冲锋·工程兵·celestial07_a（红）",
+      "source": "character/engineer_0/celestial07_a.lua.cache",
+      "display": "id_fca_engineer_0_celestial07_a"
+    },
+    {
+      "sid": 320053,
+      "name": "大冲锋·工程兵·celestial07_b（红）",
+      "source": "character/engineer_0/celestial07_b.lua.cache",
+      "display": "id_fca_engineer_0_celestial07_b"
+    },
+    {
+      "sid": 320054,
+      "name": "大冲锋·工程兵·天神07（红）",
+      "source": "character/engineer_0/celestial07.lua.cache",
+      "display": "id_fca_engineer_0_celestial07"
+    },
+    {
+      "sid": 320055,
+      "name": "大冲锋·工程兵·classics07_s（红）",
+      "source": "character/engineer_0/classics07_s.lua.cache",
+      "display": "id_fca_engineer_0_classics07_s"
+    },
+    {
+      "sid": 320056,
+      "name": "大冲锋·工程兵·经典07（红）",
+      "source": "character/engineer_0/classics07.lua.cache",
+      "display": "id_fca_engineer_0_classics07"
+    },
+    {
+      "sid": 320057,
+      "name": "大冲锋·工程兵·darkmetal07_g（红）",
+      "source": "character/engineer_0/darkmetal07_g.lua.cache",
+      "display": "id_fca_engineer_0_darkmetal07_g"
+    },
+    {
+      "sid": 320058,
+      "name": "大冲锋·工程兵·暗黑金属07（红）",
+      "source": "character/engineer_0/darkmetal07.lua.cache",
+      "display": "id_fca_engineer_0_darkmetal07"
+    },
+    {
+      "sid": 320059,
+      "name": "大冲锋·工程兵·engineer_01（红）",
+      "source": "character/engineer_0/engineer_01.lua.cache",
+      "display": "id_fca_engineer_0_engineer_01"
+    },
+    {
+      "sid": 320060,
+      "name": "大冲锋·工程兵·engineer05（红）",
+      "source": "character/engineer_0/engineer05.lua.cache",
+      "display": "id_fca_engineer_0_engineer05"
+    },
+    {
+      "sid": 320061,
+      "name": "大冲锋·工程兵·engineer07（红）",
+      "source": "character/engineer_0/engineer07.lua.cache",
+      "display": "id_fca_engineer_0_engineer07"
+    },
+    {
+      "sid": 320062,
+      "name": "大冲锋·工程兵·engineer09（红）",
+      "source": "character/engineer_0/engineer09.lua.cache",
+      "display": "id_fca_engineer_0_engineer09"
+    },
+    {
+      "sid": 320063,
+      "name": "大冲锋·工程兵·新年20137（红）",
+      "source": "character/engineer_0/newyear20137.lua.cache",
+      "display": "id_fca_engineer_0_newyear20137"
+    },
+    {
+      "sid": 320064,
+      "name": "大冲锋·工程兵·新年20157（红）",
+      "source": "character/engineer_0/newyear20157.lua.cache",
+      "display": "id_fca_engineer_0_newyear20157"
+    },
+    {
+      "sid": 320065,
+      "name": "大冲锋·工程兵·新年20167（红）",
+      "source": "character/engineer_0/newyear20167.lua.cache",
+      "display": "id_fca_engineer_0_newyear20167"
+    },
+    {
+      "sid": 320066,
+      "name": "大冲锋·工程兵·新年20177（红）",
+      "source": "character/engineer_0/newyear20177.lua.cache",
+      "display": "id_fca_engineer_0_newyear20177"
+    },
+    {
+      "sid": 320067,
+      "name": "大冲锋·工程兵·steampunk07_f（红）",
+      "source": "character/engineer_0/steampunk07_f.lua.cache",
+      "display": "id_fca_engineer_0_steampunk07_f"
+    },
+    {
+      "sid": 320068,
+      "name": "大冲锋·工程兵·蒸汽朋克07（红）",
+      "source": "character/engineer_0/steampunk07.lua.cache",
+      "display": "id_fca_engineer_0_steampunk07"
+    },
+    {
+      "sid": 320069,
+      "name": "大冲锋·工程兵·巴洛克07（蓝）",
+      "source": "character/engineer_1/baroque07.lua.cache",
+      "display": "id_fca_engineer_1_baroque07"
+    },
+    {
+      "sid": 320070,
+      "name": "大冲锋·工程兵·经典01（蓝）",
+      "source": "character/engineer_1/body01.lua.cache",
+      "display": "id_fca_engineer_1_body01"
+    },
+    {
+      "sid": 320071,
+      "name": "大冲锋·工程兵·celestial07_a（蓝）",
+      "source": "character/engineer_1/celestial07_a.lua.cache",
+      "display": "id_fca_engineer_1_celestial07_a"
+    },
+    {
+      "sid": 320072,
+      "name": "大冲锋·工程兵·celestial07_b（蓝）",
+      "source": "character/engineer_1/celestial07_b.lua.cache",
+      "display": "id_fca_engineer_1_celestial07_b"
+    },
+    {
+      "sid": 320073,
+      "name": "大冲锋·工程兵·天神07（蓝）",
+      "source": "character/engineer_1/celestial07.lua.cache",
+      "display": "id_fca_engineer_1_celestial07"
+    },
+    {
+      "sid": 320074,
+      "name": "大冲锋·工程兵·classics07_s（蓝）",
+      "source": "character/engineer_1/classics07_s.lua.cache",
+      "display": "id_fca_engineer_1_classics07_s"
+    },
+    {
+      "sid": 320075,
+      "name": "大冲锋·工程兵·经典07（蓝）",
+      "source": "character/engineer_1/classics07.lua.cache",
+      "display": "id_fca_engineer_1_classics07"
+    },
+    {
+      "sid": 320076,
+      "name": "大冲锋·工程兵·darkmetal07_g（蓝）",
+      "source": "character/engineer_1/darkmetal07_g.lua.cache",
+      "display": "id_fca_engineer_1_darkmetal07_g"
+    },
+    {
+      "sid": 320077,
+      "name": "大冲锋·工程兵·暗黑金属07（蓝）",
+      "source": "character/engineer_1/darkmetal07.lua.cache",
+      "display": "id_fca_engineer_1_darkmetal07"
+    },
+    {
+      "sid": 320078,
+      "name": "大冲锋·工程兵·engineer_01（蓝）",
+      "source": "character/engineer_1/engineer_01.lua.cache",
+      "display": "id_fca_engineer_1_engineer_01"
+    },
+    {
+      "sid": 320079,
+      "name": "大冲锋·工程兵·engineer05（蓝）",
+      "source": "character/engineer_1/engineer05.lua.cache",
+      "display": "id_fca_engineer_1_engineer05"
+    },
+    {
+      "sid": 320080,
+      "name": "大冲锋·工程兵·engineer07（蓝）",
+      "source": "character/engineer_1/engineer07.lua.cache",
+      "display": "id_fca_engineer_1_engineer07"
+    },
+    {
+      "sid": 320081,
+      "name": "大冲锋·工程兵·engineer09（蓝）",
+      "source": "character/engineer_1/engineer09.lua.cache",
+      "display": "id_fca_engineer_1_engineer09"
+    },
+    {
+      "sid": 320082,
+      "name": "大冲锋·工程兵·新年20137（蓝）",
+      "source": "character/engineer_1/newyear20137.lua.cache",
+      "display": "id_fca_engineer_1_newyear20137"
+    },
+    {
+      "sid": 320083,
+      "name": "大冲锋·工程兵·新年20157（蓝）",
+      "source": "character/engineer_1/newyear20157.lua.cache",
+      "display": "id_fca_engineer_1_newyear20157"
+    },
+    {
+      "sid": 320084,
+      "name": "大冲锋·工程兵·新年20167（蓝）",
+      "source": "character/engineer_1/newyear20167.lua.cache",
+      "display": "id_fca_engineer_1_newyear20167"
+    },
+    {
+      "sid": 320085,
+      "name": "大冲锋·工程兵·新年20177（蓝）",
+      "source": "character/engineer_1/newyear20177.lua.cache",
+      "display": "id_fca_engineer_1_newyear20177"
+    },
+    {
+      "sid": 320086,
+      "name": "大冲锋·工程兵·steampunk07_f（蓝）",
+      "source": "character/engineer_1/steampunk07_f.lua.cache",
+      "display": "id_fca_engineer_1_steampunk07_f"
+    },
+    {
+      "sid": 320087,
+      "name": "大冲锋·工程兵·蒸汽朋克07（蓝）",
+      "source": "character/engineer_1/steampunk07.lua.cache",
+      "display": "id_fca_engineer_1_steampunk07"
+    },
+    {
+      "sid": 320088,
+      "name": "大冲锋·火焰兵·巴洛克05（红）",
+      "source": "character/firebat_0/baroque05.lua.cache",
+      "display": "id_fca_firebat_0_baroque05"
+    },
+    {
+      "sid": 320089,
+      "name": "大冲锋·火焰兵·经典01（红）",
+      "source": "character/firebat_0/body01.lua.cache",
+      "display": "id_fca_firebat_0_body01"
+    },
+    {
+      "sid": 320090,
+      "name": "大冲锋·火焰兵·celestial05_a（红）",
+      "source": "character/firebat_0/celestial05_a.lua.cache",
+      "display": "id_fca_firebat_0_celestial05_a"
+    },
+    {
+      "sid": 320091,
+      "name": "大冲锋·火焰兵·celestial05_b（红）",
+      "source": "character/firebat_0/celestial05_b.lua.cache",
+      "display": "id_fca_firebat_0_celestial05_b"
+    },
+    {
+      "sid": 320092,
+      "name": "大冲锋·火焰兵·天神05（红）",
+      "source": "character/firebat_0/celestial05.lua.cache",
+      "display": "id_fca_firebat_0_celestial05"
+    },
+    {
+      "sid": 320093,
+      "name": "大冲锋·火焰兵·classics05_s（红）",
+      "source": "character/firebat_0/classics05_s.lua.cache",
+      "display": "id_fca_firebat_0_classics05_s"
+    },
+    {
+      "sid": 320094,
+      "name": "大冲锋·火焰兵·经典05（红）",
+      "source": "character/firebat_0/classics05.lua.cache",
+      "display": "id_fca_firebat_0_classics05"
+    },
+    {
+      "sid": 320095,
+      "name": "大冲锋·火焰兵·darkmetal05_g（红）",
+      "source": "character/firebat_0/darkmetal05_g.lua.cache",
+      "display": "id_fca_firebat_0_darkmetal05_g"
+    },
+    {
+      "sid": 320096,
+      "name": "大冲锋·火焰兵·暗黑金属05（红）",
+      "source": "character/firebat_0/darkmetal05.lua.cache",
+      "display": "id_fca_firebat_0_darkmetal05"
+    },
+    {
+      "sid": 320097,
+      "name": "大冲锋·火焰兵·egao05（红）",
+      "source": "character/firebat_0/egao05.lua.cache",
+      "display": "id_fca_firebat_0_egao05"
+    },
+    {
+      "sid": 320098,
+      "name": "大冲锋·火焰兵·fashion05（红）",
+      "source": "character/firebat_0/fashion05.lua.cache",
+      "display": "id_fca_firebat_0_fashion05"
+    },
+    {
+      "sid": 320099,
+      "name": "大冲锋·火焰兵·fca05（红）",
+      "source": "character/firebat_0/fca05.lua.cache",
+      "display": "id_fca_firebat_0_fca05"
+    },
+    {
+      "sid": 320100,
+      "name": "大冲锋·火焰兵·firebat_01（红）",
+      "source": "character/firebat_0/firebat_01.lua.cache",
+      "display": "id_fca_firebat_0_firebat_01"
+    },
+    {
+      "sid": 320101,
+      "name": "大冲锋·火焰兵·gangdom05（红）",
+      "source": "character/firebat_0/gangdom05.lua.cache",
+      "display": "id_fca_firebat_0_gangdom05"
+    },
+    {
+      "sid": 320102,
+      "name": "大冲锋·火焰兵·korea05（红）",
+      "source": "character/firebat_0/korea05.lua.cache",
+      "display": "id_fca_firebat_0_korea05"
+    },
+    {
+      "sid": 320103,
+      "name": "大冲锋·火焰兵·musician（红）",
+      "source": "character/firebat_0/musician.lua.cache",
+      "display": "id_fca_firebat_0_musician"
+    },
+    {
+      "sid": 320104,
+      "name": "大冲锋·火焰兵·新年201305（红）",
+      "source": "character/firebat_0/newyear201305.lua.cache",
+      "display": "id_fca_firebat_0_newyear201305"
+    },
+    {
+      "sid": 320105,
+      "name": "大冲锋·火焰兵·新年20135（红）",
+      "source": "character/firebat_0/newyear20135.lua.cache",
+      "display": "id_fca_firebat_0_newyear20135"
+    },
+    {
+      "sid": 320106,
+      "name": "大冲锋·火焰兵·新年20155（红）",
+      "source": "character/firebat_0/newyear20155.lua.cache",
+      "display": "id_fca_firebat_0_newyear20155"
+    },
+    {
+      "sid": 320107,
+      "name": "大冲锋·火焰兵·新年20165（红）",
+      "source": "character/firebat_0/newyear20165.lua.cache",
+      "display": "id_fca_firebat_0_newyear20165"
+    },
+    {
+      "sid": 320108,
+      "name": "大冲锋·火焰兵·新年20175（红）",
+      "source": "character/firebat_0/newyear20175.lua.cache",
+      "display": "id_fca_firebat_0_newyear20175"
+    },
+    {
+      "sid": 320109,
+      "name": "大冲锋·火焰兵·racer（红）",
+      "source": "character/firebat_0/racer.lua.cache",
+      "display": "id_fca_firebat_0_racer"
+    },
+    {
+      "sid": 320110,
+      "name": "大冲锋·火焰兵·steampunk05_f（红）",
+      "source": "character/firebat_0/steampunk05_f.lua.cache",
+      "display": "id_fca_firebat_0_steampunk05_f"
+    },
+    {
+      "sid": 320111,
+      "name": "大冲锋·火焰兵·蒸汽朋克05（红）",
+      "source": "character/firebat_0/steampunk05.lua.cache",
+      "display": "id_fca_firebat_0_steampunk05"
+    },
+    {
+      "sid": 320112,
+      "name": "大冲锋·火焰兵·vampire05（红）",
+      "source": "character/firebat_0/vampire05.lua.cache",
+      "display": "id_fca_firebat_0_vampire05"
+    },
+    {
+      "sid": 320113,
+      "name": "大冲锋·火焰兵·巴洛克05（蓝）",
+      "source": "character/firebat_1/baroque05.lua.cache",
+      "display": "id_fca_firebat_1_baroque05"
+    },
+    {
+      "sid": 320114,
+      "name": "大冲锋·火焰兵·经典01（蓝）",
+      "source": "character/firebat_1/body01.lua.cache",
+      "display": "id_fca_firebat_1_body01"
+    },
+    {
+      "sid": 320115,
+      "name": "大冲锋·火焰兵·celestial05_a（蓝）",
+      "source": "character/firebat_1/celestial05_a.lua.cache",
+      "display": "id_fca_firebat_1_celestial05_a"
+    },
+    {
+      "sid": 320116,
+      "name": "大冲锋·火焰兵·celestial05_b（蓝）",
+      "source": "character/firebat_1/celestial05_b.lua.cache",
+      "display": "id_fca_firebat_1_celestial05_b"
+    },
+    {
+      "sid": 320117,
+      "name": "大冲锋·火焰兵·天神05（蓝）",
+      "source": "character/firebat_1/celestial05.lua.cache",
+      "display": "id_fca_firebat_1_celestial05"
+    },
+    {
+      "sid": 320118,
+      "name": "大冲锋·火焰兵·classics05_s（蓝）",
+      "source": "character/firebat_1/classics05_s.lua.cache",
+      "display": "id_fca_firebat_1_classics05_s"
+    },
+    {
+      "sid": 320119,
+      "name": "大冲锋·火焰兵·经典05（蓝）",
+      "source": "character/firebat_1/classics05.lua.cache",
+      "display": "id_fca_firebat_1_classics05"
+    },
+    {
+      "sid": 320120,
+      "name": "大冲锋·火焰兵·darkmetal05_g（蓝）",
+      "source": "character/firebat_1/darkmetal05_g.lua.cache",
+      "display": "id_fca_firebat_1_darkmetal05_g"
+    },
+    {
+      "sid": 320121,
+      "name": "大冲锋·火焰兵·暗黑金属05（蓝）",
+      "source": "character/firebat_1/darkmetal05.lua.cache",
+      "display": "id_fca_firebat_1_darkmetal05"
+    },
+    {
+      "sid": 320122,
+      "name": "大冲锋·火焰兵·egao05（蓝）",
+      "source": "character/firebat_1/egao05.lua.cache",
+      "display": "id_fca_firebat_1_egao05"
+    },
+    {
+      "sid": 320123,
+      "name": "大冲锋·火焰兵·fashion05（蓝）",
+      "source": "character/firebat_1/fashion05.lua.cache",
+      "display": "id_fca_firebat_1_fashion05"
+    },
+    {
+      "sid": 320124,
+      "name": "大冲锋·火焰兵·fca05（蓝）",
+      "source": "character/firebat_1/fca05.lua.cache",
+      "display": "id_fca_firebat_1_fca05"
+    },
+    {
+      "sid": 320125,
+      "name": "大冲锋·火焰兵·firebat_01（蓝）",
+      "source": "character/firebat_1/firebat_01.lua.cache",
+      "display": "id_fca_firebat_1_firebat_01"
+    },
+    {
+      "sid": 320126,
+      "name": "大冲锋·火焰兵·gangdom05（蓝）",
+      "source": "character/firebat_1/gangdom05.lua.cache",
+      "display": "id_fca_firebat_1_gangdom05"
+    },
+    {
+      "sid": 320127,
+      "name": "大冲锋·火焰兵·korea05（蓝）",
+      "source": "character/firebat_1/korea05.lua.cache",
+      "display": "id_fca_firebat_1_korea05"
+    },
+    {
+      "sid": 320128,
+      "name": "大冲锋·火焰兵·musician（蓝）",
+      "source": "character/firebat_1/musician.lua.cache",
+      "display": "id_fca_firebat_1_musician"
+    },
+    {
+      "sid": 320129,
+      "name": "大冲锋·火焰兵·新年201305（蓝）",
+      "source": "character/firebat_1/newyear201305.lua.cache",
+      "display": "id_fca_firebat_1_newyear201305"
+    },
+    {
+      "sid": 320130,
+      "name": "大冲锋·火焰兵·新年20135（蓝）",
+      "source": "character/firebat_1/newyear20135.lua.cache",
+      "display": "id_fca_firebat_1_newyear20135"
+    },
+    {
+      "sid": 320131,
+      "name": "大冲锋·火焰兵·新年20155（蓝）",
+      "source": "character/firebat_1/newyear20155.lua.cache",
+      "display": "id_fca_firebat_1_newyear20155"
+    },
+    {
+      "sid": 320132,
+      "name": "大冲锋·火焰兵·新年20165（蓝）",
+      "source": "character/firebat_1/newyear20165.lua.cache",
+      "display": "id_fca_firebat_1_newyear20165"
+    },
+    {
+      "sid": 320133,
+      "name": "大冲锋·火焰兵·新年20175（蓝）",
+      "source": "character/firebat_1/newyear20175.lua.cache",
+      "display": "id_fca_firebat_1_newyear20175"
+    },
+    {
+      "sid": 320134,
+      "name": "大冲锋·火焰兵·racer（蓝）",
+      "source": "character/firebat_1/racer.lua.cache",
+      "display": "id_fca_firebat_1_racer"
+    },
+    {
+      "sid": 320135,
+      "name": "大冲锋·火焰兵·steampunk05_f（蓝）",
+      "source": "character/firebat_1/steampunk05_f.lua.cache",
+      "display": "id_fca_firebat_1_steampunk05_f"
+    },
+    {
+      "sid": 320136,
+      "name": "大冲锋·火焰兵·蒸汽朋克05（蓝）",
+      "source": "character/firebat_1/steampunk05.lua.cache",
+      "display": "id_fca_firebat_1_steampunk05"
+    },
+    {
+      "sid": 320137,
+      "name": "大冲锋·火焰兵·vampire05（蓝）",
+      "source": "character/firebat_1/vampire05.lua.cache",
+      "display": "id_fca_firebat_1_vampire05"
+    },
+    {
+      "sid": 320138,
+      "name": "大冲锋·火箭兵·巴洛克01（红）",
+      "source": "character/fireman_0/baroque01.lua.cache",
+      "display": "id_fca_fireman_0_baroque01"
+    },
+    {
+      "sid": 320139,
+      "name": "大冲锋·火箭兵·经典01（红）",
+      "source": "character/fireman_0/body01.lua.cache",
+      "display": "id_fca_fireman_0_body01"
+    },
+    {
+      "sid": 320140,
+      "name": "大冲锋·火箭兵·celestial01_a（红）",
+      "source": "character/fireman_0/celestial01_a.lua.cache",
+      "display": "id_fca_fireman_0_celestial01_a"
+    },
+    {
+      "sid": 320141,
+      "name": "大冲锋·火箭兵·celestial01_b（红）",
+      "source": "character/fireman_0/celestial01_b.lua.cache",
+      "display": "id_fca_fireman_0_celestial01_b"
+    },
+    {
+      "sid": 320142,
+      "name": "大冲锋·火箭兵·天神01（红）",
+      "source": "character/fireman_0/celestial01.lua.cache",
+      "display": "id_fca_fireman_0_celestial01"
+    },
+    {
+      "sid": 320143,
+      "name": "大冲锋·火箭兵·classics01_s（红）",
+      "source": "character/fireman_0/classics01_s.lua.cache",
+      "display": "id_fca_fireman_0_classics01_s"
+    },
+    {
+      "sid": 320144,
+      "name": "大冲锋·火箭兵·经典01（红）",
+      "source": "character/fireman_0/classics01.lua.cache",
+      "display": "id_fca_fireman_0_classics01"
+    },
+    {
+      "sid": 320145,
+      "name": "大冲锋·火箭兵·darkmetal01_g（红）",
+      "source": "character/fireman_0/darkmetal01_g.lua.cache",
+      "display": "id_fca_fireman_0_darkmetal01_g"
+    },
+    {
+      "sid": 320146,
+      "name": "大冲锋·火箭兵·暗黑金属01（红）",
+      "source": "character/fireman_0/darkmetal01.lua.cache",
+      "display": "id_fca_fireman_0_darkmetal01"
+    },
+    {
+      "sid": 320147,
+      "name": "大冲锋·火箭兵·egao01（红）",
+      "source": "character/fireman_0/egao01.lua.cache",
+      "display": "id_fca_fireman_0_egao01"
+    },
+    {
+      "sid": 320148,
+      "name": "大冲锋·火箭兵·fashion01（红）",
+      "source": "character/fireman_0/fashion01.lua.cache",
+      "display": "id_fca_fireman_0_fashion01"
+    },
+    {
+      "sid": 320149,
+      "name": "大冲锋·火箭兵·fca01（红）",
+      "source": "character/fireman_0/fca01.lua.cache",
+      "display": "id_fca_fireman_0_fca01"
+    },
+    {
+      "sid": 320150,
+      "name": "大冲锋·火箭兵·fireman_01（红）",
+      "source": "character/fireman_0/fireman_01.lua.cache",
+      "display": "id_fca_fireman_0_fireman_01"
+    },
+    {
+      "sid": 320151,
+      "name": "大冲锋·火箭兵·gangdom01（红）",
+      "source": "character/fireman_0/gangdom01.lua.cache",
+      "display": "id_fca_fireman_0_gangdom01"
+    },
+    {
+      "sid": 320152,
+      "name": "大冲锋·火箭兵·korea01（红）",
+      "source": "character/fireman_0/korea01.lua.cache",
+      "display": "id_fca_fireman_0_korea01"
+    },
+    {
+      "sid": 320153,
+      "name": "大冲锋·火箭兵·新年201301（红）",
+      "source": "character/fireman_0/newyear201301.lua.cache",
+      "display": "id_fca_fireman_0_newyear201301"
+    },
+    {
+      "sid": 320154,
+      "name": "大冲锋·火箭兵·新年20131（红）",
+      "source": "character/fireman_0/newyear20131.lua.cache",
+      "display": "id_fca_fireman_0_newyear20131"
+    },
+    {
+      "sid": 320155,
+      "name": "大冲锋·火箭兵·新年20151（红）",
+      "source": "character/fireman_0/newyear20151.lua.cache",
+      "display": "id_fca_fireman_0_newyear20151"
+    },
+    {
+      "sid": 320156,
+      "name": "大冲锋·火箭兵·新年20161（红）",
+      "source": "character/fireman_0/newyear20161.lua.cache",
+      "display": "id_fca_fireman_0_newyear20161"
+    },
+    {
+      "sid": 320157,
+      "name": "大冲锋·火箭兵·新年20171（红）",
+      "source": "character/fireman_0/newyear20171.lua.cache",
+      "display": "id_fca_fireman_0_newyear20171"
+    },
+    {
+      "sid": 320158,
+      "name": "大冲锋·火箭兵·pilot（红）",
+      "source": "character/fireman_0/pilot.lua.cache",
+      "display": "id_fca_fireman_0_pilot"
+    },
+    {
+      "sid": 320159,
+      "name": "大冲锋·火箭兵·海盗（红）",
+      "source": "character/fireman_0/pirate.lua.cache",
+      "display": "id_fca_fireman_0_pirate"
+    },
+    {
+      "sid": 320160,
+      "name": "大冲锋·火箭兵·starburst01（红）",
+      "source": "character/fireman_0/starburst01.lua.cache",
+      "display": "id_fca_fireman_0_starburst01"
+    },
+    {
+      "sid": 320161,
+      "name": "大冲锋·火箭兵·蒸汽朋克01（红）",
+      "source": "character/fireman_0/steampunk01.lua.cache",
+      "display": "id_fca_fireman_0_steampunk01"
+    },
+    {
+      "sid": 320162,
+      "name": "大冲锋·火箭兵·蒸汽朋克08（红）",
+      "source": "character/fireman_0/steampunk08.lua.cache",
+      "display": "id_fca_fireman_0_steampunk08"
+    },
+    {
+      "sid": 320163,
+      "name": "大冲锋·火箭兵·巴洛克01（蓝）",
+      "source": "character/fireman_1/baroque01.lua.cache",
+      "display": "id_fca_fireman_1_baroque01"
+    },
+    {
+      "sid": 320164,
+      "name": "大冲锋·火箭兵·经典01（蓝）",
+      "source": "character/fireman_1/body01.lua.cache",
+      "display": "id_fca_fireman_1_body01"
+    },
+    {
+      "sid": 320165,
+      "name": "大冲锋·火箭兵·celestial01_a（蓝）",
+      "source": "character/fireman_1/celestial01_a.lua.cache",
+      "display": "id_fca_fireman_1_celestial01_a"
+    },
+    {
+      "sid": 320166,
+      "name": "大冲锋·火箭兵·celestial01_b（蓝）",
+      "source": "character/fireman_1/celestial01_b.lua.cache",
+      "display": "id_fca_fireman_1_celestial01_b"
+    },
+    {
+      "sid": 320167,
+      "name": "大冲锋·火箭兵·天神01（蓝）",
+      "source": "character/fireman_1/celestial01.lua.cache",
+      "display": "id_fca_fireman_1_celestial01"
+    },
+    {
+      "sid": 320168,
+      "name": "大冲锋·火箭兵·classics01_s（蓝）",
+      "source": "character/fireman_1/classics01_s.lua.cache",
+      "display": "id_fca_fireman_1_classics01_s"
+    },
+    {
+      "sid": 320169,
+      "name": "大冲锋·火箭兵·经典01（蓝）",
+      "source": "character/fireman_1/classics01.lua.cache",
+      "display": "id_fca_fireman_1_classics01"
+    },
+    {
+      "sid": 320170,
+      "name": "大冲锋·火箭兵·darkmetal01_g（蓝）",
+      "source": "character/fireman_1/darkmetal01_g.lua.cache",
+      "display": "id_fca_fireman_1_darkmetal01_g"
+    },
+    {
+      "sid": 320171,
+      "name": "大冲锋·火箭兵·暗黑金属01（蓝）",
+      "source": "character/fireman_1/darkmetal01.lua.cache",
+      "display": "id_fca_fireman_1_darkmetal01"
+    },
+    {
+      "sid": 320172,
+      "name": "大冲锋·火箭兵·egao01（蓝）",
+      "source": "character/fireman_1/egao01.lua.cache",
+      "display": "id_fca_fireman_1_egao01"
+    },
+    {
+      "sid": 320173,
+      "name": "大冲锋·火箭兵·fashion01（蓝）",
+      "source": "character/fireman_1/fashion01.lua.cache",
+      "display": "id_fca_fireman_1_fashion01"
+    },
+    {
+      "sid": 320174,
+      "name": "大冲锋·火箭兵·fca01（蓝）",
+      "source": "character/fireman_1/fca01.lua.cache",
+      "display": "id_fca_fireman_1_fca01"
+    },
+    {
+      "sid": 320175,
+      "name": "大冲锋·火箭兵·fireman_01（蓝）",
+      "source": "character/fireman_1/fireman_01.lua.cache",
+      "display": "id_fca_fireman_1_fireman_01"
+    },
+    {
+      "sid": 320176,
+      "name": "大冲锋·火箭兵·gangdom01（蓝）",
+      "source": "character/fireman_1/gangdom01.lua.cache",
+      "display": "id_fca_fireman_1_gangdom01"
+    },
+    {
+      "sid": 320177,
+      "name": "大冲锋·火箭兵·korea01（蓝）",
+      "source": "character/fireman_1/korea01.lua.cache",
+      "display": "id_fca_fireman_1_korea01"
+    },
+    {
+      "sid": 320178,
+      "name": "大冲锋·火箭兵·新年201301（蓝）",
+      "source": "character/fireman_1/newyear201301.lua.cache",
+      "display": "id_fca_fireman_1_newyear201301"
+    },
+    {
+      "sid": 320179,
+      "name": "大冲锋·火箭兵·新年20131（蓝）",
+      "source": "character/fireman_1/newyear20131.lua.cache",
+      "display": "id_fca_fireman_1_newyear20131"
+    },
+    {
+      "sid": 320180,
+      "name": "大冲锋·火箭兵·新年20151（蓝）",
+      "source": "character/fireman_1/newyear20151.lua.cache",
+      "display": "id_fca_fireman_1_newyear20151"
+    },
+    {
+      "sid": 320181,
+      "name": "大冲锋·火箭兵·新年20161（蓝）",
+      "source": "character/fireman_1/newyear20161.lua.cache",
+      "display": "id_fca_fireman_1_newyear20161"
+    },
+    {
+      "sid": 320182,
+      "name": "大冲锋·火箭兵·新年20171（蓝）",
+      "source": "character/fireman_1/newyear20171.lua.cache",
+      "display": "id_fca_fireman_1_newyear20171"
+    },
+    {
+      "sid": 320183,
+      "name": "大冲锋·火箭兵·pilot（蓝）",
+      "source": "character/fireman_1/pilot.lua.cache",
+      "display": "id_fca_fireman_1_pilot"
+    },
+    {
+      "sid": 320184,
+      "name": "大冲锋·火箭兵·海盗（蓝）",
+      "source": "character/fireman_1/pirate.lua.cache",
+      "display": "id_fca_fireman_1_pirate"
+    },
+    {
+      "sid": 320185,
+      "name": "大冲锋·火箭兵·starburst01（蓝）",
+      "source": "character/fireman_1/starburst01.lua.cache",
+      "display": "id_fca_fireman_1_starburst01"
+    },
+    {
+      "sid": 320186,
+      "name": "大冲锋·火箭兵·蒸汽朋克01（蓝）",
+      "source": "character/fireman_1/steampunk01.lua.cache",
+      "display": "id_fca_fireman_1_steampunk01"
+    },
+    {
+      "sid": 320187,
+      "name": "大冲锋·火箭兵·蒸汽朋克08（蓝）",
+      "source": "character/fireman_1/steampunk08.lua.cache",
+      "display": "id_fca_fireman_1_steampunk08"
+    },
+    {
+      "sid": 320188,
+      "name": "大冲锋·突击兵·巴洛克03（红）",
+      "source": "character/leader_0/baroque03.lua.cache",
+      "display": "id_fca_leader_0_baroque03"
+    },
+    {
+      "sid": 320189,
+      "name": "大冲锋·突击兵·经典01（红）",
+      "source": "character/leader_0/body01.lua.cache",
+      "display": "id_fca_leader_0_body01"
+    },
+    {
+      "sid": 320190,
+      "name": "大冲锋·突击兵·celestial03_a（红）",
+      "source": "character/leader_0/celestial03_a.lua.cache",
+      "display": "id_fca_leader_0_celestial03_a"
+    },
+    {
+      "sid": 320191,
+      "name": "大冲锋·突击兵·celestial03_b（红）",
+      "source": "character/leader_0/celestial03_b.lua.cache",
+      "display": "id_fca_leader_0_celestial03_b"
+    },
+    {
+      "sid": 320192,
+      "name": "大冲锋·突击兵·天神03（红）",
+      "source": "character/leader_0/celestial03.lua.cache",
+      "display": "id_fca_leader_0_celestial03"
+    },
+    {
+      "sid": 320193,
+      "name": "大冲锋·突击兵·classics03_s（红）",
+      "source": "character/leader_0/classics03_s.lua.cache",
+      "display": "id_fca_leader_0_classics03_s"
+    },
+    {
+      "sid": 320194,
+      "name": "大冲锋·突击兵·经典03（红）",
+      "source": "character/leader_0/classics03.lua.cache",
+      "display": "id_fca_leader_0_classics03"
+    },
+    {
+      "sid": 320195,
+      "name": "大冲锋·突击兵·darkmetal03_g（红）",
+      "source": "character/leader_0/darkmetal03_g.lua.cache",
+      "display": "id_fca_leader_0_darkmetal03_g"
+    },
+    {
+      "sid": 320196,
+      "name": "大冲锋·突击兵·暗黑金属03（红）",
+      "source": "character/leader_0/darkmetal03.lua.cache",
+      "display": "id_fca_leader_0_darkmetal03"
+    },
+    {
+      "sid": 320197,
+      "name": "大冲锋·突击兵·egao03（红）",
+      "source": "character/leader_0/egao03.lua.cache",
+      "display": "id_fca_leader_0_egao03"
+    },
+    {
+      "sid": 320198,
+      "name": "大冲锋·突击兵·fashion03（红）",
+      "source": "character/leader_0/fashion03.lua.cache",
+      "display": "id_fca_leader_0_fashion03"
+    },
+    {
+      "sid": 320199,
+      "name": "大冲锋·突击兵·fca03（红）",
+      "source": "character/leader_0/fca03.lua.cache",
+      "display": "id_fca_leader_0_fca03"
+    },
+    {
+      "sid": 320200,
+      "name": "大冲锋·突击兵·gangdom03（红）",
+      "source": "character/leader_0/gangdom03.lua.cache",
+      "display": "id_fca_leader_0_gangdom03"
+    },
+    {
+      "sid": 320201,
+      "name": "大冲锋·突击兵·korea03（红）",
+      "source": "character/leader_0/korea03.lua.cache",
+      "display": "id_fca_leader_0_korea03"
+    },
+    {
+      "sid": 320202,
+      "name": "大冲锋·突击兵·leader_01（红）",
+      "source": "character/leader_0/leader_01.lua.cache",
+      "display": "id_fca_leader_0_leader_01"
+    },
+    {
+      "sid": 320203,
+      "name": "大冲锋·突击兵·新年201303（红）",
+      "source": "character/leader_0/newyear201303.lua.cache",
+      "display": "id_fca_leader_0_newyear201303"
+    },
+    {
+      "sid": 320204,
+      "name": "大冲锋·突击兵·新年20133（红）",
+      "source": "character/leader_0/newyear20133.lua.cache",
+      "display": "id_fca_leader_0_newyear20133"
+    },
+    {
+      "sid": 320205,
+      "name": "大冲锋·突击兵·新年20153（红）",
+      "source": "character/leader_0/newyear20153.lua.cache",
+      "display": "id_fca_leader_0_newyear20153"
+    },
+    {
+      "sid": 320206,
+      "name": "大冲锋·突击兵·新年20163（红）",
+      "source": "character/leader_0/newyear20163.lua.cache",
+      "display": "id_fca_leader_0_newyear20163"
+    },
+    {
+      "sid": 320207,
+      "name": "大冲锋·突击兵·新年20173（红）",
+      "source": "character/leader_0/newyear20173.lua.cache",
+      "display": "id_fca_leader_0_newyear20173"
+    },
+    {
+      "sid": 320208,
+      "name": "大冲锋·突击兵·seal（红）",
+      "source": "character/leader_0/seal.lua.cache",
+      "display": "id_fca_leader_0_seal"
+    },
+    {
+      "sid": 320209,
+      "name": "大冲锋·突击兵·蒸汽朋克03（红）",
+      "source": "character/leader_0/steampunk03.lua.cache",
+      "display": "id_fca_leader_0_steampunk03"
+    },
+    {
+      "sid": 320210,
+      "name": "大冲锋·突击兵·蒸汽朋克09（红）",
+      "source": "character/leader_0/steampunk09.lua.cache",
+      "display": "id_fca_leader_0_steampunk09"
+    },
+    {
+      "sid": 320211,
+      "name": "大冲锋·突击兵·superman（红）",
+      "source": "character/leader_0/superman.lua.cache",
+      "display": "id_fca_leader_0_superman"
+    },
+    {
+      "sid": 320212,
+      "name": "大冲锋·突击兵·vampire03（红）",
+      "source": "character/leader_0/vampire03.lua.cache",
+      "display": "id_fca_leader_0_vampire03"
+    },
+    {
+      "sid": 320213,
+      "name": "大冲锋·突击兵·巴洛克03（蓝）",
+      "source": "character/leader_1/baroque03.lua.cache",
+      "display": "id_fca_leader_1_baroque03"
+    },
+    {
+      "sid": 320214,
+      "name": "大冲锋·突击兵·经典01（蓝）",
+      "source": "character/leader_1/body01.lua.cache",
+      "display": "id_fca_leader_1_body01"
+    },
+    {
+      "sid": 320215,
+      "name": "大冲锋·突击兵·celestial03_a（蓝）",
+      "source": "character/leader_1/celestial03_a.lua.cache",
+      "display": "id_fca_leader_1_celestial03_a"
+    },
+    {
+      "sid": 320216,
+      "name": "大冲锋·突击兵·celestial03_b（蓝）",
+      "source": "character/leader_1/celestial03_b.lua.cache",
+      "display": "id_fca_leader_1_celestial03_b"
+    },
+    {
+      "sid": 320217,
+      "name": "大冲锋·突击兵·天神03（蓝）",
+      "source": "character/leader_1/celestial03.lua.cache",
+      "display": "id_fca_leader_1_celestial03"
+    },
+    {
+      "sid": 320218,
+      "name": "大冲锋·突击兵·classics03_s（蓝）",
+      "source": "character/leader_1/classics03_s.lua.cache",
+      "display": "id_fca_leader_1_classics03_s"
+    },
+    {
+      "sid": 320219,
+      "name": "大冲锋·突击兵·经典03（蓝）",
+      "source": "character/leader_1/classics03.lua.cache",
+      "display": "id_fca_leader_1_classics03"
+    },
+    {
+      "sid": 320220,
+      "name": "大冲锋·突击兵·darkmetal03_g（蓝）",
+      "source": "character/leader_1/darkmetal03_g.lua.cache",
+      "display": "id_fca_leader_1_darkmetal03_g"
+    },
+    {
+      "sid": 320221,
+      "name": "大冲锋·突击兵·暗黑金属03（蓝）",
+      "source": "character/leader_1/darkmetal03.lua.cache",
+      "display": "id_fca_leader_1_darkmetal03"
+    },
+    {
+      "sid": 320222,
+      "name": "大冲锋·突击兵·egao03（蓝）",
+      "source": "character/leader_1/egao03.lua.cache",
+      "display": "id_fca_leader_1_egao03"
+    },
+    {
+      "sid": 320223,
+      "name": "大冲锋·突击兵·fashion03（蓝）",
+      "source": "character/leader_1/fashion03.lua.cache",
+      "display": "id_fca_leader_1_fashion03"
+    },
+    {
+      "sid": 320224,
+      "name": "大冲锋·突击兵·fca03（蓝）",
+      "source": "character/leader_1/fca03.lua.cache",
+      "display": "id_fca_leader_1_fca03"
+    },
+    {
+      "sid": 320225,
+      "name": "大冲锋·突击兵·gangdom03（蓝）",
+      "source": "character/leader_1/gangdom03.lua.cache",
+      "display": "id_fca_leader_1_gangdom03"
+    },
+    {
+      "sid": 320226,
+      "name": "大冲锋·突击兵·korea03（蓝）",
+      "source": "character/leader_1/korea03.lua.cache",
+      "display": "id_fca_leader_1_korea03"
+    },
+    {
+      "sid": 320227,
+      "name": "大冲锋·突击兵·leader_01（蓝）",
+      "source": "character/leader_1/leader_01.lua.cache",
+      "display": "id_fca_leader_1_leader_01"
+    },
+    {
+      "sid": 320228,
+      "name": "大冲锋·突击兵·新年201303（蓝）",
+      "source": "character/leader_1/newyear201303.lua.cache",
+      "display": "id_fca_leader_1_newyear201303"
+    },
+    {
+      "sid": 320229,
+      "name": "大冲锋·突击兵·新年20133（蓝）",
+      "source": "character/leader_1/newyear20133.lua.cache",
+      "display": "id_fca_leader_1_newyear20133"
+    },
+    {
+      "sid": 320230,
+      "name": "大冲锋·突击兵·新年20153（蓝）",
+      "source": "character/leader_1/newyear20153.lua.cache",
+      "display": "id_fca_leader_1_newyear20153"
+    },
+    {
+      "sid": 320231,
+      "name": "大冲锋·突击兵·新年20163（蓝）",
+      "source": "character/leader_1/newyear20163.lua.cache",
+      "display": "id_fca_leader_1_newyear20163"
+    },
+    {
+      "sid": 320232,
+      "name": "大冲锋·突击兵·新年20173（蓝）",
+      "source": "character/leader_1/newyear20173.lua.cache",
+      "display": "id_fca_leader_1_newyear20173"
+    },
+    {
+      "sid": 320233,
+      "name": "大冲锋·突击兵·seal（蓝）",
+      "source": "character/leader_1/seal.lua.cache",
+      "display": "id_fca_leader_1_seal"
+    },
+    {
+      "sid": 320234,
+      "name": "大冲锋·突击兵·蒸汽朋克03（蓝）",
+      "source": "character/leader_1/steampunk03.lua.cache",
+      "display": "id_fca_leader_1_steampunk03"
+    },
+    {
+      "sid": 320235,
+      "name": "大冲锋·突击兵·蒸汽朋克09（蓝）",
+      "source": "character/leader_1/steampunk09.lua.cache",
+      "display": "id_fca_leader_1_steampunk09"
+    },
+    {
+      "sid": 320236,
+      "name": "大冲锋·突击兵·superman（蓝）",
+      "source": "character/leader_1/superman.lua.cache",
+      "display": "id_fca_leader_1_superman"
+    },
+    {
+      "sid": 320237,
+      "name": "大冲锋·突击兵·vampire03（蓝）",
+      "source": "character/leader_1/vampire03.lua.cache",
+      "display": "id_fca_leader_1_vampire03"
+    },
+    {
+      "sid": 320238,
+      "name": "大冲锋·护士·巴洛克06（红）",
+      "source": "character/nurse_0/baroque06.lua.cache",
+      "display": "id_fca_nurse_0_baroque06"
+    },
+    {
+      "sid": 320239,
+      "name": "大冲锋·护士·经典01（红）",
+      "source": "character/nurse_0/body01.lua.cache",
+      "display": "id_fca_nurse_0_body01"
+    },
+    {
+      "sid": 320240,
+      "name": "大冲锋·护士·celestial06_a（红）",
+      "source": "character/nurse_0/celestial06_a.lua.cache",
+      "display": "id_fca_nurse_0_celestial06_a"
+    },
+    {
+      "sid": 320241,
+      "name": "大冲锋·护士·celestial06_b（红）",
+      "source": "character/nurse_0/celestial06_b.lua.cache",
+      "display": "id_fca_nurse_0_celestial06_b"
+    },
+    {
+      "sid": 320242,
+      "name": "大冲锋·护士·天神06（红）",
+      "source": "character/nurse_0/celestial06.lua.cache",
+      "display": "id_fca_nurse_0_celestial06"
+    },
+    {
+      "sid": 320243,
+      "name": "大冲锋·护士·classics06_s（红）",
+      "source": "character/nurse_0/classics06_s.lua.cache",
+      "display": "id_fca_nurse_0_classics06_s"
+    },
+    {
+      "sid": 320244,
+      "name": "大冲锋·护士·经典06（红）",
+      "source": "character/nurse_0/classics06.lua.cache",
+      "display": "id_fca_nurse_0_classics06"
+    },
+    {
+      "sid": 320245,
+      "name": "大冲锋·护士·darkmetal06_g（红）",
+      "source": "character/nurse_0/darkmetal06_g.lua.cache",
+      "display": "id_fca_nurse_0_darkmetal06_g"
+    },
+    {
+      "sid": 320246,
+      "name": "大冲锋·护士·暗黑金属06（红）",
+      "source": "character/nurse_0/darkmetal06.lua.cache",
+      "display": "id_fca_nurse_0_darkmetal06"
+    },
+    {
+      "sid": 320247,
+      "name": "大冲锋·护士·egao06（红）",
+      "source": "character/nurse_0/egao06.lua.cache",
+      "display": "id_fca_nurse_0_egao06"
+    },
+    {
+      "sid": 320248,
+      "name": "大冲锋·护士·fashion06（红）",
+      "source": "character/nurse_0/fashion06.lua.cache",
+      "display": "id_fca_nurse_0_fashion06"
+    },
+    {
+      "sid": 320249,
+      "name": "大冲锋·护士·fca06（红）",
+      "source": "character/nurse_0/fca06.lua.cache",
+      "display": "id_fca_nurse_0_fca06"
+    },
+    {
+      "sid": 320250,
+      "name": "大冲锋·护士·gangdom06（红）",
+      "source": "character/nurse_0/gangdom06.lua.cache",
+      "display": "id_fca_nurse_0_gangdom06"
+    },
+    {
+      "sid": 320251,
+      "name": "大冲锋·护士·korea06（红）",
+      "source": "character/nurse_0/korea06.lua.cache",
+      "display": "id_fca_nurse_0_korea06"
+    },
+    {
+      "sid": 320252,
+      "name": "大冲锋·护士·新年201306（红）",
+      "source": "character/nurse_0/newyear201306.lua.cache",
+      "display": "id_fca_nurse_0_newyear201306"
+    },
+    {
+      "sid": 320253,
+      "name": "大冲锋·护士·新年20136（红）",
+      "source": "character/nurse_0/newyear20136.lua.cache",
+      "display": "id_fca_nurse_0_newyear20136"
+    },
+    {
+      "sid": 320254,
+      "name": "大冲锋·护士·新年20156（红）",
+      "source": "character/nurse_0/newyear20156.lua.cache",
+      "display": "id_fca_nurse_0_newyear20156"
+    },
+    {
+      "sid": 320255,
+      "name": "大冲锋·护士·新年20166（红）",
+      "source": "character/nurse_0/newyear20166.lua.cache",
+      "display": "id_fca_nurse_0_newyear20166"
+    },
+    {
+      "sid": 320256,
+      "name": "大冲锋·护士·新年20176（红）",
+      "source": "character/nurse_0/newyear20176.lua.cache",
+      "display": "id_fca_nurse_0_newyear20176"
+    },
+    {
+      "sid": 320257,
+      "name": "大冲锋·护士·nurseli（红）",
+      "source": "character/nurse_0/nurseli.lua.cache",
+      "display": "id_fca_nurse_0_nurseli"
+    },
+    {
+      "sid": 320258,
+      "name": "大冲锋·护士·nurseluo_01（红）",
+      "source": "character/nurse_0/nurseluo_01.lua.cache",
+      "display": "id_fca_nurse_0_nurseluo_01"
+    },
+    {
+      "sid": 320259,
+      "name": "大冲锋·护士·nursezhang（红）",
+      "source": "character/nurse_0/nursezhang.lua.cache",
+      "display": "id_fca_nurse_0_nursezhang"
+    },
+    {
+      "sid": 320260,
+      "name": "大冲锋·护士·steampunk06_f（红）",
+      "source": "character/nurse_0/steampunk06_f.lua.cache",
+      "display": "id_fca_nurse_0_steampunk06_f"
+    },
+    {
+      "sid": 320261,
+      "name": "大冲锋·护士·蒸汽朋克06（红）",
+      "source": "character/nurse_0/steampunk06.lua.cache",
+      "display": "id_fca_nurse_0_steampunk06"
+    },
+    {
+      "sid": 320262,
+      "name": "大冲锋·护士·巴洛克06（蓝）",
+      "source": "character/nurse_1/baroque06.lua.cache",
+      "display": "id_fca_nurse_1_baroque06"
+    },
+    {
+      "sid": 320263,
+      "name": "大冲锋·护士·经典01（蓝）",
+      "source": "character/nurse_1/body01.lua.cache",
+      "display": "id_fca_nurse_1_body01"
+    },
+    {
+      "sid": 320264,
+      "name": "大冲锋·护士·celestial06_a（蓝）",
+      "source": "character/nurse_1/celestial06_a.lua.cache",
+      "display": "id_fca_nurse_1_celestial06_a"
+    },
+    {
+      "sid": 320265,
+      "name": "大冲锋·护士·celestial06_b（蓝）",
+      "source": "character/nurse_1/celestial06_b.lua.cache",
+      "display": "id_fca_nurse_1_celestial06_b"
+    },
+    {
+      "sid": 320266,
+      "name": "大冲锋·护士·天神06（蓝）",
+      "source": "character/nurse_1/celestial06.lua.cache",
+      "display": "id_fca_nurse_1_celestial06"
+    },
+    {
+      "sid": 320267,
+      "name": "大冲锋·护士·classics06_s（蓝）",
+      "source": "character/nurse_1/classics06_s.lua.cache",
+      "display": "id_fca_nurse_1_classics06_s"
+    },
+    {
+      "sid": 320268,
+      "name": "大冲锋·护士·经典06（蓝）",
+      "source": "character/nurse_1/classics06.lua.cache",
+      "display": "id_fca_nurse_1_classics06"
+    },
+    {
+      "sid": 320269,
+      "name": "大冲锋·护士·darkmetal06_g（蓝）",
+      "source": "character/nurse_1/darkmetal06_g.lua.cache",
+      "display": "id_fca_nurse_1_darkmetal06_g"
+    },
+    {
+      "sid": 320270,
+      "name": "大冲锋·护士·暗黑金属06（蓝）",
+      "source": "character/nurse_1/darkmetal06.lua.cache",
+      "display": "id_fca_nurse_1_darkmetal06"
+    },
+    {
+      "sid": 320271,
+      "name": "大冲锋·护士·egao06（蓝）",
+      "source": "character/nurse_1/egao06.lua.cache",
+      "display": "id_fca_nurse_1_egao06"
+    },
+    {
+      "sid": 320272,
+      "name": "大冲锋·护士·fashion06（蓝）",
+      "source": "character/nurse_1/fashion06.lua.cache",
+      "display": "id_fca_nurse_1_fashion06"
+    },
+    {
+      "sid": 320273,
+      "name": "大冲锋·护士·fca06（蓝）",
+      "source": "character/nurse_1/fca06.lua.cache",
+      "display": "id_fca_nurse_1_fca06"
+    },
+    {
+      "sid": 320274,
+      "name": "大冲锋·护士·gangdom06（蓝）",
+      "source": "character/nurse_1/gangdom06.lua.cache",
+      "display": "id_fca_nurse_1_gangdom06"
+    },
+    {
+      "sid": 320275,
+      "name": "大冲锋·护士·korea06（蓝）",
+      "source": "character/nurse_1/korea06.lua.cache",
+      "display": "id_fca_nurse_1_korea06"
+    },
+    {
+      "sid": 320276,
+      "name": "大冲锋·护士·新年201306（蓝）",
+      "source": "character/nurse_1/newyear201306.lua.cache",
+      "display": "id_fca_nurse_1_newyear201306"
+    },
+    {
+      "sid": 320277,
+      "name": "大冲锋·护士·新年20136（蓝）",
+      "source": "character/nurse_1/newyear20136.lua.cache",
+      "display": "id_fca_nurse_1_newyear20136"
+    },
+    {
+      "sid": 320278,
+      "name": "大冲锋·护士·新年20156（蓝）",
+      "source": "character/nurse_1/newyear20156.lua.cache",
+      "display": "id_fca_nurse_1_newyear20156"
+    },
+    {
+      "sid": 320279,
+      "name": "大冲锋·护士·新年20166（蓝）",
+      "source": "character/nurse_1/newyear20166.lua.cache",
+      "display": "id_fca_nurse_1_newyear20166"
+    },
+    {
+      "sid": 320280,
+      "name": "大冲锋·护士·新年20176（蓝）",
+      "source": "character/nurse_1/newyear20176.lua.cache",
+      "display": "id_fca_nurse_1_newyear20176"
+    },
+    {
+      "sid": 320281,
+      "name": "大冲锋·护士·nurseli（蓝）",
+      "source": "character/nurse_1/nurseli.lua.cache",
+      "display": "id_fca_nurse_1_nurseli"
+    },
+    {
+      "sid": 320282,
+      "name": "大冲锋·护士·nurseluo_01（蓝）",
+      "source": "character/nurse_1/nurseluo_01.lua.cache",
+      "display": "id_fca_nurse_1_nurseluo_01"
+    },
+    {
+      "sid": 320283,
+      "name": "大冲锋·护士·nursezhang（蓝）",
+      "source": "character/nurse_1/nursezhang.lua.cache",
+      "display": "id_fca_nurse_1_nursezhang"
+    },
+    {
+      "sid": 320284,
+      "name": "大冲锋·护士·steampunk06_f（蓝）",
+      "source": "character/nurse_1/steampunk06_f.lua.cache",
+      "display": "id_fca_nurse_1_steampunk06_f"
+    },
+    {
+      "sid": 320285,
+      "name": "大冲锋·护士·蒸汽朋克06（蓝）",
+      "source": "character/nurse_1/steampunk06.lua.cache",
+      "display": "id_fca_nurse_1_steampunk06"
+    },
+    {
+      "sid": 320286,
+      "name": "大冲锋·狙击手·巴洛克04（红）",
+      "source": "character/officelady_0/baroque04.lua.cache",
+      "display": "id_fca_officelady_0_baroque04"
+    },
+    {
+      "sid": 320287,
+      "name": "大冲锋·狙击手·经典01（红）",
+      "source": "character/officelady_0/body01.lua.cache",
+      "display": "id_fca_officelady_0_body01"
+    },
+    {
+      "sid": 320288,
+      "name": "大冲锋·狙击手·celestial04_a（红）",
+      "source": "character/officelady_0/celestial04_a.lua.cache",
+      "display": "id_fca_officelady_0_celestial04_a"
+    },
+    {
+      "sid": 320289,
+      "name": "大冲锋·狙击手·celestial04_b（红）",
+      "source": "character/officelady_0/celestial04_b.lua.cache",
+      "display": "id_fca_officelady_0_celestial04_b"
+    },
+    {
+      "sid": 320290,
+      "name": "大冲锋·狙击手·天神04（红）",
+      "source": "character/officelady_0/celestial04.lua.cache",
+      "display": "id_fca_officelady_0_celestial04"
+    },
+    {
+      "sid": 320291,
+      "name": "大冲锋·狙击手·classics04_s（红）",
+      "source": "character/officelady_0/classics04_s.lua.cache",
+      "display": "id_fca_officelady_0_classics04_s"
+    },
+    {
+      "sid": 320292,
+      "name": "大冲锋·狙击手·经典04（红）",
+      "source": "character/officelady_0/classics04.lua.cache",
+      "display": "id_fca_officelady_0_classics04"
+    },
+    {
+      "sid": 320293,
+      "name": "大冲锋·狙击手·darkmetal04_g（红）",
+      "source": "character/officelady_0/darkmetal04_g.lua.cache",
+      "display": "id_fca_officelady_0_darkmetal04_g"
+    },
+    {
+      "sid": 320294,
+      "name": "大冲锋·狙击手·暗黑金属04（红）",
+      "source": "character/officelady_0/darkmetal04.lua.cache",
+      "display": "id_fca_officelady_0_darkmetal04"
+    },
+    {
+      "sid": 320295,
+      "name": "大冲锋·狙击手·devilgirl（红）",
+      "source": "character/officelady_0/devilgirl.lua.cache",
+      "display": "id_fca_officelady_0_devilgirl"
+    },
+    {
+      "sid": 320296,
+      "name": "大冲锋·狙击手·egao04（红）",
+      "source": "character/officelady_0/egao04.lua.cache",
+      "display": "id_fca_officelady_0_egao04"
+    },
+    {
+      "sid": 320297,
+      "name": "大冲锋·狙击手·fashion04（红）",
+      "source": "character/officelady_0/fashion04.lua.cache",
+      "display": "id_fca_officelady_0_fashion04"
+    },
+    {
+      "sid": 320298,
+      "name": "大冲锋·狙击手·fca04（红）",
+      "source": "character/officelady_0/fca04.lua.cache",
+      "display": "id_fca_officelady_0_fca04"
+    },
+    {
+      "sid": 320299,
+      "name": "大冲锋·狙击手·gangdom04（红）",
+      "source": "character/officelady_0/gangdom04.lua.cache",
+      "display": "id_fca_officelady_0_gangdom04"
+    },
+    {
+      "sid": 320300,
+      "name": "大冲锋·狙击手·korea04（红）",
+      "source": "character/officelady_0/korea04.lua.cache",
+      "display": "id_fca_officelady_0_korea04"
+    },
+    {
+      "sid": 320301,
+      "name": "大冲锋·狙击手·新年201304（红）",
+      "source": "character/officelady_0/newyear201304.lua.cache",
+      "display": "id_fca_officelady_0_newyear201304"
+    },
+    {
+      "sid": 320302,
+      "name": "大冲锋·狙击手·新年20134（红）",
+      "source": "character/officelady_0/newyear20134.lua.cache",
+      "display": "id_fca_officelady_0_newyear20134"
+    },
+    {
+      "sid": 320303,
+      "name": "大冲锋·狙击手·新年20154（红）",
+      "source": "character/officelady_0/newyear20154.lua.cache",
+      "display": "id_fca_officelady_0_newyear20154"
+    },
+    {
+      "sid": 320304,
+      "name": "大冲锋·狙击手·新年20164（红）",
+      "source": "character/officelady_0/newyear20164.lua.cache",
+      "display": "id_fca_officelady_0_newyear20164"
+    },
+    {
+      "sid": 320305,
+      "name": "大冲锋·狙击手·新年20174（红）",
+      "source": "character/officelady_0/newyear20174.lua.cache",
+      "display": "id_fca_officelady_0_newyear20174"
+    },
+    {
+      "sid": 320306,
+      "name": "大冲锋·狙击手·officelady_01（红）",
+      "source": "character/officelady_0/officelady_01.lua.cache",
+      "display": "id_fca_officelady_0_officelady_01"
+    },
+    {
+      "sid": 320307,
+      "name": "大冲锋·狙击手·policewoman（红）",
+      "source": "character/officelady_0/policewoman.lua.cache",
+      "display": "id_fca_officelady_0_policewoman"
+    },
+    {
+      "sid": 320308,
+      "name": "大冲锋·狙击手·steampunk04_f（红）",
+      "source": "character/officelady_0/steampunk04_f.lua.cache",
+      "display": "id_fca_officelady_0_steampunk04_f"
+    },
+    {
+      "sid": 320309,
+      "name": "大冲锋·狙击手·蒸汽朋克04（红）",
+      "source": "character/officelady_0/steampunk04.lua.cache",
+      "display": "id_fca_officelady_0_steampunk04"
+    },
+    {
+      "sid": 320310,
+      "name": "大冲锋·狙击手·vampire04（红）",
+      "source": "character/officelady_0/vampire04.lua.cache",
+      "display": "id_fca_officelady_0_vampire04"
+    },
+    {
+      "sid": 320311,
+      "name": "大冲锋·狙击手·巴洛克04（蓝）",
+      "source": "character/officelady_1/baroque04.lua.cache",
+      "display": "id_fca_officelady_1_baroque04"
+    },
+    {
+      "sid": 320312,
+      "name": "大冲锋·狙击手·经典01（蓝）",
+      "source": "character/officelady_1/body01.lua.cache",
+      "display": "id_fca_officelady_1_body01"
+    },
+    {
+      "sid": 320313,
+      "name": "大冲锋·狙击手·celestial04_a（蓝）",
+      "source": "character/officelady_1/celestial04_a.lua.cache",
+      "display": "id_fca_officelady_1_celestial04_a"
+    },
+    {
+      "sid": 320314,
+      "name": "大冲锋·狙击手·celestial04_b（蓝）",
+      "source": "character/officelady_1/celestial04_b.lua.cache",
+      "display": "id_fca_officelady_1_celestial04_b"
+    },
+    {
+      "sid": 320315,
+      "name": "大冲锋·狙击手·天神04（蓝）",
+      "source": "character/officelady_1/celestial04.lua.cache",
+      "display": "id_fca_officelady_1_celestial04"
+    },
+    {
+      "sid": 320316,
+      "name": "大冲锋·狙击手·classics04_s（蓝）",
+      "source": "character/officelady_1/classics04_s.lua.cache",
+      "display": "id_fca_officelady_1_classics04_s"
+    },
+    {
+      "sid": 320317,
+      "name": "大冲锋·狙击手·经典04（蓝）",
+      "source": "character/officelady_1/classics04.lua.cache",
+      "display": "id_fca_officelady_1_classics04"
+    },
+    {
+      "sid": 320318,
+      "name": "大冲锋·狙击手·darkmetal04_g（蓝）",
+      "source": "character/officelady_1/darkmetal04_g.lua.cache",
+      "display": "id_fca_officelady_1_darkmetal04_g"
+    },
+    {
+      "sid": 320319,
+      "name": "大冲锋·狙击手·暗黑金属04（蓝）",
+      "source": "character/officelady_1/darkmetal04.lua.cache",
+      "display": "id_fca_officelady_1_darkmetal04"
+    },
+    {
+      "sid": 320320,
+      "name": "大冲锋·狙击手·devilgirl（蓝）",
+      "source": "character/officelady_1/devilgirl.lua.cache",
+      "display": "id_fca_officelady_1_devilgirl"
+    },
+    {
+      "sid": 320321,
+      "name": "大冲锋·狙击手·egao04（蓝）",
+      "source": "character/officelady_1/egao04.lua.cache",
+      "display": "id_fca_officelady_1_egao04"
+    },
+    {
+      "sid": 320322,
+      "name": "大冲锋·狙击手·fashion04（蓝）",
+      "source": "character/officelady_1/fashion04.lua.cache",
+      "display": "id_fca_officelady_1_fashion04"
+    },
+    {
+      "sid": 320323,
+      "name": "大冲锋·狙击手·fca04（蓝）",
+      "source": "character/officelady_1/fca04.lua.cache",
+      "display": "id_fca_officelady_1_fca04"
+    },
+    {
+      "sid": 320324,
+      "name": "大冲锋·狙击手·gangdom04（蓝）",
+      "source": "character/officelady_1/gangdom04.lua.cache",
+      "display": "id_fca_officelady_1_gangdom04"
+    },
+    {
+      "sid": 320325,
+      "name": "大冲锋·狙击手·korea04（蓝）",
+      "source": "character/officelady_1/korea04.lua.cache",
+      "display": "id_fca_officelady_1_korea04"
+    },
+    {
+      "sid": 320326,
+      "name": "大冲锋·狙击手·新年201304（蓝）",
+      "source": "character/officelady_1/newyear201304.lua.cache",
+      "display": "id_fca_officelady_1_newyear201304"
+    },
+    {
+      "sid": 320327,
+      "name": "大冲锋·狙击手·新年20134（蓝）",
+      "source": "character/officelady_1/newyear20134.lua.cache",
+      "display": "id_fca_officelady_1_newyear20134"
+    },
+    {
+      "sid": 320328,
+      "name": "大冲锋·狙击手·新年20154（蓝）",
+      "source": "character/officelady_1/newyear20154.lua.cache",
+      "display": "id_fca_officelady_1_newyear20154"
+    },
+    {
+      "sid": 320329,
+      "name": "大冲锋·狙击手·新年20164（蓝）",
+      "source": "character/officelady_1/newyear20164.lua.cache",
+      "display": "id_fca_officelady_1_newyear20164"
+    },
+    {
+      "sid": 320330,
+      "name": "大冲锋·狙击手·新年20174（蓝）",
+      "source": "character/officelady_1/newyear20174.lua.cache",
+      "display": "id_fca_officelady_1_newyear20174"
+    },
+    {
+      "sid": 320331,
+      "name": "大冲锋·狙击手·officelady_01（蓝）",
+      "source": "character/officelady_1/officelady_01.lua.cache",
+      "display": "id_fca_officelady_1_officelady_01"
+    },
+    {
+      "sid": 320332,
+      "name": "大冲锋·狙击手·policewoman（蓝）",
+      "source": "character/officelady_1/policewoman.lua.cache",
+      "display": "id_fca_officelady_1_policewoman"
+    },
+    {
+      "sid": 320333,
+      "name": "大冲锋·狙击手·steampunk04_f（蓝）",
+      "source": "character/officelady_1/steampunk04_f.lua.cache",
+      "display": "id_fca_officelady_1_steampunk04_f"
+    },
+    {
+      "sid": 320334,
+      "name": "大冲锋·狙击手·蒸汽朋克04（蓝）",
+      "source": "character/officelady_1/steampunk04.lua.cache",
+      "display": "id_fca_officelady_1_steampunk04"
+    },
+    {
+      "sid": 320335,
+      "name": "大冲锋·狙击手·vampire04（蓝）",
+      "source": "character/officelady_1/vampire04.lua.cache",
+      "display": "id_fca_officelady_1_vampire04"
+    }
+  ],
+  "weapons": [
+    {
+      "sid": 220000,
+      "name": "大冲锋·AIRGUN",
+      "source": "weapon/airgun/rv1.lua.cache",
+      "resource": "fca_airgun",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220001,
+      "name": "大冲锋·AK47",
+      "source": "weapon/ak47/rv1.lua.cache",
+      "resource": "fca_ak47",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220002,
+      "name": "大冲锋·AUG",
+      "source": "weapon/aug/rv1.lua.cache",
+      "resource": "fca_aug",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220003,
+      "name": "大冲锋·BATONS",
+      "source": "weapon/batons/strider.lua.cache",
+      "resource": "fca_batons",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220004,
+      "name": "大冲锋·BAZOOKAS",
+      "source": "weapon/bazookas/rv1.lua.cache",
+      "resource": "fca_bazookas",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220005,
+      "name": "大冲锋·阔剑",
+      "source": "weapon/broadsword/rv1.lua.cache",
+      "resource": "fca_broadsword",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220006,
+      "name": "大冲锋·CAPTAINHOOK",
+      "source": "weapon/captainhook/strider.lua.cache",
+      "resource": "fca_captainhook",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220007,
+      "name": "大冲锋·工程钳",
+      "source": "weapon/clamp/strider.lua.cache",
+      "resource": "fca_clamp",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220008,
+      "name": "大冲锋·CLASPKNIFE",
+      "source": "weapon/claspknife/strider.lua.cache",
+      "resource": "fca_claspknife",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220009,
+      "name": "大冲锋·CZ83",
+      "source": "weapon/cz83/rv1.lua.cache",
+      "resource": "fca_cz83",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220010,
+      "name": "大冲锋·沙漠之鹰",
+      "source": "weapon/deserteagle/rv1.lua.cache",
+      "resource": "fca_deserteagle",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220011,
+      "name": "大冲锋·DRUM",
+      "source": "weapon/drum/rv1.lua.cache",
+      "resource": "fca_drum",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220012,
+      "name": "大冲锋·工程武器 02001",
+      "source": "weapon/engineer02001/rv1.lua.cache",
+      "resource": "fca_engineer02001",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220013,
+      "name": "大冲锋·工程武器 02002",
+      "source": "weapon/engineer02002/rv1.lua.cache",
+      "resource": "fca_engineer02002",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220014,
+      "name": "大冲锋·工程武器 02003",
+      "source": "weapon/engineer02003/rv1.lua.cache",
+      "resource": "fca_engineer02003",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220015,
+      "name": "大冲锋·工程武器 02004",
+      "source": "weapon/engineer02004/rv1.lua.cache",
+      "resource": "fca_engineer02004",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220016,
+      "name": "大冲锋·工程武器 02005",
+      "source": "weapon/engineer02005/rv1.lua.cache",
+      "resource": "fca_engineer02005",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220017,
+      "name": "大冲锋·工程武器 02006",
+      "source": "weapon/engineer02006/rv1.lua.cache",
+      "resource": "fca_engineer02006",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220018,
+      "name": "大冲锋·工程武器 02007",
+      "source": "weapon/engineer02007/rv1.lua.cache",
+      "resource": "fca_engineer02007",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220019,
+      "name": "大冲锋·工程武器 02008",
+      "source": "weapon/engineer02008/rv1.lua.cache",
+      "resource": "fca_engineer02008",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220020,
+      "name": "大冲锋·工程武器 02009",
+      "source": "weapon/engineer02009/rv1.lua.cache",
+      "resource": "fca_engineer02009",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220021,
+      "name": "大冲锋·工程武器 02010",
+      "source": "weapon/engineer02010/rv1.lua.cache",
+      "resource": "fca_engineer02010",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220022,
+      "name": "大冲锋·工程武器 02011",
+      "source": "weapon/engineer02011/rv1.lua.cache",
+      "resource": "fca_engineer02011",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220023,
+      "name": "大冲锋·工程武器 02012",
+      "source": "weapon/engineer02012/rv1.lua.cache",
+      "resource": "fca_engineer02012",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220024,
+      "name": "大冲锋·工程武器 02013",
+      "source": "weapon/engineer02013/rv1.lua.cache",
+      "resource": "fca_engineer02013",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220025,
+      "name": "大冲锋·工程武器 02014",
+      "source": "weapon/engineer02014/rv1.lua.cache",
+      "resource": "fca_engineer02014",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220026,
+      "name": "大冲锋·工程武器 03001",
+      "source": "weapon/engineer03001/strider.lua.cache",
+      "resource": "fca_engineer03001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220027,
+      "name": "大冲锋·工程武器 03005",
+      "source": "weapon/engineer03005/strider.lua.cache",
+      "resource": "fca_engineer03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220028,
+      "name": "大冲锋·工程武器 03006",
+      "source": "weapon/engineer03006/strider.lua.cache",
+      "resource": "fca_engineer03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220029,
+      "name": "大冲锋·工程武器 03008",
+      "source": "weapon/engineer03008/strider.lua.cache",
+      "resource": "fca_engineer03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220030,
+      "name": "大冲锋·工程武器 03009",
+      "source": "weapon/engineer03009/strider.lua.cache",
+      "resource": "fca_engineer03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220031,
+      "name": "大冲锋·工程武器 03010",
+      "source": "weapon/engineer03010/strider.lua.cache",
+      "resource": "fca_engineer03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220032,
+      "name": "大冲锋·工程武器 03011",
+      "source": "weapon/engineer03011/strider.lua.cache",
+      "resource": "fca_engineer03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220033,
+      "name": "大冲锋·工程武器 03012",
+      "source": "weapon/engineer03012/strider.lua.cache",
+      "resource": "fca_engineer03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220034,
+      "name": "大冲锋·工程武器 03013",
+      "source": "weapon/engineer03013/strider.lua.cache",
+      "resource": "fca_engineer03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220035,
+      "name": "大冲锋·工程武器 03015",
+      "source": "weapon/engineer03015/strider.lua.cache",
+      "resource": "fca_engineer03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220036,
+      "name": "大冲锋·工程武器 03016",
+      "source": "weapon/engineer03016/strider.lua.cache",
+      "resource": "fca_engineer03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220037,
+      "name": "大冲锋·工程武器 03017",
+      "source": "weapon/engineer03017/strider.lua.cache",
+      "resource": "fca_engineer03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220038,
+      "name": "大冲锋·工程武器 03018",
+      "source": "weapon/engineer03018/strider.lua.cache",
+      "resource": "fca_engineer03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220039,
+      "name": "大冲锋·重装武器 01004",
+      "source": "weapon/fatman01004/rv1.lua.cache",
+      "resource": "fca_fatman01004",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220040,
+      "name": "大冲锋·重装武器 01005",
+      "source": "weapon/fatman01005/rv1.lua.cache",
+      "resource": "fca_fatman01005",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220041,
+      "name": "大冲锋·重装武器 01006",
+      "source": "weapon/fatman01006/rv1.lua.cache",
+      "resource": "fca_fatman01006",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220042,
+      "name": "大冲锋·重装武器 01007",
+      "source": "weapon/fatman01007/rv1.lua.cache",
+      "resource": "fca_fatman01007",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220043,
+      "name": "大冲锋·重装武器 01008",
+      "source": "weapon/fatman01008/rv1.lua.cache",
+      "resource": "fca_fatman01008",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220044,
+      "name": "大冲锋·重装武器 01009",
+      "source": "weapon/fatman01009/rv1.lua.cache",
+      "resource": "fca_fatman01009",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220045,
+      "name": "大冲锋·重装武器 01010",
+      "source": "weapon/fatman01010/rv1.lua.cache",
+      "resource": "fca_fatman01010",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220046,
+      "name": "大冲锋·重装武器 01011",
+      "source": "weapon/fatman01011/rv1.lua.cache",
+      "resource": "fca_fatman01011",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220047,
+      "name": "大冲锋·重装武器 01012",
+      "source": "weapon/fatman01012/rv1.lua.cache",
+      "resource": "fca_fatman01012",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220048,
+      "name": "大冲锋·重装武器 01014",
+      "source": "weapon/fatman01014/rv1.lua.cache",
+      "resource": "fca_fatman01014",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220049,
+      "name": "大冲锋·重装武器 01014vip",
+      "source": "weapon/fatman01014vip/rv1.lua.cache",
+      "resource": "fca_fatman01014vip",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220050,
+      "name": "大冲锋·重装武器 01015",
+      "source": "weapon/fatman01015/rv1.lua.cache",
+      "resource": "fca_fatman01015",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220051,
+      "name": "大冲锋·重装武器 01016",
+      "source": "weapon/fatman01016/rv1.lua.cache",
+      "resource": "fca_fatman01016",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220052,
+      "name": "大冲锋·重装武器 01017",
+      "source": "weapon/fatman01017/rv1.lua.cache",
+      "resource": "fca_fatman01017",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220053,
+      "name": "大冲锋·重装武器 01018",
+      "source": "weapon/fatman01018/rv1.lua.cache",
+      "resource": "fca_fatman01018",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220054,
+      "name": "大冲锋·重装武器 01019",
+      "source": "weapon/fatman01019/rv1.lua.cache",
+      "resource": "fca_fatman01019",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220055,
+      "name": "大冲锋·重装武器 01020",
+      "source": "weapon/fatman01020/rv1.lua.cache",
+      "resource": "fca_fatman01020",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220056,
+      "name": "大冲锋·重装武器 01022",
+      "source": "weapon/fatman01022/rv1.lua.cache",
+      "resource": "fca_fatman01022",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220057,
+      "name": "大冲锋·重装武器 01023",
+      "source": "weapon/fatman01023/rv1.lua.cache",
+      "resource": "fca_fatman01023",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220058,
+      "name": "大冲锋·重装武器 01024",
+      "source": "weapon/fatman01024/rv1.lua.cache",
+      "resource": "fca_fatman01024",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220059,
+      "name": "大冲锋·重装武器 01025",
+      "source": "weapon/fatman01025/rv1.lua.cache",
+      "resource": "fca_fatman01025",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220060,
+      "name": "大冲锋·重装武器 01026",
+      "source": "weapon/fatman01026/rv1.lua.cache",
+      "resource": "fca_fatman01026",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220061,
+      "name": "大冲锋·重装武器 01028",
+      "source": "weapon/fatman01028/rv1.lua.cache",
+      "resource": "fca_fatman01028",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220062,
+      "name": "大冲锋·重装武器 01029",
+      "source": "weapon/fatman01029/rv1.lua.cache",
+      "resource": "fca_fatman01029",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220063,
+      "name": "大冲锋·重装武器 01030",
+      "source": "weapon/fatman01030/rv1.lua.cache",
+      "resource": "fca_fatman01030",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220064,
+      "name": "大冲锋·重装武器 01033",
+      "source": "weapon/fatman01033/rv1.lua.cache",
+      "resource": "fca_fatman01033",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220065,
+      "name": "大冲锋·重装武器 01036",
+      "source": "weapon/fatman01036/rv1.lua.cache",
+      "resource": "fca_fatman01036",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220066,
+      "name": "大冲锋·重装武器 01037",
+      "source": "weapon/fatman01037/rv1.lua.cache",
+      "resource": "fca_fatman01037",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220067,
+      "name": "大冲锋·重装武器 02003",
+      "source": "weapon/fatman02003/rv1.lua.cache",
+      "resource": "fca_fatman02003",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220068,
+      "name": "大冲锋·重装武器 02005",
+      "source": "weapon/fatman02005/rv1.lua.cache",
+      "resource": "fca_fatman02005",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220069,
+      "name": "大冲锋·重装武器 02006",
+      "source": "weapon/fatman02006/rv1.lua.cache",
+      "resource": "fca_fatman02006",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220070,
+      "name": "大冲锋·重装武器 02007",
+      "source": "weapon/fatman02007/rv1.lua.cache",
+      "resource": "fca_fatman02007",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220071,
+      "name": "大冲锋·重装武器 02008",
+      "source": "weapon/fatman02008/rv1.lua.cache",
+      "resource": "fca_fatman02008",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220072,
+      "name": "大冲锋·重装武器 02009",
+      "source": "weapon/fatman02009/rv1.lua.cache",
+      "resource": "fca_fatman02009",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220073,
+      "name": "大冲锋·重装武器 02010",
+      "source": "weapon/fatman02010/rv1.lua.cache",
+      "resource": "fca_fatman02010",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220074,
+      "name": "大冲锋·重装武器 02011",
+      "source": "weapon/fatman02011/rv1.lua.cache",
+      "resource": "fca_fatman02011",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220075,
+      "name": "大冲锋·重装武器 02012",
+      "source": "weapon/fatman02012/rv1.lua.cache",
+      "resource": "fca_fatman02012",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220076,
+      "name": "大冲锋·重装武器 02014",
+      "source": "weapon/fatman02014/rv1.lua.cache",
+      "resource": "fca_fatman02014",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220077,
+      "name": "大冲锋·重装武器 02015",
+      "source": "weapon/fatman02015/rv1.lua.cache",
+      "resource": "fca_fatman02015",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220078,
+      "name": "大冲锋·重装武器 03005",
+      "source": "weapon/fatman03005/strider.lua.cache",
+      "resource": "fca_fatman03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220079,
+      "name": "大冲锋·重装武器 03006",
+      "source": "weapon/fatman03006/strider.lua.cache",
+      "resource": "fca_fatman03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220080,
+      "name": "大冲锋·重装武器 03007",
+      "source": "weapon/fatman03007/strider.lua.cache",
+      "resource": "fca_fatman03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220081,
+      "name": "大冲锋·重装武器 03008",
+      "source": "weapon/fatman03008/strider.lua.cache",
+      "resource": "fca_fatman03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220082,
+      "name": "大冲锋·重装武器 03009",
+      "source": "weapon/fatman03009/strider.lua.cache",
+      "resource": "fca_fatman03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220083,
+      "name": "大冲锋·重装武器 03010",
+      "source": "weapon/fatman03010/strider.lua.cache",
+      "resource": "fca_fatman03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220084,
+      "name": "大冲锋·重装武器 03011",
+      "source": "weapon/fatman03011/strider.lua.cache",
+      "resource": "fca_fatman03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220085,
+      "name": "大冲锋·重装武器 03012",
+      "source": "weapon/fatman03012/strider.lua.cache",
+      "resource": "fca_fatman03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220086,
+      "name": "大冲锋·重装武器 03013",
+      "source": "weapon/fatman03013/strider.lua.cache",
+      "resource": "fca_fatman03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220087,
+      "name": "大冲锋·重装武器 03015",
+      "source": "weapon/fatman03015/strider.lua.cache",
+      "resource": "fca_fatman03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220088,
+      "name": "大冲锋·重装武器 03016",
+      "source": "weapon/fatman03016/strider.lua.cache",
+      "resource": "fca_fatman03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220089,
+      "name": "大冲锋·重装武器 03017",
+      "source": "weapon/fatman03017/strider.lua.cache",
+      "resource": "fca_fatman03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220090,
+      "name": "大冲锋·重装武器 03018",
+      "source": "weapon/fatman03018/strider.lua.cache",
+      "resource": "fca_fatman03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220091,
+      "name": "大冲锋·重装武器 04003",
+      "source": "weapon/fatman04003/rv1.lua.cache",
+      "resource": "fca_fatman04003",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220092,
+      "name": "大冲锋·重装武器 04004",
+      "source": "weapon/fatman04004/rv1.lua.cache",
+      "resource": "fca_fatman04004",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220093,
+      "name": "大冲锋·重装武器 05001",
+      "source": "weapon/fatman05001/rv1.lua.cache",
+      "resource": "fca_fatman05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220094,
+      "name": "大冲锋·重装武器 05002",
+      "source": "weapon/fatman05002/rv1.lua.cache",
+      "resource": "fca_fatman05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220095,
+      "name": "大冲锋·重装武器 05003",
+      "source": "weapon/fatman05003/rv1.lua.cache",
+      "resource": "fca_fatman05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220096,
+      "name": "大冲锋·重装武器 05004",
+      "source": "weapon/fatman05004/rv1.lua.cache",
+      "resource": "fca_fatman05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220097,
+      "name": "大冲锋·重装武器 2012",
+      "source": "weapon/fatman2012/rv1.lua.cache",
+      "resource": "fca_fatman2012",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220098,
+      "name": "大冲锋·重装武器 2013",
+      "source": "weapon/fatman2013/rv1.lua.cache",
+      "resource": "fca_fatman2013",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220099,
+      "name": "大冲锋·重装武器 2014",
+      "source": "weapon/fatman2014/rv1.lua.cache",
+      "resource": "fca_fatman2014",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220100,
+      "name": "大冲锋·重装武器 20152",
+      "source": "weapon/fatman20152/rv1.lua.cache",
+      "resource": "fca_fatman20152",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220101,
+      "name": "大冲锋·重装武器 20161",
+      "source": "weapon/fatman20161/rv1.lua.cache",
+      "resource": "fca_fatman20161",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220102,
+      "name": "大冲锋·重装武器 20172",
+      "source": "weapon/fatman20172/rv1.lua.cache",
+      "resource": "fca_fatman20172",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220103,
+      "name": "大冲锋·消防斧",
+      "source": "weapon/fireaxe/strider.lua.cache",
+      "resource": "fca_fireaxe",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220104,
+      "name": "大冲锋·火焰武器 01004",
+      "source": "weapon/firebat01004/rv1.lua.cache",
+      "resource": "fca_firebat01004",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220105,
+      "name": "大冲锋·火焰武器 01005flash",
+      "source": "weapon/firebat01005flash/rv1.lua.cache",
+      "resource": "fca_firebat01005flash",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220106,
+      "name": "大冲锋·火焰武器 01006",
+      "source": "weapon/firebat01006/rv1.lua.cache",
+      "resource": "fca_firebat01006",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220107,
+      "name": "大冲锋·火焰武器 01007",
+      "source": "weapon/firebat01007/rv1.lua.cache",
+      "resource": "fca_firebat01007",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220108,
+      "name": "大冲锋·火焰武器 01008",
+      "source": "weapon/firebat01008/rv1.lua.cache",
+      "resource": "fca_firebat01008",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220109,
+      "name": "大冲锋·火焰武器 01009",
+      "source": "weapon/firebat01009/rv1.lua.cache",
+      "resource": "fca_firebat01009",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220110,
+      "name": "大冲锋·火焰武器 01010",
+      "source": "weapon/firebat01010/rv1.lua.cache",
+      "resource": "fca_firebat01010",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220111,
+      "name": "大冲锋·火焰武器 01011",
+      "source": "weapon/firebat01011/rv1.lua.cache",
+      "resource": "fca_firebat01011",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220112,
+      "name": "大冲锋·火焰武器 01012",
+      "source": "weapon/firebat01012/rv1.lua.cache",
+      "resource": "fca_firebat01012",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220113,
+      "name": "大冲锋·火焰武器 01014",
+      "source": "weapon/firebat01014/rv1.lua.cache",
+      "resource": "fca_firebat01014",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220114,
+      "name": "大冲锋·火焰武器 01014vip",
+      "source": "weapon/firebat01014vip/rv1.lua.cache",
+      "resource": "fca_firebat01014vip",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220115,
+      "name": "大冲锋·火焰武器 01015",
+      "source": "weapon/firebat01015/rv1.lua.cache",
+      "resource": "fca_firebat01015",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220116,
+      "name": "大冲锋·火焰武器 01016",
+      "source": "weapon/firebat01016/rv1.lua.cache",
+      "resource": "fca_firebat01016",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220117,
+      "name": "大冲锋·火焰武器 01017",
+      "source": "weapon/firebat01017/rv1.lua.cache",
+      "resource": "fca_firebat01017",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220118,
+      "name": "大冲锋·火焰武器 01018",
+      "source": "weapon/firebat01018/rv1.lua.cache",
+      "resource": "fca_firebat01018",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220119,
+      "name": "大冲锋·火焰武器 01019",
+      "source": "weapon/firebat01019/rv1.lua.cache",
+      "resource": "fca_firebat01019",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220120,
+      "name": "大冲锋·火焰武器 01020",
+      "source": "weapon/firebat01020/rv1.lua.cache",
+      "resource": "fca_firebat01020",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220121,
+      "name": "大冲锋·火焰武器 01022",
+      "source": "weapon/firebat01022/rv1.lua.cache",
+      "resource": "fca_firebat01022",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220122,
+      "name": "大冲锋·火焰武器 01023",
+      "source": "weapon/firebat01023/rv1.lua.cache",
+      "resource": "fca_firebat01023",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220123,
+      "name": "大冲锋·火焰武器 01024",
+      "source": "weapon/firebat01024/rv1.lua.cache",
+      "resource": "fca_firebat01024",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220124,
+      "name": "大冲锋·火焰武器 01025",
+      "source": "weapon/firebat01025/rv1.lua.cache",
+      "resource": "fca_firebat01025",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220125,
+      "name": "大冲锋·火焰武器 01028",
+      "source": "weapon/firebat01028/rv1.lua.cache",
+      "resource": "fca_firebat01028",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220126,
+      "name": "大冲锋·火焰武器 01029",
+      "source": "weapon/firebat01029/rv1.lua.cache",
+      "resource": "fca_firebat01029",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220127,
+      "name": "大冲锋·火焰武器 01030",
+      "source": "weapon/firebat01030/rv1.lua.cache",
+      "resource": "fca_firebat01030",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220128,
+      "name": "大冲锋·火焰武器 01033",
+      "source": "weapon/firebat01033/rv1.lua.cache",
+      "resource": "fca_firebat01033",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220129,
+      "name": "大冲锋·火焰武器 01035",
+      "source": "weapon/firebat01035/rv1.lua.cache",
+      "resource": "fca_firebat01035",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220130,
+      "name": "大冲锋·火焰武器 01036",
+      "source": "weapon/firebat01036/rv1.lua.cache",
+      "resource": "fca_firebat01036",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220131,
+      "name": "大冲锋·火焰武器 02003",
+      "source": "weapon/firebat02003/rv1.lua.cache",
+      "resource": "fca_firebat02003",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220132,
+      "name": "大冲锋·火焰武器 02005",
+      "source": "weapon/firebat02005/rv1.lua.cache",
+      "resource": "fca_firebat02005",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220133,
+      "name": "大冲锋·火焰武器 02006",
+      "source": "weapon/firebat02006/rv1.lua.cache",
+      "resource": "fca_firebat02006",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220134,
+      "name": "大冲锋·火焰武器 02007",
+      "source": "weapon/firebat02007/rv1.lua.cache",
+      "resource": "fca_firebat02007",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220135,
+      "name": "大冲锋·火焰武器 02008",
+      "source": "weapon/firebat02008/rv1.lua.cache",
+      "resource": "fca_firebat02008",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220136,
+      "name": "大冲锋·火焰武器 02009",
+      "source": "weapon/firebat02009/rv1.lua.cache",
+      "resource": "fca_firebat02009",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220137,
+      "name": "大冲锋·火焰武器 02010",
+      "source": "weapon/firebat02010/rv1.lua.cache",
+      "resource": "fca_firebat02010",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220138,
+      "name": "大冲锋·火焰武器 02011",
+      "source": "weapon/firebat02011/rv1.lua.cache",
+      "resource": "fca_firebat02011",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220139,
+      "name": "大冲锋·火焰武器 02012",
+      "source": "weapon/firebat02012/rv1.lua.cache",
+      "resource": "fca_firebat02012",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220140,
+      "name": "大冲锋·火焰武器 02016",
+      "source": "weapon/firebat02016/rv1.lua.cache",
+      "resource": "fca_firebat02016",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220141,
+      "name": "大冲锋·火焰武器 02017",
+      "source": "weapon/firebat02017/rv1.lua.cache",
+      "resource": "fca_firebat02017",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220142,
+      "name": "大冲锋·火焰武器 03004",
+      "source": "weapon/firebat03004/strider.lua.cache",
+      "resource": "fca_firebat03004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220143,
+      "name": "大冲锋·火焰武器 03005",
+      "source": "weapon/firebat03005/strider.lua.cache",
+      "resource": "fca_firebat03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220144,
+      "name": "大冲锋·火焰武器 03006",
+      "source": "weapon/firebat03006/strider.lua.cache",
+      "resource": "fca_firebat03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220145,
+      "name": "大冲锋·火焰武器 03007",
+      "source": "weapon/firebat03007/strider.lua.cache",
+      "resource": "fca_firebat03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220146,
+      "name": "大冲锋·火焰武器 03008",
+      "source": "weapon/firebat03008/strider.lua.cache",
+      "resource": "fca_firebat03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220147,
+      "name": "大冲锋·火焰武器 03009",
+      "source": "weapon/firebat03009/strider.lua.cache",
+      "resource": "fca_firebat03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220148,
+      "name": "大冲锋·火焰武器 03010",
+      "source": "weapon/firebat03010/strider.lua.cache",
+      "resource": "fca_firebat03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220149,
+      "name": "大冲锋·火焰武器 03011",
+      "source": "weapon/firebat03011/strider.lua.cache",
+      "resource": "fca_firebat03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220150,
+      "name": "大冲锋·火焰武器 03012",
+      "source": "weapon/firebat03012/strider.lua.cache",
+      "resource": "fca_firebat03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220151,
+      "name": "大冲锋·火焰武器 03013",
+      "source": "weapon/firebat03013/strider.lua.cache",
+      "resource": "fca_firebat03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220152,
+      "name": "大冲锋·火焰武器 03015",
+      "source": "weapon/firebat03015/strider.lua.cache",
+      "resource": "fca_firebat03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220153,
+      "name": "大冲锋·火焰武器 03016",
+      "source": "weapon/firebat03016/strider.lua.cache",
+      "resource": "fca_firebat03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220154,
+      "name": "大冲锋·火焰武器 03018",
+      "source": "weapon/firebat03018/strider.lua.cache",
+      "resource": "fca_firebat03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220155,
+      "name": "大冲锋·火焰武器 03019",
+      "source": "weapon/firebat03019/strider.lua.cache",
+      "resource": "fca_firebat03019",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220156,
+      "name": "大冲锋·火焰武器 05001",
+      "source": "weapon/firebat05001/rv1.lua.cache",
+      "resource": "fca_firebat05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220157,
+      "name": "大冲锋·火焰武器 05002",
+      "source": "weapon/firebat05002/rv1.lua.cache",
+      "resource": "fca_firebat05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220158,
+      "name": "大冲锋·火焰武器 05003",
+      "source": "weapon/firebat05003/rv1.lua.cache",
+      "resource": "fca_firebat05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220159,
+      "name": "大冲锋·火焰武器 05004",
+      "source": "weapon/firebat05004/rv1.lua.cache",
+      "resource": "fca_firebat05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220160,
+      "name": "大冲锋·火焰武器 2012",
+      "source": "weapon/firebat2012/rv1.lua.cache",
+      "resource": "fca_firebat2012",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220161,
+      "name": "大冲锋·火焰武器 2013",
+      "source": "weapon/firebat2013/rv1.lua.cache",
+      "resource": "fca_firebat2013",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220162,
+      "name": "大冲锋·火焰武器 2014",
+      "source": "weapon/firebat2014/rv1.lua.cache",
+      "resource": "fca_firebat2014",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220163,
+      "name": "大冲锋·火焰武器 20152",
+      "source": "weapon/firebat20152/rv1.lua.cache",
+      "resource": "fca_firebat20152",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220164,
+      "name": "大冲锋·火焰武器 20161",
+      "source": "weapon/firebat20161/rv1.lua.cache",
+      "resource": "fca_firebat20161",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220165,
+      "name": "大冲锋·火焰武器 20172",
+      "source": "weapon/firebat20172/rv1.lua.cache",
+      "resource": "fca_firebat20172",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220166,
+      "name": "大冲锋·火焰喷射器",
+      "source": "weapon/flamethrower/rv1.lua.cache",
+      "resource": "fca_flamethrower",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220167,
+      "name": "大冲锋·FLAMETHROWERL1",
+      "source": "weapon/flamethrowerl1/rv1.lua.cache",
+      "resource": "fca_flamethrowerl1",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220168,
+      "name": "大冲锋·FLASHBOMB",
+      "source": "weapon/flashbomb/rv1.lua.cache",
+      "resource": "fca_flashbomb",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220169,
+      "name": "大冲锋·FN30_L1",
+      "source": "weapon/fn30_l1/rv1.lua.cache",
+      "resource": "fca_fn30_l1",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220170,
+      "name": "大冲锋·FN30",
+      "source": "weapon/fn30/rv1.lua.cache",
+      "resource": "fca_fn30",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220171,
+      "name": "大冲锋·手雷",
+      "source": "weapon/grenade/rv1.lua.cache",
+      "resource": "fca_grenade",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220172,
+      "name": "大冲锋·HK45",
+      "source": "weapon/hk45/rv1.lua.cache",
+      "resource": "fca_hk45",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220173,
+      "name": "大冲锋·JOKERSHOTGUN",
+      "source": "weapon/jokershotgun/rv1.lua.cache",
+      "resource": "fca_jokershotgun",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220174,
+      "name": "大冲锋·JOKERSTARTBAR",
+      "source": "weapon/jokerstartbar/strider.lua.cache",
+      "resource": "fca_jokerstartbar",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220175,
+      "name": "大冲锋·弯刀",
+      "source": "weapon/kukri/strider.lua.cache",
+      "resource": "fca_kukri",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220176,
+      "name": "大冲锋·M197",
+      "source": "weapon/m197/rv1.lua.cache",
+      "resource": "fca_m197",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220177,
+      "name": "大冲锋·MACHET",
+      "source": "weapon/machet/strider.lua.cache",
+      "resource": "fca_machet",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220178,
+      "name": "大冲锋·MAGIC",
+      "source": "weapon/magic/strider.lua.cache",
+      "resource": "fca_magic",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220179,
+      "name": "大冲锋·医疗武器 01001",
+      "source": "weapon/medic01001/rv1.lua.cache",
+      "resource": "fca_medic01001",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220180,
+      "name": "大冲锋·医疗武器 01002",
+      "source": "weapon/medic01002/rv1.lua.cache",
+      "resource": "fca_medic01002",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220181,
+      "name": "大冲锋·医疗武器 01003",
+      "source": "weapon/medic01003/rv1.lua.cache",
+      "resource": "fca_medic01003",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220182,
+      "name": "大冲锋·医疗武器 01004",
+      "source": "weapon/medic01004/rv1.lua.cache",
+      "resource": "fca_medic01004",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220183,
+      "name": "大冲锋·医疗武器 01005",
+      "source": "weapon/medic01005/rv1.lua.cache",
+      "resource": "fca_medic01005",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220184,
+      "name": "大冲锋·医疗武器 01006",
+      "source": "weapon/medic01006/rv1.lua.cache",
+      "resource": "fca_medic01006",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220185,
+      "name": "大冲锋·医疗武器 01008",
+      "source": "weapon/medic01008/rv1.lua.cache",
+      "resource": "fca_medic01008",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220186,
+      "name": "大冲锋·医疗武器 01009",
+      "source": "weapon/medic01009/rv1.lua.cache",
+      "resource": "fca_medic01009",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220187,
+      "name": "大冲锋·医疗武器 01010",
+      "source": "weapon/medic01010/rv1.lua.cache",
+      "resource": "fca_medic01010",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220188,
+      "name": "大冲锋·医疗武器 01011",
+      "source": "weapon/medic01011/rv1.lua.cache",
+      "resource": "fca_medic01011",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220189,
+      "name": "大冲锋·医疗武器 01012",
+      "source": "weapon/medic01012/rv1.lua.cache",
+      "resource": "fca_medic01012",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220190,
+      "name": "大冲锋·医疗武器 01014",
+      "source": "weapon/medic01014/rv1.lua.cache",
+      "resource": "fca_medic01014",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220191,
+      "name": "大冲锋·医疗武器 01014vip",
+      "source": "weapon/medic01014vip/rv1.lua.cache",
+      "resource": "fca_medic01014vip",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220192,
+      "name": "大冲锋·医疗武器 01015",
+      "source": "weapon/medic01015/rv1.lua.cache",
+      "resource": "fca_medic01015",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220193,
+      "name": "大冲锋·医疗武器 01016",
+      "source": "weapon/medic01016/rv1.lua.cache",
+      "resource": "fca_medic01016",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220194,
+      "name": "大冲锋·医疗武器 01017",
+      "source": "weapon/medic01017/rv1.lua.cache",
+      "resource": "fca_medic01017",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220195,
+      "name": "大冲锋·医疗武器 01018",
+      "source": "weapon/medic01018/rv1.lua.cache",
+      "resource": "fca_medic01018",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220196,
+      "name": "大冲锋·医疗武器 01019",
+      "source": "weapon/medic01019/rv1.lua.cache",
+      "resource": "fca_medic01019",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220197,
+      "name": "大冲锋·医疗武器 01020",
+      "source": "weapon/medic01020/rv1.lua.cache",
+      "resource": "fca_medic01020",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220198,
+      "name": "大冲锋·医疗武器 01022",
+      "source": "weapon/medic01022/rv1.lua.cache",
+      "resource": "fca_medic01022",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220199,
+      "name": "大冲锋·医疗武器 01023",
+      "source": "weapon/medic01023/rv1.lua.cache",
+      "resource": "fca_medic01023",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220200,
+      "name": "大冲锋·医疗武器 01024",
+      "source": "weapon/medic01024/rv1.lua.cache",
+      "resource": "fca_medic01024",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220201,
+      "name": "大冲锋·医疗武器 01025",
+      "source": "weapon/medic01025/rv1.lua.cache",
+      "resource": "fca_medic01025",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220202,
+      "name": "大冲锋·医疗武器 01028",
+      "source": "weapon/medic01028/rv1.lua.cache",
+      "resource": "fca_medic01028",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220203,
+      "name": "大冲锋·医疗武器 01029",
+      "source": "weapon/medic01029/rv1.lua.cache",
+      "resource": "fca_medic01029",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220204,
+      "name": "大冲锋·医疗武器 01030",
+      "source": "weapon/medic01030/rv1.lua.cache",
+      "resource": "fca_medic01030",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220205,
+      "name": "大冲锋·医疗武器 01033",
+      "source": "weapon/medic01033/rv1.lua.cache",
+      "resource": "fca_medic01033",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220206,
+      "name": "大冲锋·医疗武器 01034",
+      "source": "weapon/medic01034/rv1.lua.cache",
+      "resource": "fca_medic01034",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220207,
+      "name": "大冲锋·医疗武器 01035",
+      "source": "weapon/medic01035/rv1.lua.cache",
+      "resource": "fca_medic01035",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220208,
+      "name": "大冲锋·医疗武器 02001",
+      "source": "weapon/medic02001/rv1.lua.cache",
+      "resource": "fca_medic02001",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220209,
+      "name": "大冲锋·医疗武器 02002",
+      "source": "weapon/medic02002/rv1.lua.cache",
+      "resource": "fca_medic02002",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220210,
+      "name": "大冲锋·医疗武器 02003",
+      "source": "weapon/medic02003/rv1.lua.cache",
+      "resource": "fca_medic02003",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220211,
+      "name": "大冲锋·医疗武器 02004",
+      "source": "weapon/medic02004/rv1.lua.cache",
+      "resource": "fca_medic02004",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220212,
+      "name": "大冲锋·医疗武器 02005",
+      "source": "weapon/medic02005/rv1.lua.cache",
+      "resource": "fca_medic02005",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220213,
+      "name": "大冲锋·医疗武器 02006",
+      "source": "weapon/medic02006/rv1.lua.cache",
+      "resource": "fca_medic02006",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220214,
+      "name": "大冲锋·医疗武器 02007",
+      "source": "weapon/medic02007/rv1.lua.cache",
+      "resource": "fca_medic02007",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220215,
+      "name": "大冲锋·医疗武器 02008",
+      "source": "weapon/medic02008/rv1.lua.cache",
+      "resource": "fca_medic02008",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220216,
+      "name": "大冲锋·医疗武器 02009",
+      "source": "weapon/medic02009/rv1.lua.cache",
+      "resource": "fca_medic02009",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220217,
+      "name": "大冲锋·医疗武器 02010",
+      "source": "weapon/medic02010/rv1.lua.cache",
+      "resource": "fca_medic02010",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220218,
+      "name": "大冲锋·医疗武器 02011",
+      "source": "weapon/medic02011/rv1.lua.cache",
+      "resource": "fca_medic02011",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220219,
+      "name": "大冲锋·医疗武器 02012",
+      "source": "weapon/medic02012/rv1.lua.cache",
+      "resource": "fca_medic02012",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220220,
+      "name": "大冲锋·医疗武器 02013",
+      "source": "weapon/medic02013/rv1.lua.cache",
+      "resource": "fca_medic02013",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220221,
+      "name": "大冲锋·医疗武器 02015",
+      "source": "weapon/medic02015/rv1.lua.cache",
+      "resource": "fca_medic02015",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220222,
+      "name": "大冲锋·医疗武器 03001",
+      "source": "weapon/medic03001/strider.lua.cache",
+      "resource": "fca_medic03001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220223,
+      "name": "大冲锋·医疗武器 03002",
+      "source": "weapon/medic03002/strider.lua.cache",
+      "resource": "fca_medic03002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220224,
+      "name": "大冲锋·医疗武器 03003",
+      "source": "weapon/medic03003/strider.lua.cache",
+      "resource": "fca_medic03003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220225,
+      "name": "大冲锋·医疗武器 03004",
+      "source": "weapon/medic03004/strider.lua.cache",
+      "resource": "fca_medic03004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220226,
+      "name": "大冲锋·医疗武器 03005",
+      "source": "weapon/medic03005/strider.lua.cache",
+      "resource": "fca_medic03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220227,
+      "name": "大冲锋·医疗武器 03006",
+      "source": "weapon/medic03006/strider.lua.cache",
+      "resource": "fca_medic03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220228,
+      "name": "大冲锋·医疗武器 03007",
+      "source": "weapon/medic03007/strider.lua.cache",
+      "resource": "fca_medic03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220229,
+      "name": "大冲锋·医疗武器 03008",
+      "source": "weapon/medic03008/strider.lua.cache",
+      "resource": "fca_medic03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220230,
+      "name": "大冲锋·医疗武器 03009",
+      "source": "weapon/medic03009/strider.lua.cache",
+      "resource": "fca_medic03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220231,
+      "name": "大冲锋·医疗武器 03010",
+      "source": "weapon/medic03010/strider.lua.cache",
+      "resource": "fca_medic03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220232,
+      "name": "大冲锋·医疗武器 03011",
+      "source": "weapon/medic03011/strider.lua.cache",
+      "resource": "fca_medic03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220233,
+      "name": "大冲锋·医疗武器 03012",
+      "source": "weapon/medic03012/strider.lua.cache",
+      "resource": "fca_medic03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220234,
+      "name": "大冲锋·医疗武器 03013",
+      "source": "weapon/medic03013/strider.lua.cache",
+      "resource": "fca_medic03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220235,
+      "name": "大冲锋·医疗武器 03015",
+      "source": "weapon/medic03015/strider.lua.cache",
+      "resource": "fca_medic03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220236,
+      "name": "大冲锋·医疗武器 03016",
+      "source": "weapon/medic03016/strider.lua.cache",
+      "resource": "fca_medic03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220237,
+      "name": "大冲锋·医疗武器 03017",
+      "source": "weapon/medic03017/strider.lua.cache",
+      "resource": "fca_medic03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220238,
+      "name": "大冲锋·医疗武器 03018",
+      "source": "weapon/medic03018/strider.lua.cache",
+      "resource": "fca_medic03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220239,
+      "name": "大冲锋·医疗武器 05001",
+      "source": "weapon/medic05001/rv1.lua.cache",
+      "resource": "fca_medic05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220240,
+      "name": "大冲锋·医疗武器 05002",
+      "source": "weapon/medic05002/rv1.lua.cache",
+      "resource": "fca_medic05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220241,
+      "name": "大冲锋·医疗武器 05003",
+      "source": "weapon/medic05003/rv1.lua.cache",
+      "resource": "fca_medic05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220242,
+      "name": "大冲锋·医疗武器 05004",
+      "source": "weapon/medic05004/rv1.lua.cache",
+      "resource": "fca_medic05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220243,
+      "name": "大冲锋·医疗武器 2012",
+      "source": "weapon/medic2012/rv1.lua.cache",
+      "resource": "fca_medic2012",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220244,
+      "name": "大冲锋·医疗武器 2013",
+      "source": "weapon/medic2013/rv1.lua.cache",
+      "resource": "fca_medic2013",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220245,
+      "name": "大冲锋·医疗武器 2014",
+      "source": "weapon/medic2014/rv1.lua.cache",
+      "resource": "fca_medic2014",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220246,
+      "name": "大冲锋·医疗武器 20152",
+      "source": "weapon/medic20152/rv1.lua.cache",
+      "resource": "fca_medic20152",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220247,
+      "name": "大冲锋·医疗武器 20161",
+      "source": "weapon/medic20161/rv1.lua.cache",
+      "resource": "fca_medic20161",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220248,
+      "name": "大冲锋·医疗武器 20172",
+      "source": "weapon/medic20172/rv1.lua.cache",
+      "resource": "fca_medic20172",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220249,
+      "name": "大冲锋·MILKBOTTLE",
+      "source": "weapon/milkbottle/rv1.lua.cache",
+      "resource": "fca_milkbottle",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220250,
+      "name": "大冲锋·加特林机枪",
+      "source": "weapon/minigun/rv1.lua.cache",
+      "resource": "fca_minigun",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220251,
+      "name": "大冲锋·MINIGUNL1",
+      "source": "weapon/minigunl1/rv1.lua.cache",
+      "resource": "fca_minigunl1",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220252,
+      "name": "大冲锋·MK18",
+      "source": "weapon/mk18/rv1.lua.cache",
+      "resource": "fca_mk18",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220253,
+      "name": "大冲锋·MK18LV2",
+      "source": "weapon/mk18lv2/rv1.lua.cache",
+      "resource": "fca_mk18lv2",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220254,
+      "name": "大冲锋·MK2",
+      "source": "weapon/mk2/rv1.lua.cache",
+      "resource": "fca_mk2",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220255,
+      "name": "大冲锋·手枪",
+      "source": "weapon/pistol/rv1.lua.cache",
+      "resource": "fca_pistol",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220256,
+      "name": "大冲锋·火箭武器 01004",
+      "source": "weapon/rocket01004/rv1.lua.cache",
+      "resource": "fca_rocket01004",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220257,
+      "name": "大冲锋·火箭武器 01005",
+      "source": "weapon/rocket01005/rv1.lua.cache",
+      "resource": "fca_rocket01005",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220258,
+      "name": "大冲锋·火箭武器 01006",
+      "source": "weapon/rocket01006/rv1.lua.cache",
+      "resource": "fca_rocket01006",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220259,
+      "name": "大冲锋·火箭武器 01007",
+      "source": "weapon/rocket01007/rv1.lua.cache",
+      "resource": "fca_rocket01007",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220260,
+      "name": "大冲锋·火箭武器 01008",
+      "source": "weapon/rocket01008/rv1.lua.cache",
+      "resource": "fca_rocket01008",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220261,
+      "name": "大冲锋·火箭武器 01009",
+      "source": "weapon/rocket01009/rv1.lua.cache",
+      "resource": "fca_rocket01009",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220262,
+      "name": "大冲锋·火箭武器 01010",
+      "source": "weapon/rocket01010/rv1.lua.cache",
+      "resource": "fca_rocket01010",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220263,
+      "name": "大冲锋·火箭武器 01011",
+      "source": "weapon/rocket01011/rv1.lua.cache",
+      "resource": "fca_rocket01011",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220264,
+      "name": "大冲锋·火箭武器 01012",
+      "source": "weapon/rocket01012/rv1.lua.cache",
+      "resource": "fca_rocket01012",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220265,
+      "name": "大冲锋·火箭武器 01014",
+      "source": "weapon/rocket01014/rv1.lua.cache",
+      "resource": "fca_rocket01014",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220266,
+      "name": "大冲锋·火箭武器 01014vip",
+      "source": "weapon/rocket01014vip/rv1.lua.cache",
+      "resource": "fca_rocket01014vip",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220267,
+      "name": "大冲锋·火箭武器 01015",
+      "source": "weapon/rocket01015/rv1.lua.cache",
+      "resource": "fca_rocket01015",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220268,
+      "name": "大冲锋·火箭武器 01016",
+      "source": "weapon/rocket01016/rv1.lua.cache",
+      "resource": "fca_rocket01016",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220269,
+      "name": "大冲锋·火箭武器 01017",
+      "source": "weapon/rocket01017/rv1.lua.cache",
+      "resource": "fca_rocket01017",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220270,
+      "name": "大冲锋·火箭武器 01018",
+      "source": "weapon/rocket01018/rv1.lua.cache",
+      "resource": "fca_rocket01018",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220271,
+      "name": "大冲锋·火箭武器 01019",
+      "source": "weapon/rocket01019/rv1.lua.cache",
+      "resource": "fca_rocket01019",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220272,
+      "name": "大冲锋·火箭武器 01020",
+      "source": "weapon/rocket01020/rv1.lua.cache",
+      "resource": "fca_rocket01020",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220273,
+      "name": "大冲锋·火箭武器 01022",
+      "source": "weapon/rocket01022/rv1.lua.cache",
+      "resource": "fca_rocket01022",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220274,
+      "name": "大冲锋·火箭武器 01023",
+      "source": "weapon/rocket01023/rv1.lua.cache",
+      "resource": "fca_rocket01023",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220275,
+      "name": "大冲锋·火箭武器 01024",
+      "source": "weapon/rocket01024/rv1.lua.cache",
+      "resource": "fca_rocket01024",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220276,
+      "name": "大冲锋·火箭武器 01025",
+      "source": "weapon/rocket01025/rv1.lua.cache",
+      "resource": "fca_rocket01025",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220277,
+      "name": "大冲锋·火箭武器 01028",
+      "source": "weapon/rocket01028/rv1.lua.cache",
+      "resource": "fca_rocket01028",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220278,
+      "name": "大冲锋·火箭武器 01029",
+      "source": "weapon/rocket01029/rv1.lua.cache",
+      "resource": "fca_rocket01029",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220279,
+      "name": "大冲锋·火箭武器 01030",
+      "source": "weapon/rocket01030/rv1.lua.cache",
+      "resource": "fca_rocket01030",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220280,
+      "name": "大冲锋·火箭武器 01032",
+      "source": "weapon/rocket01032/rv1.lua.cache",
+      "resource": "fca_rocket01032",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220281,
+      "name": "大冲锋·火箭武器 01033",
+      "source": "weapon/rocket01033/rv1.lua.cache",
+      "resource": "fca_rocket01033",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220282,
+      "name": "大冲锋·火箭武器 01034",
+      "source": "weapon/rocket01034/rv1.lua.cache",
+      "resource": "fca_rocket01034",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220283,
+      "name": "大冲锋·火箭武器 02003",
+      "source": "weapon/rocket02003/rv1.lua.cache",
+      "resource": "fca_rocket02003",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220284,
+      "name": "大冲锋·火箭武器 02005",
+      "source": "weapon/rocket02005/rv1.lua.cache",
+      "resource": "fca_rocket02005",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220285,
+      "name": "大冲锋·火箭武器 02006",
+      "source": "weapon/rocket02006/rv1.lua.cache",
+      "resource": "fca_rocket02006",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220286,
+      "name": "大冲锋·火箭武器 02007",
+      "source": "weapon/rocket02007/rv1.lua.cache",
+      "resource": "fca_rocket02007",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220287,
+      "name": "大冲锋·火箭武器 02008",
+      "source": "weapon/rocket02008/rv1.lua.cache",
+      "resource": "fca_rocket02008",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220288,
+      "name": "大冲锋·火箭武器 02009",
+      "source": "weapon/rocket02009/rv1.lua.cache",
+      "resource": "fca_rocket02009",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220289,
+      "name": "大冲锋·火箭武器 02010",
+      "source": "weapon/rocket02010/rv1.lua.cache",
+      "resource": "fca_rocket02010",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220290,
+      "name": "大冲锋·火箭武器 02011",
+      "source": "weapon/rocket02011/rv1.lua.cache",
+      "resource": "fca_rocket02011",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220291,
+      "name": "大冲锋·火箭武器 02012",
+      "source": "weapon/rocket02012/rv1.lua.cache",
+      "resource": "fca_rocket02012",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220292,
+      "name": "大冲锋·火箭武器 02013",
+      "source": "weapon/rocket02013/rv1.lua.cache",
+      "resource": "fca_rocket02013",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220293,
+      "name": "大冲锋·火箭武器 02014",
+      "source": "weapon/rocket02014/rv1.lua.cache",
+      "resource": "fca_rocket02014",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220294,
+      "name": "大冲锋·火箭武器 03005",
+      "source": "weapon/rocket03005/strider.lua.cache",
+      "resource": "fca_rocket03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220295,
+      "name": "大冲锋·火箭武器 03006",
+      "source": "weapon/rocket03006/strider.lua.cache",
+      "resource": "fca_rocket03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220296,
+      "name": "大冲锋·火箭武器 03007",
+      "source": "weapon/rocket03007/strider.lua.cache",
+      "resource": "fca_rocket03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220297,
+      "name": "大冲锋·火箭武器 03008",
+      "source": "weapon/rocket03008/strider.lua.cache",
+      "resource": "fca_rocket03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220298,
+      "name": "大冲锋·火箭武器 03009",
+      "source": "weapon/rocket03009/strider.lua.cache",
+      "resource": "fca_rocket03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220299,
+      "name": "大冲锋·火箭武器 03010",
+      "source": "weapon/rocket03010/strider.lua.cache",
+      "resource": "fca_rocket03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220300,
+      "name": "大冲锋·火箭武器 03011",
+      "source": "weapon/rocket03011/strider.lua.cache",
+      "resource": "fca_rocket03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220301,
+      "name": "大冲锋·火箭武器 03012",
+      "source": "weapon/rocket03012/strider.lua.cache",
+      "resource": "fca_rocket03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220302,
+      "name": "大冲锋·火箭武器 03013",
+      "source": "weapon/rocket03013/strider.lua.cache",
+      "resource": "fca_rocket03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220303,
+      "name": "大冲锋·火箭武器 03014",
+      "source": "weapon/rocket03014/strider.lua.cache",
+      "resource": "fca_rocket03014",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220304,
+      "name": "大冲锋·火箭武器 03015",
+      "source": "weapon/rocket03015/strider.lua.cache",
+      "resource": "fca_rocket03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220305,
+      "name": "大冲锋·火箭武器 03016",
+      "source": "weapon/rocket03016/strider.lua.cache",
+      "resource": "fca_rocket03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220306,
+      "name": "大冲锋·火箭武器 03017",
+      "source": "weapon/rocket03017/strider.lua.cache",
+      "resource": "fca_rocket03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220307,
+      "name": "大冲锋·火箭武器 04002",
+      "source": "weapon/rocket04002/rv1.lua.cache",
+      "resource": "fca_rocket04002",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220308,
+      "name": "大冲锋·火箭武器 04003",
+      "source": "weapon/rocket04003/rv1.lua.cache",
+      "resource": "fca_rocket04003",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220309,
+      "name": "大冲锋·火箭武器 04004",
+      "source": "weapon/rocket04004/rv1.lua.cache",
+      "resource": "fca_rocket04004",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220310,
+      "name": "大冲锋·火箭武器 04005",
+      "source": "weapon/rocket04005/rv1.lua.cache",
+      "resource": "fca_rocket04005",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220311,
+      "name": "大冲锋·火箭武器 05001",
+      "source": "weapon/rocket05001/rv1.lua.cache",
+      "resource": "fca_rocket05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220312,
+      "name": "大冲锋·火箭武器 05002",
+      "source": "weapon/rocket05002/rv1.lua.cache",
+      "resource": "fca_rocket05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220313,
+      "name": "大冲锋·火箭武器 05003",
+      "source": "weapon/rocket05003/rv1.lua.cache",
+      "resource": "fca_rocket05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220314,
+      "name": "大冲锋·火箭武器 05004",
+      "source": "weapon/rocket05004/rv1.lua.cache",
+      "resource": "fca_rocket05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220315,
+      "name": "大冲锋·火箭武器 2012",
+      "source": "weapon/rocket2012/rv1.lua.cache",
+      "resource": "fca_rocket2012",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220316,
+      "name": "大冲锋·火箭武器 2013",
+      "source": "weapon/rocket2013/rv1.lua.cache",
+      "resource": "fca_rocket2013",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220317,
+      "name": "大冲锋·火箭武器 2014",
+      "source": "weapon/rocket2014/rv1.lua.cache",
+      "resource": "fca_rocket2014",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220318,
+      "name": "大冲锋·火箭武器 20152",
+      "source": "weapon/rocket20152/rv1.lua.cache",
+      "resource": "fca_rocket20152",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220319,
+      "name": "大冲锋·火箭武器 20161",
+      "source": "weapon/rocket20161/rv1.lua.cache",
+      "resource": "fca_rocket20161",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220320,
+      "name": "大冲锋·火箭武器 20172",
+      "source": "weapon/rocket20172/rv1.lua.cache",
+      "resource": "fca_rocket20172",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220321,
+      "name": "大冲锋·火箭武器 launcher",
+      "source": "weapon/rocketlauncher/rv1.lua.cache",
+      "resource": "fca_rocketlauncher",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220322,
+      "name": "大冲锋·火箭武器 launcherlv2",
+      "source": "weapon/rocketlauncherlv2/rv1.lua.cache",
+      "resource": "fca_rocketlauncherlv2",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220323,
+      "name": "大冲锋·R-SPAS",
+      "source": "weapon/rspas/rv1.lua.cache",
+      "resource": "fca_rspas",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220324,
+      "name": "大冲锋·SCATTERGUN",
+      "source": "weapon/scattergun/rv1.lua.cache",
+      "resource": "fca_scattergun",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220325,
+      "name": "大冲锋·霰弹枪",
+      "source": "weapon/shotgun/rv1.lua.cache",
+      "resource": "fca_shotgun",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220326,
+      "name": "大冲锋·工兵铲",
+      "source": "weapon/shovel/strider.lua.cache",
+      "resource": "fca_shovel",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220327,
+      "name": "大冲锋·狙击武器 01004",
+      "source": "weapon/sniper01004/rv1.lua.cache",
+      "resource": "fca_sniper01004",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220328,
+      "name": "大冲锋·狙击武器 01005",
+      "source": "weapon/sniper01005/rv1.lua.cache",
+      "resource": "fca_sniper01005",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220329,
+      "name": "大冲锋·狙击武器 01006",
+      "source": "weapon/sniper01006/rv1.lua.cache",
+      "resource": "fca_sniper01006",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220330,
+      "name": "大冲锋·狙击武器 01007",
+      "source": "weapon/sniper01007/rv1.lua.cache",
+      "resource": "fca_sniper01007",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220331,
+      "name": "大冲锋·狙击武器 01008",
+      "source": "weapon/sniper01008/rv1.lua.cache",
+      "resource": "fca_sniper01008",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220332,
+      "name": "大冲锋·狙击武器 01009",
+      "source": "weapon/sniper01009/rv1.lua.cache",
+      "resource": "fca_sniper01009",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220333,
+      "name": "大冲锋·狙击武器 01010",
+      "source": "weapon/sniper01010/rv1.lua.cache",
+      "resource": "fca_sniper01010",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220334,
+      "name": "大冲锋·狙击武器 01011",
+      "source": "weapon/sniper01011/rv1.lua.cache",
+      "resource": "fca_sniper01011",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220335,
+      "name": "大冲锋·狙击武器 01012",
+      "source": "weapon/sniper01012/rv1.lua.cache",
+      "resource": "fca_sniper01012",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220336,
+      "name": "大冲锋·狙击武器 01014",
+      "source": "weapon/sniper01014/rv1.lua.cache",
+      "resource": "fca_sniper01014",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220337,
+      "name": "大冲锋·狙击武器 01014vip",
+      "source": "weapon/sniper01014vip/rv1.lua.cache",
+      "resource": "fca_sniper01014vip",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220338,
+      "name": "大冲锋·狙击武器 01015",
+      "source": "weapon/sniper01015/rv1.lua.cache",
+      "resource": "fca_sniper01015",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220339,
+      "name": "大冲锋·狙击武器 01016",
+      "source": "weapon/sniper01016/rv1.lua.cache",
+      "resource": "fca_sniper01016",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220340,
+      "name": "大冲锋·狙击武器 01017",
+      "source": "weapon/sniper01017/rv1.lua.cache",
+      "resource": "fca_sniper01017",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220341,
+      "name": "大冲锋·狙击武器 01018",
+      "source": "weapon/sniper01018/rv1.lua.cache",
+      "resource": "fca_sniper01018",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220342,
+      "name": "大冲锋·狙击武器 01019",
+      "source": "weapon/sniper01019/rv1.lua.cache",
+      "resource": "fca_sniper01019",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220343,
+      "name": "大冲锋·狙击武器 01020",
+      "source": "weapon/sniper01020/rv1.lua.cache",
+      "resource": "fca_sniper01020",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220344,
+      "name": "大冲锋·狙击武器 01021_vip",
+      "source": "weapon/sniper01021_vip/rv1.lua.cache",
+      "resource": "fca_sniper01021_vip",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220345,
+      "name": "大冲锋·狙击武器 01021",
+      "source": "weapon/sniper01021/rv1.lua.cache",
+      "resource": "fca_sniper01021",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220346,
+      "name": "大冲锋·狙击武器 01022",
+      "source": "weapon/sniper01022/rv1.lua.cache",
+      "resource": "fca_sniper01022",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220347,
+      "name": "大冲锋·狙击武器 01023",
+      "source": "weapon/sniper01023/rv1.lua.cache",
+      "resource": "fca_sniper01023",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220348,
+      "name": "大冲锋·狙击武器 01024",
+      "source": "weapon/sniper01024/rv1.lua.cache",
+      "resource": "fca_sniper01024",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220349,
+      "name": "大冲锋·狙击武器 01025",
+      "source": "weapon/sniper01025/rv1.lua.cache",
+      "resource": "fca_sniper01025",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220350,
+      "name": "大冲锋·狙击武器 01028",
+      "source": "weapon/sniper01028/rv1.lua.cache",
+      "resource": "fca_sniper01028",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220351,
+      "name": "大冲锋·狙击武器 01029",
+      "source": "weapon/sniper01029/rv1.lua.cache",
+      "resource": "fca_sniper01029",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220352,
+      "name": "大冲锋·狙击武器 01030",
+      "source": "weapon/sniper01030/rv1.lua.cache",
+      "resource": "fca_sniper01030",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220353,
+      "name": "大冲锋·狙击武器 01031",
+      "source": "weapon/sniper01031/rv1.lua.cache",
+      "resource": "fca_sniper01031",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220354,
+      "name": "大冲锋·狙击武器 01033",
+      "source": "weapon/sniper01033/rv1.lua.cache",
+      "resource": "fca_sniper01033",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220355,
+      "name": "大冲锋·狙击武器 01034",
+      "source": "weapon/sniper01034/rv1.lua.cache",
+      "resource": "fca_sniper01034",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220356,
+      "name": "大冲锋·狙击武器 01035",
+      "source": "weapon/sniper01035/rv1.lua.cache",
+      "resource": "fca_sniper01035",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220357,
+      "name": "大冲锋·狙击武器 02003",
+      "source": "weapon/sniper02003/rv1.lua.cache",
+      "resource": "fca_sniper02003",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220358,
+      "name": "大冲锋·狙击武器 02005",
+      "source": "weapon/sniper02005/rv1.lua.cache",
+      "resource": "fca_sniper02005",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220359,
+      "name": "大冲锋·狙击武器 02006",
+      "source": "weapon/sniper02006/rv1.lua.cache",
+      "resource": "fca_sniper02006",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220360,
+      "name": "大冲锋·狙击武器 02007",
+      "source": "weapon/sniper02007/rv1.lua.cache",
+      "resource": "fca_sniper02007",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220361,
+      "name": "大冲锋·狙击武器 02008",
+      "source": "weapon/sniper02008/rv1.lua.cache",
+      "resource": "fca_sniper02008",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220362,
+      "name": "大冲锋·狙击武器 02009",
+      "source": "weapon/sniper02009/rv1.lua.cache",
+      "resource": "fca_sniper02009",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220363,
+      "name": "大冲锋·狙击武器 02010",
+      "source": "weapon/sniper02010/rv1.lua.cache",
+      "resource": "fca_sniper02010",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220364,
+      "name": "大冲锋·狙击武器 02011",
+      "source": "weapon/sniper02011/rv1.lua.cache",
+      "resource": "fca_sniper02011",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220365,
+      "name": "大冲锋·狙击武器 02012",
+      "source": "weapon/sniper02012/rv1.lua.cache",
+      "resource": "fca_sniper02012",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220366,
+      "name": "大冲锋·狙击武器 02015",
+      "source": "weapon/sniper02015/rv1.lua.cache",
+      "resource": "fca_sniper02015",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220367,
+      "name": "大冲锋·狙击武器 02016",
+      "source": "weapon/sniper02016/rv1.lua.cache",
+      "resource": "fca_sniper02016",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220368,
+      "name": "大冲锋·狙击武器 03005",
+      "source": "weapon/sniper03005/strider.lua.cache",
+      "resource": "fca_sniper03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220369,
+      "name": "大冲锋·狙击武器 03006",
+      "source": "weapon/sniper03006/strider.lua.cache",
+      "resource": "fca_sniper03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220370,
+      "name": "大冲锋·狙击武器 03007",
+      "source": "weapon/sniper03007/strider.lua.cache",
+      "resource": "fca_sniper03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220371,
+      "name": "大冲锋·狙击武器 03008",
+      "source": "weapon/sniper03008/strider.lua.cache",
+      "resource": "fca_sniper03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220372,
+      "name": "大冲锋·狙击武器 03009",
+      "source": "weapon/sniper03009/strider.lua.cache",
+      "resource": "fca_sniper03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220373,
+      "name": "大冲锋·狙击武器 03010",
+      "source": "weapon/sniper03010/strider.lua.cache",
+      "resource": "fca_sniper03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220374,
+      "name": "大冲锋·狙击武器 03011",
+      "source": "weapon/sniper03011/strider.lua.cache",
+      "resource": "fca_sniper03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220375,
+      "name": "大冲锋·狙击武器 03012",
+      "source": "weapon/sniper03012/strider.lua.cache",
+      "resource": "fca_sniper03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220376,
+      "name": "大冲锋·狙击武器 03013",
+      "source": "weapon/sniper03013/strider.lua.cache",
+      "resource": "fca_sniper03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220377,
+      "name": "大冲锋·狙击武器 03015",
+      "source": "weapon/sniper03015/strider.lua.cache",
+      "resource": "fca_sniper03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220378,
+      "name": "大冲锋·狙击武器 03016",
+      "source": "weapon/sniper03016/strider.lua.cache",
+      "resource": "fca_sniper03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220379,
+      "name": "大冲锋·狙击武器 03017",
+      "source": "weapon/sniper03017/strider.lua.cache",
+      "resource": "fca_sniper03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220380,
+      "name": "大冲锋·狙击武器 03018",
+      "source": "weapon/sniper03018/strider.lua.cache",
+      "resource": "fca_sniper03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220381,
+      "name": "大冲锋·狙击武器 05001",
+      "source": "weapon/sniper05001/rv1.lua.cache",
+      "resource": "fca_sniper05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220382,
+      "name": "大冲锋·狙击武器 05002",
+      "source": "weapon/sniper05002/rv1.lua.cache",
+      "resource": "fca_sniper05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220383,
+      "name": "大冲锋·狙击武器 05003",
+      "source": "weapon/sniper05003/rv1.lua.cache",
+      "resource": "fca_sniper05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220384,
+      "name": "大冲锋·狙击武器 05004",
+      "source": "weapon/sniper05004/rv1.lua.cache",
+      "resource": "fca_sniper05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220385,
+      "name": "大冲锋·狙击武器 2013",
+      "source": "weapon/sniper2013/rv1.lua.cache",
+      "resource": "fca_sniper2013",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220386,
+      "name": "大冲锋·狙击武器 2014",
+      "source": "weapon/sniper2014/rv1.lua.cache",
+      "resource": "fca_sniper2014",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220387,
+      "name": "大冲锋·狙击武器 20152",
+      "source": "weapon/sniper20152/rv1.lua.cache",
+      "resource": "fca_sniper20152",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220388,
+      "name": "大冲锋·狙击武器 20161",
+      "source": "weapon/sniper20161/rv1.lua.cache",
+      "resource": "fca_sniper20161",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220389,
+      "name": "大冲锋·狙击武器 20172",
+      "source": "weapon/sniper20172/rv1.lua.cache",
+      "resource": "fca_sniper20172",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220390,
+      "name": "大冲锋·狙击武器 rifle",
+      "source": "weapon/sniperrifle/rv1.lua.cache",
+      "resource": "fca_sniperrifle",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220391,
+      "name": "大冲锋·SPAS",
+      "source": "weapon/spas/rv1.lua.cache",
+      "resource": "fca_spas",
+      "subtype": 4,
+      "base": "shotgun_01"
+    },
+    {
+      "sid": 220392,
+      "name": "大冲锋·SPONTOON",
+      "source": "weapon/spontoon/strider.lua.cache",
+      "resource": "fca_spontoon",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220393,
+      "name": "大冲锋·STARTBAR",
+      "source": "weapon/startbar/strider.lua.cache",
+      "resource": "fca_startbar",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220394,
+      "name": "大冲锋·突击武器 01004",
+      "source": "weapon/striker01004/rv1.lua.cache",
+      "resource": "fca_striker01004",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220395,
+      "name": "大冲锋·突击武器 01005",
+      "source": "weapon/striker01005/rv1.lua.cache",
+      "resource": "fca_striker01005",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220396,
+      "name": "大冲锋·突击武器 01005p90",
+      "source": "weapon/striker01005p90/rv1.lua.cache",
+      "resource": "fca_striker01005p90",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220397,
+      "name": "大冲锋·突击武器 01006",
+      "source": "weapon/striker01006/rv1.lua.cache",
+      "resource": "fca_striker01006",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220398,
+      "name": "大冲锋·突击武器 01007",
+      "source": "weapon/striker01007/rv1.lua.cache",
+      "resource": "fca_striker01007",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220399,
+      "name": "大冲锋·突击武器 01008",
+      "source": "weapon/striker01008/rv1.lua.cache",
+      "resource": "fca_striker01008",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220400,
+      "name": "大冲锋·突击武器 01009",
+      "source": "weapon/striker01009/rv1.lua.cache",
+      "resource": "fca_striker01009",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220401,
+      "name": "大冲锋·突击武器 01010",
+      "source": "weapon/striker01010/rv1.lua.cache",
+      "resource": "fca_striker01010",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220402,
+      "name": "大冲锋·突击武器 01011",
+      "source": "weapon/striker01011/rv1.lua.cache",
+      "resource": "fca_striker01011",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220403,
+      "name": "大冲锋·突击武器 01012",
+      "source": "weapon/striker01012/rv1.lua.cache",
+      "resource": "fca_striker01012",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220404,
+      "name": "大冲锋·突击武器 01014",
+      "source": "weapon/striker01014/rv1.lua.cache",
+      "resource": "fca_striker01014",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220405,
+      "name": "大冲锋·突击武器 01014vip",
+      "source": "weapon/striker01014vip/rv1.lua.cache",
+      "resource": "fca_striker01014vip",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220406,
+      "name": "大冲锋·突击武器 01015",
+      "source": "weapon/striker01015/rv1.lua.cache",
+      "resource": "fca_striker01015",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220407,
+      "name": "大冲锋·突击武器 01016",
+      "source": "weapon/striker01016/rv1.lua.cache",
+      "resource": "fca_striker01016",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220408,
+      "name": "大冲锋·突击武器 01017",
+      "source": "weapon/striker01017/rv1.lua.cache",
+      "resource": "fca_striker01017",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220409,
+      "name": "大冲锋·突击武器 01018",
+      "source": "weapon/striker01018/rv1.lua.cache",
+      "resource": "fca_striker01018",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220410,
+      "name": "大冲锋·突击武器 01019",
+      "source": "weapon/striker01019/rv1.lua.cache",
+      "resource": "fca_striker01019",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220411,
+      "name": "大冲锋·突击武器 01020",
+      "source": "weapon/striker01020/rv1.lua.cache",
+      "resource": "fca_striker01020",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220412,
+      "name": "大冲锋·突击武器 01021",
+      "source": "weapon/striker01021/rv1.lua.cache",
+      "resource": "fca_striker01021",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220413,
+      "name": "大冲锋·突击武器 01022",
+      "source": "weapon/striker01022/rv1.lua.cache",
+      "resource": "fca_striker01022",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220414,
+      "name": "大冲锋·突击武器 01023",
+      "source": "weapon/striker01023/rv1.lua.cache",
+      "resource": "fca_striker01023",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220415,
+      "name": "大冲锋·突击武器 01024",
+      "source": "weapon/striker01024/rv1.lua.cache",
+      "resource": "fca_striker01024",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220416,
+      "name": "大冲锋·突击武器 01025",
+      "source": "weapon/striker01025/rv1.lua.cache",
+      "resource": "fca_striker01025",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220417,
+      "name": "大冲锋·突击武器 01028",
+      "source": "weapon/striker01028/rv1.lua.cache",
+      "resource": "fca_striker01028",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220418,
+      "name": "大冲锋·突击武器 01029",
+      "source": "weapon/striker01029/rv1.lua.cache",
+      "resource": "fca_striker01029",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220419,
+      "name": "大冲锋·突击武器 01030",
+      "source": "weapon/striker01030/rv1.lua.cache",
+      "resource": "fca_striker01030",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220420,
+      "name": "大冲锋·突击武器 01033",
+      "source": "weapon/striker01033/rv1.lua.cache",
+      "resource": "fca_striker01033",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220421,
+      "name": "大冲锋·突击武器 01034",
+      "source": "weapon/striker01034/rv1.lua.cache",
+      "resource": "fca_striker01034",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220422,
+      "name": "大冲锋·突击武器 01035",
+      "source": "weapon/striker01035/rv1.lua.cache",
+      "resource": "fca_striker01035",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220423,
+      "name": "大冲锋·突击武器 02003",
+      "source": "weapon/striker02003/rv1.lua.cache",
+      "resource": "fca_striker02003",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220424,
+      "name": "大冲锋·突击武器 02005",
+      "source": "weapon/striker02005/rv1.lua.cache",
+      "resource": "fca_striker02005",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220425,
+      "name": "大冲锋·突击武器 02006",
+      "source": "weapon/striker02006/rv1.lua.cache",
+      "resource": "fca_striker02006",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220426,
+      "name": "大冲锋·突击武器 02007",
+      "source": "weapon/striker02007/rv1.lua.cache",
+      "resource": "fca_striker02007",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220427,
+      "name": "大冲锋·突击武器 02008",
+      "source": "weapon/striker02008/rv1.lua.cache",
+      "resource": "fca_striker02008",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220428,
+      "name": "大冲锋·突击武器 02009",
+      "source": "weapon/striker02009/rv1.lua.cache",
+      "resource": "fca_striker02009",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220429,
+      "name": "大冲锋·突击武器 02010",
+      "source": "weapon/striker02010/rv1.lua.cache",
+      "resource": "fca_striker02010",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220430,
+      "name": "大冲锋·突击武器 02011",
+      "source": "weapon/striker02011/rv1.lua.cache",
+      "resource": "fca_striker02011",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220431,
+      "name": "大冲锋·突击武器 02012",
+      "source": "weapon/striker02012/rv1.lua.cache",
+      "resource": "fca_striker02012",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220432,
+      "name": "大冲锋·突击武器 02013",
+      "source": "weapon/striker02013/rv1.lua.cache",
+      "resource": "fca_striker02013",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220433,
+      "name": "大冲锋·突击武器 02014",
+      "source": "weapon/striker02014/rv1.lua.cache",
+      "resource": "fca_striker02014",
+      "subtype": 5,
+      "base": "pistol_01"
+    },
+    {
+      "sid": 220434,
+      "name": "大冲锋·突击武器 03005",
+      "source": "weapon/striker03005/strider.lua.cache",
+      "resource": "fca_striker03005",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220435,
+      "name": "大冲锋·突击武器 03006",
+      "source": "weapon/striker03006/strider.lua.cache",
+      "resource": "fca_striker03006",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220436,
+      "name": "大冲锋·突击武器 03007",
+      "source": "weapon/striker03007/strider.lua.cache",
+      "resource": "fca_striker03007",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220437,
+      "name": "大冲锋·突击武器 03008",
+      "source": "weapon/striker03008/strider.lua.cache",
+      "resource": "fca_striker03008",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220438,
+      "name": "大冲锋·突击武器 03009",
+      "source": "weapon/striker03009/strider.lua.cache",
+      "resource": "fca_striker03009",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220439,
+      "name": "大冲锋·突击武器 03010",
+      "source": "weapon/striker03010/strider.lua.cache",
+      "resource": "fca_striker03010",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220440,
+      "name": "大冲锋·突击武器 03011",
+      "source": "weapon/striker03011/strider.lua.cache",
+      "resource": "fca_striker03011",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220441,
+      "name": "大冲锋·突击武器 03012",
+      "source": "weapon/striker03012/strider.lua.cache",
+      "resource": "fca_striker03012",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220442,
+      "name": "大冲锋·突击武器 03013",
+      "source": "weapon/striker03013/strider.lua.cache",
+      "resource": "fca_striker03013",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220443,
+      "name": "大冲锋·突击武器 03015",
+      "source": "weapon/striker03015/strider.lua.cache",
+      "resource": "fca_striker03015",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220444,
+      "name": "大冲锋·突击武器 03016",
+      "source": "weapon/striker03016/strider.lua.cache",
+      "resource": "fca_striker03016",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220445,
+      "name": "大冲锋·突击武器 03017",
+      "source": "weapon/striker03017/strider.lua.cache",
+      "resource": "fca_striker03017",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220446,
+      "name": "大冲锋·突击武器 03018",
+      "source": "weapon/striker03018/strider.lua.cache",
+      "resource": "fca_striker03018",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220447,
+      "name": "大冲锋·突击武器 04004",
+      "source": "weapon/striker04004/rv1.lua.cache",
+      "resource": "fca_striker04004",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220448,
+      "name": "大冲锋·突击武器 04005",
+      "source": "weapon/striker04005/rv1.lua.cache",
+      "resource": "fca_striker04005",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220449,
+      "name": "大冲锋·突击武器 04006",
+      "source": "weapon/striker04006/rv1.lua.cache",
+      "resource": "fca_striker04006",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220450,
+      "name": "大冲锋·突击武器 04007",
+      "source": "weapon/striker04007/rv1.lua.cache",
+      "resource": "fca_striker04007",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220451,
+      "name": "大冲锋·突击武器 04008",
+      "source": "weapon/striker04008/rv1.lua.cache",
+      "resource": "fca_striker04008",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220452,
+      "name": "大冲锋·突击武器 04009",
+      "source": "weapon/striker04009/rv1.lua.cache",
+      "resource": "fca_striker04009",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220453,
+      "name": "大冲锋·突击武器 04010",
+      "source": "weapon/striker04010/rv1.lua.cache",
+      "resource": "fca_striker04010",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220454,
+      "name": "大冲锋·突击武器 04011",
+      "source": "weapon/striker04011/rv1.lua.cache",
+      "resource": "fca_striker04011",
+      "subtype": 10,
+      "base": "grenade_01"
+    },
+    {
+      "sid": 220455,
+      "name": "大冲锋·突击武器 05001",
+      "source": "weapon/striker05001/rv1.lua.cache",
+      "resource": "fca_striker05001",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220456,
+      "name": "大冲锋·突击武器 05002",
+      "source": "weapon/striker05002/rv1.lua.cache",
+      "resource": "fca_striker05002",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220457,
+      "name": "大冲锋·突击武器 05003",
+      "source": "weapon/striker05003/rv1.lua.cache",
+      "resource": "fca_striker05003",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220458,
+      "name": "大冲锋·突击武器 05004",
+      "source": "weapon/striker05004/rv1.lua.cache",
+      "resource": "fca_striker05004",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220459,
+      "name": "大冲锋·突击武器 2013",
+      "source": "weapon/striker2013/rv1.lua.cache",
+      "resource": "fca_striker2013",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220460,
+      "name": "大冲锋·突击武器 2014",
+      "source": "weapon/striker2014/rv1.lua.cache",
+      "resource": "fca_striker2014",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220461,
+      "name": "大冲锋·突击武器 20152",
+      "source": "weapon/striker20152/rv1.lua.cache",
+      "resource": "fca_striker20152",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220462,
+      "name": "大冲锋·突击武器 20161",
+      "source": "weapon/striker20161/rv1.lua.cache",
+      "resource": "fca_striker20161",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220463,
+      "name": "大冲锋·突击武器 20172",
+      "source": "weapon/striker20172/rv1.lua.cache",
+      "resource": "fca_striker20172",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220464,
+      "name": "大冲锋·长剑",
+      "source": "weapon/sword/strider.lua.cache",
+      "resource": "fca_sword",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220465,
+      "name": "大冲锋·TASER",
+      "source": "weapon/taser/strider.lua.cache",
+      "resource": "fca_taser",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220466,
+      "name": "大冲锋·TASER02",
+      "source": "weapon/taser02/strider.lua.cache",
+      "resource": "fca_taser02",
+      "subtype": 6,
+      "base": "knives_01"
+    },
+    {
+      "sid": 220467,
+      "name": "大冲锋·X_FATMAN01021_VIP",
+      "source": "weapon/x_fatman01021_vip/rv1.lua.cache",
+      "resource": "fca_x_fatman01021_vip",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220468,
+      "name": "大冲锋·X_FATMAN01021",
+      "source": "weapon/x_fatman01021/rv1.lua.cache",
+      "resource": "fca_x_fatman01021",
+      "subtype": 3,
+      "base": "machinegun_01"
+    },
+    {
+      "sid": 220469,
+      "name": "大冲锋·X_FIREBAT01021",
+      "source": "weapon/x_firebat01021/rv1.lua.cache",
+      "resource": "fca_x_firebat01021",
+      "subtype": 15,
+      "base": "sprayer_01"
+    },
+    {
+      "sid": 220470,
+      "name": "大冲锋·X_MEDIC01021",
+      "source": "weapon/x_medic01021/rv1.lua.cache",
+      "resource": "fca_x_medic01021",
+      "subtype": 1,
+      "base": "smg_01"
+    },
+    {
+      "sid": 220471,
+      "name": "大冲锋·X_ROCKET01021",
+      "source": "weapon/x_rocket01021/rv1.lua.cache",
+      "resource": "fca_x_rocket01021",
+      "subtype": 11,
+      "base": "rpg_01"
+    },
+    {
+      "sid": 220472,
+      "name": "大冲锋·X_SNIPER01021_VIP",
+      "source": "weapon/x_sniper01021_vip/rv1.lua.cache",
+      "resource": "fca_x_sniper01021_vip",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220473,
+      "name": "大冲锋·X_SNIPER01021_VIP2",
+      "source": "weapon/x_sniper01021_vip2/rv1.lua.cache",
+      "resource": "fca_x_sniper01021_vip2",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220474,
+      "name": "大冲锋·X_SNIPER01021_VIP3",
+      "source": "weapon/x_sniper01021_vip3/rv1.lua.cache",
+      "resource": "fca_x_sniper01021_vip3",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220475,
+      "name": "大冲锋·X_SNIPER01021_VIP4",
+      "source": "weapon/x_sniper01021_vip4/rv1.lua.cache",
+      "resource": "fca_x_sniper01021_vip4",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220476,
+      "name": "大冲锋·X_SNIPER01021",
+      "source": "weapon/x_sniper01021/rv1.lua.cache",
+      "resource": "fca_x_sniper01021",
+      "subtype": 2,
+      "base": "sniperrifle_01"
+    },
+    {
+      "sid": 220477,
+      "name": "大冲锋·X_STRIKER01021",
+      "source": "weapon/x_striker01021/rv1.lua.cache",
+      "resource": "fca_x_striker01021",
+      "subtype": 1,
+      "base": "smg_01"
+    }
+  ],
+  "excluded": [
+    {
+      "source": "character/nurse_0/vampire06.lua.cache",
+      "reason": "source costume meshes are absent",
+      "missing": [
+        "vampire06_0/cloth01_lod0.mesh",
+        "vampire06_0/body01_lod0.mesh"
+      ]
+    },
+    {
+      "source": "character/nurse_1/vampire06.lua.cache",
+      "reason": "source costume meshes are absent",
+      "missing": [
+        "vampire06_1/cloth01_lod0.mesh",
+        "vampire06_1/body01_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/aad/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/airgun_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/arrow_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/automachinegun/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/bazookas_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/bonesaw/strider.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "bonesaw/rv1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/boss_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss_bullet02/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss_bullet03/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss01wep01/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss01wep02/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss01wep03/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss02wep01_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss02wep01/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss02wep02_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss02wep02/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss04001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss04001wep/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss04002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss04002wep/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/boss04003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/bossuav04003wep/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/bossuav04004wep/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/broadsword_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/c4/c4.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell01dagger/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell02bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell02close/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell02weapon/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell03close/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell04close/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cell05close/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cellhero_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cellhero01bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cellhero01close/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/cellrmb01dagger/strider.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01001/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01005/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01012/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01014vip/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01015/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01016/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01017/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01018/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01019/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01022/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01023/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01024/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01025/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01028/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01029/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01030/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01033/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer01034/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer02002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer02007_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer02009_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer02011_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer02014_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer04001/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer04002/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer04003/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer05001/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer05002/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer05003/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer05004/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer2013/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer2014/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer20152/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer20161/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/engineer20172/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/fatman05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/fatman05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/fatman05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/fatman05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat01005/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "firebat01005/rv1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/firebat02003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02005_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02006_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02007_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02008_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02009_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02010_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02011_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02012_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02016_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat02017_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat04003/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat04004/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/firebat05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/flashbomb/flash.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "flashbomb/rv1_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/fueltank/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/laser/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "Laser/rv1_n_lod0.mesh",
+        "Laser/bh1_n_lod0.mesh",
+        "Laser/tg1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/m1014/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "m1014/rv1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/machinegun/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "automachinegun/part1.mesh",
+        "automachinegun/part2.mesh"
+      ]
+    },
+    {
+      "source": "weapon/medic01001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01005_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01006_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01008_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01009_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01010_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01011_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01012_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01014_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01014vip_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01015_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01016_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01017_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01018_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01019_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01020_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01022_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01023_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01024_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01025_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01028_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01029_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01030_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01033_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01034_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic01035_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic04001/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic04002/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic04003/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic04004/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic2012_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic2013_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic2014_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic20152_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic20161_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/medic20172_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/proprole01wp_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/proprole01wp/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01005_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01006_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01007_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01008_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01009_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01010_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01011_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01012_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01014_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01014vip_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01015_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01016_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01017_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01018_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01019_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01020_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01022_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01023_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01024_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01025_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01028_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01029_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01030_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01032_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01033_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket01034_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket2012_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket2013_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket2014_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket20152_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket20161_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocket20172_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocketlauncher_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocketlauncher_bulletg/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/rocketlauncherlv2_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper04001/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper04002/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/sniper05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/stick_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/striker01011_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/striker05001_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/striker05002_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/striker05003_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/striker05004_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/syringegun_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/syringegun/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "Syringegun/rv1_n_lod0.mesh",
+        "Syringegun/tg1_n_lod0.mesh",
+        "Syringegun/bh1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/tankweapon_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/tankweapon/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/transfusionbomb/rv1.lua.cache",
+      "reason": "source weapon meshes are absent",
+      "missing": [
+        "transfusionbomb/rv1_n_lod0.mesh"
+      ]
+    },
+    {
+      "source": "weapon/w_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/x_engineer01021/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/x_medic01021_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/x_rocket01021_bullet/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    },
+    {
+      "source": "weapon/yamaha500cc/rv1.lua.cache",
+      "reason": "projectile, NPC, deployable or no animation set"
+    }
+  ],
+  "warnings": [
+    {
+      "source": "weapon/engineer03017/strider.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    },
+    {
+      "source": "weapon/fatman04003/rv1.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    },
+    {
+      "source": "weapon/fatman04004/rv1.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    },
+    {
+      "source": "weapon/milkbottle/rv1.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    },
+    {
+      "source": "weapon/rocket03017/strider.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    },
+    {
+      "source": "weapon/striker03017/strider.lua.cache",
+      "message": "Source has no kill icon; native weapon category icon retained."
+    }
+  ]
+}

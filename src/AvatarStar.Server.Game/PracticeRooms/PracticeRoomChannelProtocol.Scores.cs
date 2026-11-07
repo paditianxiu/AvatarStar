@@ -17,6 +17,21 @@ internal sealed partial class PracticeRoomChannelProtocol
         writer.WriteShort(GameScoreShort(score.VictimDeaths));
     }
 
+    private static void WriteGameKillStreak(PacketWriter writer, PracticeRoomManager.GameKillScore score)
+    {
+        writer.WriteShort(GameScoreShort(score.Streak));
+        writer.WriteShort(GameScoreShort(score.BestStreak));
+    }
+
+    private Task SendPacket189RevengeAsync(byte victimUid)
+    {
+        using var writer = new PacketWriter();
+        // Native 0x5C52C0 -> 0x8352E0(false, victim): local revenge banner.
+        writer.WriteShort(189);
+        writer.WriteByte(victimUid);
+        return SendPacketAsync(writer);
+    }
+
     internal Task SendPacket165TeamScoreAsync(PracticeRoomManager.GameTeamScore score, string trigger = "kill-score")
     {
         using var writer = new PacketWriter();
@@ -74,8 +89,8 @@ internal sealed partial class PracticeRoomChannelProtocol
         writer.WriteShort(GameScoreShort(score.Kills));
         writer.WriteShort(GameScoreShort(score.Deaths));
         writer.WriteInt(0); // Mode score is separate from kills/deaths.
-        writer.WriteShort(0); // Current streak.
-        writer.WriteShort(0); // Maximum streak.
+        writer.WriteShort(GameScoreShort(score.Streak));
+        writer.WriteShort(GameScoreShort(score.BestStreak));
         writer.WriteShort(0); // Assists.
         writer.WriteByte(0); // Initial actor state; only used when entering the match.
         for (var i = 0; i < 162; i++) writer.WriteByte(0); // No ability changes.

@@ -6,7 +6,7 @@ const thai = /[\u0e00-\u0e7f]/u;
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 export const sha256 = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 
-export function decodeCache(bytes) {
+export function decodeCache(bytes, stripHeader = true) {
   let base = 12;
   const dependencies = bytes.readUInt32LE(8);
   for (let i = 0; i < dependencies; i++) {
@@ -14,7 +14,7 @@ export function decodeCache(bytes) {
     base += 4 + size + 8;
   }
   const flag = bytes[base + 12];
-  if (flag === 0x6e) return bytes.subarray(base + 29);
+  if (flag === 0x6e) return bytes.subarray(base + (stripHeader ? 29 : 21));
   if (flag !== 0x6f && flag !== 0x6d) throw new Error(`Unknown cache flag ${flag}`);
   const length = flag === 0x6f ? bytes.readUInt32LE(base + 17) : bytes[base + 14];
   if (length > 100_000_000) throw new Error('Invalid cache output size');
@@ -48,7 +48,7 @@ export function decodeCache(bytes) {
     if (input >= src.length) throw new Error('Truncated cache');
     out[output++] = src[input++]; bits >>>= 1;
   }
-  return out.subarray(8);
+  return stripHeader ? out.subarray(8) : out;
 }
 
 export function luaStrings(bytes) {

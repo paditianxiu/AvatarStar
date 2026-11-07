@@ -24,7 +24,33 @@
 
 packet106 玩家列表的两个战绩 short 改为当前击杀／死亡。packet106 尾部三个 short 是压缩坐标，**不是比分**，不能用来发送阵营计数。
 
-新进入对局的客户端在首次 packet141 后收到 packet112 玩家快照和 packet165 队伍快照；重连角色以新 UID 加入其他客户端时也会收到自己的快照。packet112 的 `0x5BA400` 布局为：UID、击杀 short、死亡 short、模式积分 int、当前连杀 short、最大连杀 short、助攻 short、状态 byte、162 个 buff 来源 UID（全 0 表示没有效果更新），总长 180 字节。本次只实现击杀／死亡，其他积分字段仍为 0。此完整状态消息仅用于角色入场初始化，普通战斗通过 delta 更新战绩，避免覆盖现有技能状态。
+新进入对局的客户端在首次 packet141 后收到 packet112 玩家快照和 packet165 队伍快照；重连角色以新 UID 加入其他客户端时也会收到自己的快照。packet112 的 `0x5BA400` 布局为：UID、击杀 short、死亡 short、模式积分 int、当前连杀 short、最大连杀 short、助攻 short、状态 byte、162 个 buff 来源 UID（全 0 表示没有效果更新），总长 180 字节。击杀、死亡、当前／最大连杀均同步真实计数，模式积分与助攻仍为 0。此完整状态消息仅用于角色入场初始化，普通战斗通过 delta 更新战绩，避免覆盖现有技能状态。
+
+## 连杀、复仇与显示军衔
+
+按用户选择，连续击杀在死亡时清零，累计击杀与本局最高连杀保留。连杀统计共用死亡结算，普通武器、投射物、AI 和技能都适用；新一局同时清空连杀与复仇关系。后续字段顺序如下，全部为 little-endian short，delta flags 仍为 big-endian：
+
+| 消息 | 连杀／最高连杀 bits | 致死帧字段顺序 |
+| --- | --- | --- |
+| 113 | 10／11 | 连杀、最高连杀、击杀、死亡、血量 |
+| 121 | 12／13 | 击杀、死亡、连杀、最高连杀、血量 |
+| 184 | 11／12 | 击杀、死亡、连杀、最高连杀、血量 |
+
+原生 `0x831270 → 0x82C870` 使用攻击者 `+0x5C` 生成连杀图标的 ×N。原生 `0x8309C0` 按次数播放 `kill_single`／`kill_double`／`kill_triple`／`kill_quadruple`，4 杀以上共用第四档。第 5 杀额外向击杀者的大厅连接推送 `0x20 cmd="kill_streak"`，`scripts/lobby/push_cmd.lua` 补丁通过 `gui:PlayAudio("rank_up")` 叠加独立庆祝音；其他玩家与 AI 不触发本地庆祝音。补丁以房间、局代号、总击杀数去重。大厅发送加锁，保证并发 RPC 和战斗推送的加密状态与网络顺序一致。
+
+复仇判定记录上次杀死自己的角色 ID，击杀该角色后消费一次；对手重连更换 UID 不影响判定。只向完成复仇的客户端发送 `short opcode=189, byte victimUid`。原生 `0x5C52C0 → 0x8352E0(false, victim)` 显示复仇图标和提示，不向其他客户端发送此本地通知。
+
+所有真人与 AI 的房间、局内及大厅资料显示统一使用 `PlayerDisplayRank`：段位 3（黄金）、军衔 14（大元帅）。原生角色信息 `0x6EA590` 将 int 段位写入 `+0x1C`、byte 军衔写入 `+0x20`；`0x80E580` 的渲染路径验证段位 1～4、军衔 1～14，并按段位和军衔选择对应图标。角色等级、装备与战斗属性不受影响。
+
+客户端补丁安装与还原：
+
+```powershell
+node client-patches/install-room-ai.mjs prepare C:/Game/AvatarStar/AvatarStar.pde .tmpbuild/room-ai/kill-streak/client-patch kill-feedback
+node client-patches/install-room-ai.mjs apply C:/Game/AvatarStar/AvatarStar.pde .tmpbuild/room-ai/kill-streak/client-patch kill-feedback
+node client-patches/install-room-ai.mjs rollback C:/Game/AvatarStar/AvatarStar.pde .tmpbuild/room-ai/kill-streak/client-patch kill-feedback
+```
+
+安装器保留原脚本字节码，将新脚本编译后写入 PDE 新区块并回读校验；其他资源目录不改动。必须完全退出并重开客户端才能加载补丁。
 
 ## 达到 100 击杀后结束对局
 
@@ -42,8 +68,10 @@ packet110 flags 的 `0x08` 可选 short 实际是 ping。AI 不再把 yaw 填进
 
 ## 验证与范围
 
-全套 637 项检查通过，包括致死武器／投射物的字段位置、AI 蓝队击杀、技能双杀、反击、重复命中尸体、复活保留战绩、重连更换 UID、入场完整快照、离开保留比分、新局清零、计数饱和，以及 15 个 AI 地面移动和单个 AI 停步。HUD 检查覆盖所有客户端收到竞技模式的 packet165、晚加入／入场重试不清零以及新局比分初始化。
+全套 685 项检查通过，包括致死武器／投射物的字段位置、AI 蓝队击杀、技能双杀、反击、重复命中尸体、复活保留战绩、重连更换 UID、入场完整快照、离开保留比分、新局清零、计数饱和，以及 15 个 AI 地面移动和单个 AI 停步。HUD 检查覆盖所有客户端收到竞技模式的 packet165、晚加入／入场重试不清零以及新局比分初始化。
 
 结束比赛检查覆盖红／蓝胜利及旁观者、99 分不结束、第 100 杀锁定结果、最终比分与 packet131 顺序和去重、99:99 并发攻击只有一个赢家、范围技能停止追加击杀、AI 实际攻击触发胜利、结束后拒绝迟到战斗封包和复活、实际等待 8 秒自动返回、同房间与 AI 连续开局，以及旧返回／战斗任务隔离。目标模式达到 100 击杀不会误触发此规则。
 
-构建成功；存在项目原有的 MySqlConnector 2.4.0 依赖审计警告 NU1902，本次未升级依赖。只修改服务端，无 Lua 修改或 PDE 重打包。自动检查验证结算和封包，不能代替实际客户端画面确认。
+连杀检查覆盖 1～6 杀原生字段、死亡清零／保留最高记录、复仇对象与接收者隔离、复仇消费一次、对手 UID 变化、新局清零、真人与 AI 的实际角色信息封包，以及通过真实 Socket 收到加密五杀推送；1～4／6 杀不产生五杀庆祝音推送。
+
+构建成功；存在项目原有的 MySqlConnector 2.4.0 依赖审计警告 NU1902，本次未升级依赖。服务端与 Lua/PDE 均已更新。自动检查验证结算、封包和字节码回读，实际图标与音效仍需客户端确认。

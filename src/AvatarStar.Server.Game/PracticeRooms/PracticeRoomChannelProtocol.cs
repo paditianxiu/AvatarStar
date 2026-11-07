@@ -6014,13 +6014,17 @@ internal sealed partial class PracticeRoomChannelProtocol
             ? (GameRemoteShootObjectDeltaFlags & ~GameObjectDeltaSkipTargetFlag) |
               GameObjectDeltaTargetUidFlag | GameObjectDeltaWeaponVictimHealthFlag
             : GameRemoteShootObjectDeltaFlags;
-        if (damage?.KillScore is not null) flags |= 0x00003000; // 113: kills bit 12, deaths bit 13.
+        if (damage?.KillScore is not null) flags |= 0x00003C00; // 113: streak/best bits 10/11, kills/deaths 12/13.
         WriteGameObjectDeltaFlags(writer, flags);
         writer.WriteByte(shoot.Uid);
         if (damage is { } hit) writer.WriteByte(hit.VictimUid);
         writer.WriteByte(shoot.SlotOneBased);
         writer.WriteByte(playShot ? GameRemoteShootActionByte : (byte)0);
-        if (damage?.KillScore is { } score) WriteGameKillScore(writer, score);
+        if (damage?.KillScore is { } score)
+        {
+            WriteGameKillStreak(writer, score);
+            WriteGameKillScore(writer, score);
+        }
         if (damage is { } health) writer.WriteInt(health.VictimHealth);
         else writer.WriteByte(GameRemoteShootSkipTargetMarker);
         WriteCompressedVector3Raw(writer, shoot.OriginXRaw, shoot.OriginYRaw, shoot.OriginZRaw);
@@ -6768,6 +6772,8 @@ internal sealed partial class PracticeRoomChannelProtocol
     {
         await SendGameDamagePacketAsync(damage);
         if (damage.KillScore is { } score) await SendPacket165TeamScoreAsync(score.Teams);
+        if (damage.KillScore is { Revenge: true } && damage.AttackerUid == _localGameUid)
+            await SendPacket189RevengeAsync(damage.VictimUid);
     }
 
     private Task SendGameDamagePacketAsync(PracticeRoomManager.GameDamageAction damage)
@@ -6786,10 +6792,14 @@ internal sealed partial class PracticeRoomChannelProtocol
 
         writer.WriteShort(GameRemoteDamageHitPacketId);
         WriteGameObjectDeltaFlags(writer, GameRemoteDamageHitObjectDeltaFlags |
-            (damage.KillScore.HasValue ? 0x00000600 : 0)); // 184: kills bit 9, deaths bit 10.
+            (damage.KillScore.HasValue ? 0x00001E00 : 0)); // 184: kills/deaths 9/10, streak/best 11/12.
         writer.WriteByte(damage.AttackerUid);
         writer.WriteByte(damage.VictimUid);
-        if (damage.KillScore is { } score) WriteGameKillScore(writer, score);
+        if (damage.KillScore is { } score)
+        {
+            WriteGameKillScore(writer, score);
+            WriteGameKillStreak(writer, score);
+        }
         writer.WriteInt(damage.VictimHealth);
 
         if (damage.Killed)
@@ -6828,11 +6838,15 @@ internal sealed partial class PracticeRoomChannelProtocol
         WriteGameObjectDeltaFlags(writer, GameObjectDeltaActorUidFlag | GameObjectDeltaTargetUidFlag |
             GameObjectDeltaWeaponSlotFlag | GameObjectDeltaWeaponVictimHealthFlag |
             GameObjectDeltaOriginFlag | GameObjectDeltaVectorFlag |
-            (damage.KillScore.HasValue ? 0x00000C00 : 0)); // 121: kills bit 10, deaths bit 11.
+            (damage.KillScore.HasValue ? 0x00003C00 : 0)); // 121: kills/deaths 10/11, streak/best 12/13.
         writer.WriteByte(damage.AttackerUid);
         writer.WriteByte(damage.VictimUid);
         writer.WriteByte(shot.SlotOneBased);
-        if (damage.KillScore is { } score) WriteGameKillScore(writer, score);
+        if (damage.KillScore is { } score)
+        {
+            WriteGameKillScore(writer, score);
+            WriteGameKillStreak(writer, score);
+        }
         writer.WriteInt(damage.VictimHealth);
         WriteCompressedVector3Raw(writer, shot.OriginXRaw, shot.OriginYRaw, shot.OriginZRaw);
         var vector = ResolveRemoteShootVector(shot);
@@ -7665,8 +7679,8 @@ internal sealed partial class PracticeRoomChannelProtocol
         var characterId = character?.Id ?? member?.CharacterId ?? snapshot.CharacterId;
         var career = (byte)(character?.Occupation ?? member?.Career ?? 0);
         var level = Math.Max(1, character?.Level ?? member?.Level ?? 1);
-        var rankType = member?.RankType is > 0 ? member.RankType : (byte)1;
-        var rankLevel = member?.RankLevel is > 0 ? member.RankLevel : 1;
+        var rankType = PlayerDisplayRank.Gold;
+        var rankLevel = PlayerDisplayRank.HighestMilitaryRank;
         var loadoutItems = playerState?.GetGameLoadoutItems() ?? Array.Empty<PlayerStore.PlayerState.GameLoadoutItem>();
         var equipmentItems = GetSupportedGameEquipmentBlockItems(loadoutItems);
         var independentTrinketItems = playerState?.GetGameIndependentTrinketItems() ??
@@ -9456,6 +9470,12 @@ internal sealed partial class PracticeRoomChannelProtocol
         {
             var bossSpawn = BossCombatCatalog.Spawn;
             return (bossSpawn.X, bossSpawn.Y, bossSpawn.Z, bossSpawn.Yaw);
+        }
+
+        if (LobbyLevelCatalog.IsImported(room.LevelId) && AiNavigation.ForLevel(room.LevelId) is { } navigation)
+        {
+            var point = navigation.Points[navigation.Spawn(0, 0)];
+            return (point.X, point.Y, point.Z, 0f);
         }
 
         // The reference server avoids the origin because some maps place dead-space
